@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useLocalSearchParams } from 'expo-router'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -135,12 +134,7 @@ function Detail({ data }: { data: TrainingDetail }) {
       <Pressable
         style={[styles.cta, action.disabled && styles.ctaDisabled]}
         disabled={action.disabled}
-        onPress={() =>
-          Alert.alert(
-            'Yakında',
-            'Sınav akışı Hafta 4-5\'te eklenecek. Şu an sadece detay görünümü mevcut.',
-          )
-        }
+        onPress={() => router.push(`/exam/${data.assignmentId}/start`)}
       >
         <Text style={styles.ctaText}>{action.label}</Text>
       </Pressable>
