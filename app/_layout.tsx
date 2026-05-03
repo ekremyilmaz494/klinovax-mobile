@@ -62,6 +62,7 @@ export default function RootLayout() {
           <Stack.Screen name="trainings/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="exam/[assignmentId]/start" options={{ headerShown: true }} />
           <Stack.Screen name="exam/[assignmentId]/questions" options={{ headerShown: true, gestureEnabled: false }} />
+          <Stack.Screen name="exam/[assignmentId]/videos" options={{ headerShown: true }} />
           <Stack.Screen name="exam/[assignmentId]/result" options={{ headerShown: true, gestureEnabled: false }} />
         </Stack>
         <StatusBar style="auto" />

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -82,6 +82,7 @@ function QuestionsView({
   phase: ExamPhase
   data: ExamQuestionsResponse
 }) {
+  const qc = useQueryClient()
   const [currentIdx, setCurrentIdx] = useState(0)
   // questionId → selectedOptionId (UUID)
   const initial = useMemo(() => {
@@ -112,11 +113,21 @@ function QuestionsView({
         phase,
       }),
     onSuccess: (res) => {
+      // Phase tamamlandı → liste/dashboard cache'lerini yenile
+      qc.invalidateQueries({ queryKey: ['my-trainings'] })
+      qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
+      qc.invalidateQueries({ queryKey: ['certificates'] })
       if (res.phase === 'pre') {
         Alert.alert(
           'Ön sınav tamamlandı',
-          `Skorunuz: %${res.score}\n\nVideo aşaması yakında mobile'a gelecek.`,
-          [{ text: 'Tamam', onPress: () => router.replace('/(tabs)/trainings') }],
+          `Skorunuz: %${res.score}\n\nŞimdi eğitim videolarını izleyeceksiniz.`,
+          [
+            {
+              text: 'Devam et',
+              onPress: () => router.replace(`/exam/${assignmentId}/videos`),
+            },
+          ],
         )
       } else {
         router.replace(`/exam/${assignmentId}/result`)

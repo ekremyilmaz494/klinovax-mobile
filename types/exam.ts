@@ -70,3 +70,29 @@ export type ExamResultsResponse = {
   /** isPassed=false ise null (anti-cheat) */
   results: ExamResultDetail[] | null
 }
+
+export type ExamVideoItem = {
+  id: string
+  title: string
+  /** Backend `/api/stream/[id]` proxy URL'i (göreceli). MUTLAKA API_BASE_URL ile prefixle. */
+  url: string
+  duration: number
+  contentType: 'video' | 'pdf' | string
+  pageCount?: number | null
+  completed: boolean
+  /** Saniye (video) veya sayfa numarası (pdf). */
+  lastPosition: number
+  documentUrl?: string
+}
+
+export type ExamVideosResponse = {
+  trainingTitle: string
+  attemptStatus: AttemptStatus | 'review' | null
+  videos: ExamVideoItem[]
+}
+
+export type VideoProgressResponse = {
+  progress: true
+  /** Tüm zorunlu (non-pdf) videolar tamamlandığında true; backend status post_exam'a geçer. */
+  allVideosCompleted: boolean
+}

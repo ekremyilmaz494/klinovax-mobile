@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { useEffect } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -16,11 +17,20 @@ const DANGER = '#dc2626'
 
 export default function ExamResultScreen() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
+  const qc = useQueryClient()
 
   const { data, error, isLoading, refetch } = useQuery<ExamResultsResponse, Error>({
     queryKey: ['exam-results', assignmentId],
     queryFn: () => fetchExamResults(assignmentId),
   })
+
+  // Sınav bittikten sonra liste/dashboard/sertifika cache'leri taze olsun
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: ['my-trainings'] })
+    qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
+    qc.invalidateQueries({ queryKey: ['certificates'] })
+    qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
+  }, [qc, assignmentId])
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>

@@ -5,6 +5,8 @@ import type {
   ExamResultsResponse,
   ExamStartResponse,
   ExamSubmitResponse,
+  ExamVideosResponse,
+  VideoProgressResponse,
 } from '@/types/exam'
 
 /**
@@ -58,4 +60,33 @@ export function submitExam(
 
 export function fetchExamResults(assignmentId: string): Promise<ExamResultsResponse> {
   return apiFetch<ExamResultsResponse>(`/api/exam/${assignmentId}/results`)
+}
+
+/**
+ * Aktif denemenin video listesini çek. Backend `id` parametresini hem
+ * assignmentId hem trainingId olarak kabul eder; biz assignmentId yolluyoruz.
+ */
+export function fetchExamVideos(assignmentId: string): Promise<ExamVideosResponse> {
+  return apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`)
+}
+
+/**
+ * Video izleme progress + completion. `completed: true` yollanıp tüm zorunlu
+ * videolar bittiğinde backend attempt status'ünü `post_exam`'a geçirir ve
+ * response'ta `allVideosCompleted: true` döner.
+ */
+export function saveVideoProgress(
+  assignmentId: string,
+  body: {
+    videoId: string
+    watchedTime?: number
+    position?: number
+    completed?: boolean
+    currentPage?: number
+  },
+): Promise<VideoProgressResponse> {
+  return apiFetch<VideoProgressResponse>(`/api/exam/${assignmentId}/videos`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }

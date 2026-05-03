@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ScreenError } from '@/components/ui/ScreenError'
@@ -23,10 +23,15 @@ const MUTED = '#64748b'
  */
 export default function ExamStartScreen() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
+  const qc = useQueryClient()
 
   const startMutation = useMutation({
     mutationFn: () => startExam(assignmentId),
     onSuccess: (data) => {
+      // assignment status assigned → in_progress geçti — liste/dashboard yenilensin
+      qc.invalidateQueries({ queryKey: ['my-trainings'] })
+      qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
       switch (data.status) {
         case 'pre_exam':
           router.replace(`/exam/${assignmentId}/questions?phase=pre`)
@@ -35,11 +40,7 @@ export default function ExamStartScreen() {
           router.replace(`/exam/${assignmentId}/questions?phase=post`)
           break
         case 'watching_videos':
-          Alert.alert(
-            'Video aşaması',
-            'Bu eğitimde sınava devam etmeden önce videoları izlemeniz gerek. Video oynatıcı yakında mobile\'a geliyor; şimdilik web\'den devam edin.',
-            [{ text: 'Tamam', onPress: () => router.back() }],
-          )
+          router.replace(`/exam/${assignmentId}/videos`)
           break
         case 'completed':
           router.replace(`/exam/${assignmentId}/result`)
