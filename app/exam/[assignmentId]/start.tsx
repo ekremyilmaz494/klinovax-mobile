@@ -1,34 +1,27 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
+import { Alert, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ScreenError } from '@/components/ui/ScreenError'
+import { Button, Stack, Text, useTheme } from '@/design-system'
 import { startExam } from '@/lib/api/exam'
-
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
+import { useOnline } from '@/lib/network/use-online'
 
 /**
  * Sınav öncesi kurallar ekranı. "Başla" butonu /exam/[id]/start çağırır
  * ve attempt status'üne göre uygun ekrana yönlendirir.
- *
- * Status → ekran:
- *   pre_exam        → questions?phase=pre
- *   watching_videos → videos (Hafta 5'te eklenecek; şimdilik uyarı)
- *   post_exam       → questions?phase=post
- *   completed       → result
  */
 export default function ExamStartScreen() {
+  const t = useTheme()
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
   const qc = useQueryClient()
+  const { isOnline } = useOnline()
 
   const startMutation = useMutation({
     mutationFn: () => startExam(assignmentId),
+    networkMode: 'online',
     onSuccess: (data) => {
-      // assignment status assigned → in_progress geçti — liste/dashboard yenilensin
       qc.invalidateQueries({ queryKey: ['my-trainings'] })
       qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
       qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
@@ -52,16 +45,29 @@ export default function ExamStartScreen() {
   const error = startMutation.error as Error | null
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <Stack.Screen options={{ title: 'Sınav başlat', headerBackTitle: 'Geri' }} />
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <ExpoStack.Screen options={{ title: 'Sınav başlat', headerBackTitle: 'Geri' }} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Başlamadan önce</Text>
-        <Text style={styles.subtitle}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+          SINAV
+        </Text>
+        <Text variant="title-1">Başlamadan önce</Text>
+        <Text variant="body" tone="tertiary" style={{ marginTop: 8 }}>
           Sınava başlamadan önce aşağıdaki kuralları okuyun.
         </Text>
 
-        <View style={styles.rulesCard}>
+        <View
+          style={{
+            marginTop: 28,
+            backgroundColor: t.colors.surface.primary,
+            borderRadius: t.radius.lg,
+            borderWidth: t.hairline,
+            borderColor: t.colors.border.subtle,
+            padding: 18,
+            gap: 14,
+          }}
+        >
           <Rule n={1} text="Sınava başladığınızda süreniz işlemeye başlar." />
           <Rule n={2} text="Cevaplarınız her seçimde otomatik kaydedilir." />
           <Rule n={3} text="Soruları istediğiniz sırada cevaplayabilirsiniz." />
@@ -69,78 +75,76 @@ export default function ExamStartScreen() {
           <Rule n={5} text="Son sınavda bir sorunun cevabı 30 saniye içinde değiştirilebilir, sonra kilitlenir." />
         </View>
 
-        {error && (
+        {error ? (
           <ScreenError
             message={error.message || 'Sınav başlatılamadı.'}
-            onRetry={() => startMutation.reset()}
+            onRetry={() => startMutation.mutate()}
           />
-        )}
+        ) : null}
 
-        <Pressable
-          style={[styles.cta, startMutation.isPending && styles.ctaDisabled]}
-          disabled={startMutation.isPending}
-          onPress={() => startMutation.mutate()}
-        >
-          <Text style={styles.ctaText}>
-            {startMutation.isPending ? 'Başlatılıyor…' : 'Sınava başla'}
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.cancel} onPress={() => router.back()}>
-          <Text style={styles.cancelText}>Vazgeç</Text>
-        </Pressable>
+        <View style={{ marginTop: 32 }}>
+          <Button
+            label={
+              !isOnline
+                ? 'İnternet bekleniyor…'
+                : startMutation.isPending
+                  ? 'Başlatılıyor…'
+                  : 'Sınava başla'
+            }
+            variant="primary"
+            size="lg"
+            loading={startMutation.isPending}
+            disabled={startMutation.isPending || !isOnline}
+            onPress={() => {
+              if (!isOnline) {
+                Alert.alert(
+                  'İnternet gerekli',
+                  'Sınav başlatmak için internet bağlantısı gerekiyor. Lütfen bağlantınızı kontrol edin.',
+                )
+                return
+              }
+              startMutation.mutate()
+            }}
+            fullWidth
+          />
+          <View style={{ marginTop: 12 }}>
+            <Button label="Vazgeç" variant="ghost" onPress={() => router.back()} fullWidth />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
 }
 
 function Rule({ n, text }: { n: number; text: string }) {
+  const t = useTheme()
   return (
-    <View style={styles.rule}>
-      <View style={styles.ruleDot}>
-        <Text style={styles.ruleN}>{n}</Text>
+    <Stack direction="row" align="flex-start" gap={3}>
+      <View
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 14,
+          backgroundColor: t.colors.accent.clay,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 1,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'Fraunces_700Bold',
+            fontSize: 14,
+            color: t.colors.accent.clayOnAccent,
+            lineHeight: 16,
+          }}
+        >
+          {n}
+        </Text>
       </View>
-      <Text style={styles.ruleText}>{text}</Text>
-    </View>
+      <Text variant="body" style={{ flex: 1 }}>
+        {text}
+      </Text>
+    </Stack>
   )
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  content: { padding: 20, paddingBottom: 48 },
-
-  title: { fontSize: 24, fontWeight: '700', color: FG },
-  subtitle: { fontSize: 14, color: MUTED, marginTop: 6 },
-
-  rulesCard: {
-    marginTop: 24,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-  },
-  rule: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  ruleDot: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: PRIMARY,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 1,
-  },
-  ruleN: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  ruleText: { flex: 1, fontSize: 14, color: FG, lineHeight: 20 },
-
-  cta: {
-    marginTop: 32,
-    backgroundColor: PRIMARY,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  ctaDisabled: { opacity: 0.6 },
-  ctaText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  cancel: { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
-  cancelText: { color: MUTED, fontSize: 15, fontWeight: '500' },
-})

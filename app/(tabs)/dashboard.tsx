@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -15,17 +13,13 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { ScreenError } from '@/components/ui/ScreenError'
 import { StatCard } from '@/components/ui/StatCard'
+import { Card, IconDot, Stack, Text, useTheme } from '@/design-system'
 import { ApiError, apiFetch } from '@/lib/api/client'
 import { useAuthStore } from '@/store/auth'
 import type { DashboardResponse, RecentActivity, UpcomingTraining } from '@/types/staff'
 
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
-const DANGER = '#dc2626'
-
 export default function DashboardScreen() {
+  const t = useTheme()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const [refreshing, setRefreshing] = useState(false)
@@ -45,162 +39,233 @@ export default function DashboardScreen() {
     }
   }, [refetch])
 
-  // 401 → session bitti, otomatik logout (AuthGate login'e atar)
-  if (error instanceof ApiError && error.status === 401) {
-    void logout()
-  }
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) void logout()
+  }, [error, logout])
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} />}
+        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
+        }
       >
-        <Text style={styles.greeting}>Merhaba,</Text>
-        <Text style={styles.email} numberOfLines={1}>{user?.email ?? '—'}</Text>
+        <View style={{ marginBottom: 24 }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+            HOŞ GELDİN
+          </Text>
+          <Text
+            italic
+            style={{
+              fontFamily: 'Fraunces_700Bold',
+              fontSize: 44,
+              lineHeight: 50,
+              letterSpacing: -0.8,
+              color: t.colors.text.primary,
+            }}
+          >
+            Merhaba,
+          </Text>
+          <Text variant="title-3" tone="secondary" numberOfLines={1} style={{ marginTop: 4 }}>
+            {user?.email ?? '—'}
+          </Text>
+        </View>
 
-        {isLoading && !data && (
-          <View style={styles.loaderWrap}>
-            <ActivityIndicator color={PRIMARY} size="large" />
+        {isLoading && !data ? (
+          <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+            <ActivityIndicator color={t.colors.accent.clay} size="large" />
           </View>
-        )}
+        ) : null}
 
-        {error && !data && (
+        {error && !data ? (
           <ScreenError
             message={error.message || 'Dashboard verileri yüklenemedi.'}
             onRetry={() => void refetch()}
           />
-        )}
+        ) : null}
 
-        {data && (
+        {data ? (
           <>
-            {data.urgentTraining && (
-              <View style={styles.urgentCard}>
-                <Text style={styles.urgentTitle}>Acil eğitim</Text>
-                <Text style={styles.urgentBody} numberOfLines={2}>
+            {data.urgentTraining ? (
+              <Card variant="accent" rail style={{ marginBottom: 16 }}>
+                <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 6 }}>
+                  ACİL EĞİTİM
+                </Text>
+                <Text variant="title-3" numberOfLines={2}>
                   {data.urgentTraining.title}
                 </Text>
-                <Text style={styles.urgentDays}>
-                  {data.urgentTraining.daysLeft} gün kaldı
+                <Stack direction="row" align="center" gap={2} style={{ marginTop: 8 }}>
+                  <Badge label={`${data.urgentTraining.daysLeft} gün kaldı`} tone="danger" />
+                </Stack>
+              </Card>
+            ) : null}
+
+            <View
+              style={{
+                backgroundColor: t.colors.surface.primary,
+                borderRadius: t.radius.lg,
+                borderWidth: t.hairline,
+                borderColor: t.colors.border.subtle,
+                overflow: 'hidden',
+              }}
+            >
+              <Stack direction="row">
+                <StatCard label="Atanan" value={data.stats.assigned} tone="info" flat />
+                <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
+                <StatCard label="Devam" value={data.stats.inProgress} tone="warning" flat />
+              </Stack>
+              <View style={{ height: t.hairline, backgroundColor: t.colors.border.subtle }} />
+              <Stack direction="row">
+                <StatCard label="Tamamlanan" value={data.stats.completed} tone="success" flat />
+                <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
+                <StatCard label="Başarısız" value={data.stats.failed} tone="danger" flat />
+              </Stack>
+            </View>
+
+            <View style={{ marginTop: 24 }}>
+              <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 10 }}>
+                <Text variant="title-3">Genel ilerleme</Text>
+                <Text
+                  style={{
+                    fontFamily: 'Fraunces_700Bold',
+                    fontSize: 18,
+                    color: t.colors.accent.clay,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  %{data.stats.overallProgress}
                 </Text>
-              </View>
-            )}
-
-            <View style={styles.statsRow}>
-              <StatCard label="Atanan" value={data.stats.assigned} tone="info" />
-              <StatCard label="Devam" value={data.stats.inProgress} tone="warning" />
-            </View>
-            <View style={styles.statsRow}>
-              <StatCard label="Tamamlanan" value={data.stats.completed} tone="success" />
-              <StatCard label="Başarısız" value={data.stats.failed} tone="danger" />
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.sectionTitle}>Genel ilerleme</Text>
-                <Text style={styles.progressPct}>%{data.stats.overallProgress}</Text>
-              </View>
+              </Stack>
               <ProgressBar value={data.stats.overallProgress} height={10} />
             </View>
 
-            <Text style={styles.sectionTitle}>Yaklaşan eğitimler</Text>
+            <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+              Yaklaşan eğitimler
+            </Text>
             {data.upcomingTrainings.length === 0 ? (
-              <EmptyState title="Yaklaşan eğitim yok" description="Tüm atamalarınız güncel." />
+              <EmptyState
+                icon="calendar"
+                title="Yaklaşan eğitim yok"
+                description="Tüm atamalarınız güncel."
+              />
             ) : (
-              data.upcomingTrainings.map((t) => <UpcomingItem key={t.id} item={t} />)
+              <View style={{ gap: 10 }}>
+                {data.upcomingTrainings.map((it) => (
+                  <UpcomingItem key={it.id} item={it} />
+                ))}
+              </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Son aktivite</Text>
+            <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+              Son aktivite
+            </Text>
             {data.recentActivity.length === 0 ? (
-              <EmptyState title="Henüz aktivite yok" />
+              <EmptyState icon="clock" title="Henüz aktivite yok" />
             ) : (
-              data.recentActivity.map((a, i) => <ActivityItem key={i} item={a} />)
+              <View
+                style={{
+                  backgroundColor: t.colors.surface.primary,
+                  borderRadius: t.radius.lg,
+                  borderWidth: t.hairline,
+                  borderColor: t.colors.border.subtle,
+                  paddingVertical: 4,
+                  paddingLeft: 4,
+                }}
+              >
+                {data.recentActivity.map((a, i) => (
+                  <ActivityItem
+                    key={`${a.time}-${i}`}
+                    item={a}
+                    isFirst={i === 0}
+                    isLast={i === data.recentActivity.length - 1}
+                  />
+                ))}
+              </View>
             )}
           </>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )
 }
 
 function UpcomingItem({ item }: { item: UpcomingTraining }) {
+  const t = useTheme()
   const daysTone = item.daysLeft <= 7 ? 'danger' : item.daysLeft <= 14 ? 'warning' : 'neutral'
   return (
-    <View style={styles.upcomingCard}>
-      <Text style={styles.upcomingTitle} numberOfLines={2}>{item.title}</Text>
-      <View style={styles.upcomingMeta}>
-        <Text style={styles.upcomingDeadline}>
+    <View
+      style={{
+        backgroundColor: t.colors.surface.primary,
+        borderRadius: t.radius.lg,
+        borderWidth: t.hairline,
+        borderColor: t.colors.border.subtle,
+        padding: 16,
+      }}
+    >
+      <Text variant="bodyEmph" numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 8 }}>
+        <Text variant="footnote" tone="tertiary">
           {item.deadline || 'Süresiz'}
         </Text>
-        {item.deadline && (
-          <Badge label={`${item.daysLeft} gün`} tone={daysTone} />
-        )}
-      </View>
-      <View style={{ marginTop: 10 }}>
+        {item.deadline ? <Badge label={`${item.daysLeft} gün`} tone={daysTone} /> : null}
+      </Stack>
+      <View style={{ marginTop: 12 }}>
         <ProgressBar value={item.progress} height={6} />
       </View>
     </View>
   )
 }
 
-function ActivityItem({ item }: { item: RecentActivity }) {
-  const dot = item.type === 'success' ? '✓' : item.type === 'error' ? '✗' : '•'
-  const color = item.type === 'success' ? '#16a34a' : item.type === 'error' ? DANGER : MUTED
+function ActivityItem({
+  item,
+  isFirst,
+  isLast,
+}: {
+  item: RecentActivity
+  isFirst: boolean
+  isLast: boolean
+}) {
+  const t = useTheme()
+  const variant = item.type === 'success' ? 'success' : item.type === 'error' ? 'danger' : 'neutral'
   return (
-    <View style={styles.activityRow}>
-      <Text style={[styles.activityDot, { color }]}>{dot}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.activityText} numberOfLines={2}>{item.text}</Text>
-        <Text style={styles.activityTime}>{item.time}</Text>
+    <View style={{ flexDirection: 'row', paddingVertical: 12, paddingRight: 14, gap: 12 }}>
+      {/* Timeline rail */}
+      <View style={{ width: 22, alignItems: 'center' }}>
+        {!isFirst ? (
+          <View
+            style={{
+              width: t.hairline * 2,
+              height: 12,
+              backgroundColor: t.colors.accent.clayMuted,
+            }}
+          />
+        ) : (
+          <View style={{ height: 12 }} />
+        )}
+        <IconDot variant={variant} size={20} />
+        {!isLast ? (
+          <View
+            style={{
+              width: t.hairline * 2,
+              flex: 1,
+              backgroundColor: t.colors.accent.clayMuted,
+              minHeight: 8,
+            }}
+          />
+        ) : null}
+      </View>
+      <View style={{ flex: 1, paddingTop: 12 }}>
+        <Text variant="body" numberOfLines={2}>
+          {item.text}
+        </Text>
+        <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
+          {item.time}
+        </Text>
       </View>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  content: { padding: 20, paddingBottom: 48, gap: 12 },
-  greeting: { fontSize: 15, color: MUTED },
-  email: { fontSize: 20, fontWeight: '600', color: FG, marginBottom: 16 },
-
-  loaderWrap: { paddingVertical: 32, alignItems: 'center' },
-
-  urgentCard: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 4,
-  },
-  urgentTitle: { fontSize: 12, fontWeight: '700', color: '#991b1b', textTransform: 'uppercase', letterSpacing: 0.5 },
-  urgentBody: { fontSize: 16, color: '#0f172a', fontWeight: '600', marginTop: 6 },
-  urgentDays: { fontSize: 13, color: '#dc2626', marginTop: 4, fontWeight: '500' },
-
-  statsRow: { flexDirection: 'row', gap: 12 },
-
-  section: { marginVertical: 8 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progressPct: { fontSize: 14, fontWeight: '700', color: PRIMARY },
-
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: FG, marginTop: 12, marginBottom: 8 },
-
-  upcomingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  upcomingTitle: { fontSize: 15, fontWeight: '600', color: FG },
-  upcomingMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  upcomingDeadline: { fontSize: 13, color: MUTED },
-
-  activityRow: { flexDirection: 'row', gap: 10, paddingVertical: 8 },
-  activityDot: { fontSize: 16, fontWeight: '700', width: 16, textAlign: 'center' },
-  activityText: { fontSize: 14, color: FG },
-  activityTime: { fontSize: 12, color: MUTED, marginTop: 2 },
-})

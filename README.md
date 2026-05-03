@@ -1,50 +1,55 @@
-# Welcome to your Expo app 👋
+# Klinovax Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo Router tabanlı React Native mobil uygulama. iOS hedefi EAS Build ve App Store Connect üzerinden yayınlanır.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Kurulum
 
 ```bash
-npm run reset-project
+npm install
+npm run start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Lokal backend kullanırken gerçek cihaz için `localhost` yerine Mac'in LAN IP adresini verin:
 
-## Learn more
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.X:3000 npm run start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Preview ve production EAS profilleri varsayılan olarak `https://klinovax.com` API'sine bağlanır.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Kontroller
 
-## Join the community
+```bash
+npm run lint
+npx tsc --noEmit
+npm run doctor
+```
 
-Join our community of developers creating universal apps.
+## iOS Build ve Submit
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Apple Developer kaydı için Apple hesabıyla developer agreement kabul edilir:
+https://developer.apple.com/register/
+
+EAS build:
+
+```bash
+npm run eas:preview:ios
+npm run eas:prod
+```
+
+App Store submit öncesi `eas.json` içindeki production iOS alanlarını gerçek değerlerle doldurun:
+
+- `appleId`
+- `ascAppId`
+- `appleTeamId`
+
+Bu değerler App Store Connect ve Apple Developer hesabından alınır. Placeholder değerlerle `eas submit` üretim gönderimi için hazır kabul edilmez.
+
+## Manuel Test Akışları
+
+- Login/logout ve ortak cihazda eski kullanıcı verisinin görünmediği cache temizliği
+- Face ID / Touch ID açma, kapatma ve uygulama yeniden açılışı
+- Push izin reddi/kabulü, token register ve logout unregister
+- Offline sınav: cevap kaydet, uygulamayı kapat/aç, online olunca replay
+- Access token refresh sonrası dashboard, video ve sertifika PDF akışları
+- PDF eğitim içeriği ve video tamamlama sonrası son sınava geçiş

@@ -1,22 +1,33 @@
 import { useState } from 'react'
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { AuroraBackground } from '@/components/auth/AuroraBackground'
+import { Button, Card, Stack, Text, useTheme } from '@/design-system'
 import { ApiError, loginRequest } from '@/lib/api/client'
+import { isBiometricAvailable } from '@/lib/auth/biometric'
+import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag'
+import { API_BASE_URL } from '@/lib/config'
 import { useAuthStore } from '@/store/auth'
 
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
-const DANGER = '#dc2626'
+const isLocalDevApi = __DEV__ && /(^http:\/\/(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.))/.test(API_BASE_URL)
 
 export default function LoginScreen() {
+  const t = useTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [focused, setFocused] = useState<'email' | 'password' | null>(null)
   const setSession = useAuthStore((s) => s.setSession)
 
   const onSubmit = async () => {
@@ -29,11 +40,9 @@ export default function LoginScreen() {
     try {
       const res = await loginRequest({ email: email.trim(), password, rememberMe })
       if (!res.session) {
-        // MFA / SMS-MFA / şifre değiştirme akışı sunucudan geliyorsa session null kalır.
-        // Hafta 1'de bu akışlar UI olarak yok — kullanıcıyı bilgilendir.
         Alert.alert(
           'Ek doğrulama gerekli',
-          'Hesabınız MFA / SMS doğrulama gerektiriyor. Bu adım mobilde henüz hazır değil — şimdilik web tarafından girip MFA\'yı kapatın.',
+          'Hesabınız ek doğrulama veya şifre değiştirme gerektiriyor. Mobil akış bu adımı henüz desteklemiyor; lütfen kurum yöneticinizden hesabınızın mobil girişe hazırlandığını doğrulamasını isteyin.',
         )
         return
       }
@@ -48,7 +57,8 @@ export default function LoginScreen() {
           organizationSlug: res.organizationSlug,
         },
       })
-      // _layout AuthGate yönlendirecek
+
+      void offerBiometricEnable()
     } catch (err) {
       if (err instanceof ApiError) {
         const msg = (err.body && typeof err.body === 'object' && 'error' in err.body)
@@ -56,97 +66,179 @@ export default function LoginScreen() {
           : 'Giriş başarısız.'
         setError(msg)
       } else {
-        setError('Bağlantı hatası. Tekrar deneyin.')
+        setError(`Beklenmeyen hata. (${err instanceof Error ? err.message : 'unknown'})`)
       }
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.container}>
-          <Text style={styles.brand}>Klinovax</Text>
-          <Text style={styles.subtitle}>Hastane Personel Eğitim</Text>
-
-          <View style={styles.form}>
-            <Text style={styles.label}>E-posta</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="ad@hastane.com"
-              placeholderTextColor={MUTED}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              editable={!loading}
-            />
-
-            <Text style={styles.label}>Şifre</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor={MUTED}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!loading}
-            />
-
-            <View style={styles.row}>
-              <Switch value={rememberMe} onValueChange={setRememberMe} disabled={loading} />
-              <Text style={styles.rowLabel}>Bu cihazda oturumumu açık tut (7 gün)</Text>
-            </View>
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={onSubmit}
-              disabled={loading}
-            >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Giriş Yap</Text>}
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  )
-}
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  flex: { flex: 1 },
-  container: { flex: 1, padding: 24, justifyContent: 'center' },
-  brand: { fontSize: 36, fontWeight: '700', color: PRIMARY, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: MUTED, textAlign: 'center', marginTop: 4, marginBottom: 32 },
-  form: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '500', color: FG, marginTop: 12 },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+  const inputBase = {
+    backgroundColor: t.colors.surface.primary,
+    borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 17,
-    color: FG,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 12 },
-  rowLabel: { flex: 1, fontSize: 14, color: FG },
-  error: { color: DANGER, fontSize: 14, marginTop: 8 },
-  button: {
-    backgroundColor: PRIMARY,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 24,
+    color: t.colors.text.primary,
+    fontFamily: 'InterTight_400Regular',
     minHeight: 52,
-    justifyContent: 'center',
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-})
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <AuroraBackground />
+      <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center' }}>
+          <View style={{ alignItems: 'center', marginBottom: 32 }}>
+            <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+              KLINOVAX
+            </Text>
+            <Text
+              italic
+              align="center"
+              style={{
+                fontFamily: 'Fraunces_700Bold',
+                fontSize: 56,
+                lineHeight: 60,
+                letterSpacing: -1,
+                color: t.colors.accent.clay,
+              }}
+            >
+              Klinovax
+            </Text>
+            <Text variant="subhead" tone="tertiary" align="center" style={{ marginTop: 8 }}>
+              Hastane Personel Eğitim Platformu
+            </Text>
+          </View>
+
+          <View style={{ gap: 4 }}>
+            <Text variant="caption" tone="tertiary" style={{ marginTop: 8 }}>
+              E-POSTA
+            </Text>
+            <TextInput
+              style={[
+                inputBase,
+                {
+                  borderWidth: focused === 'email' ? 2 : StyleSheet.hairlineWidth,
+                  borderColor: focused === 'email' ? t.colors.border.focus : t.colors.border.default,
+                  marginTop: 4,
+                },
+              ]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="ad@hastane.com"
+              placeholderTextColor={t.colors.text.tertiary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="username"
+              editable={!loading}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+            />
+
+            <Text variant="caption" tone="tertiary" style={{ marginTop: 14 }}>
+              ŞİFRE
+            </Text>
+            <TextInput
+              style={[
+                inputBase,
+                {
+                  borderWidth: focused === 'password' ? 2 : StyleSheet.hairlineWidth,
+                  borderColor: focused === 'password' ? t.colors.border.focus : t.colors.border.default,
+                  marginTop: 4,
+                },
+              ]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={t.colors.text.tertiary}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
+              editable={!loading}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+            />
+
+            <Stack direction="row" align="center" gap={3} style={{ marginTop: 16 }}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                disabled={loading}
+                trackColor={{ false: t.colors.border.default, true: t.colors.accent.clay }}
+                thumbColor={t.colors.surface.primary}
+              />
+              <Text variant="callout" tone="secondary" style={{ flex: 1 }}>
+                Bu cihazda oturumumu açık tut (7 gün)
+              </Text>
+            </Stack>
+
+            {error ? (
+              <Text variant="footnote" tone="danger" style={{ marginTop: 12 }}>
+                {error}
+              </Text>
+            ) : null}
+
+            {isLocalDevApi ? (
+              <Card variant="warning" rail padding={3} style={{ marginTop: 16 }}>
+                <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+                  DEV — Backend kontrol
+                </Text>
+                <Text variant="footnote" tone="secondary">
+                  API: {API_BASE_URL}{'\n'}
+                  {"Sunucuya ulaşılamıyorsa: hospital-lms repo'da "}
+                  <Text
+                    variant="footnote"
+                    style={{ fontFamily: 'Menlo', fontWeight: '600', color: t.colors.text.primary }}
+                  >
+                    pnpm dev
+                  </Text>
+                </Text>
+              </Card>
+            ) : null}
+
+            <View style={{ marginTop: 24 }}>
+              <Button
+                label="Giriş Yap"
+                variant="primary"
+                size="lg"
+                onPress={onSubmit}
+                loading={loading}
+                disabled={loading}
+                fullWidth
+              />
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
+  )
+}
+
+async function offerBiometricEnable() {
+  try {
+    const [supported, alreadyOn] = await Promise.all([
+      isBiometricAvailable(),
+      getBiometricEnabled(),
+    ])
+    if (!supported || alreadyOn) return
+    Alert.alert(
+      'Daha hızlı giriş',
+      'Bir dahaki sefere Face ID / Touch ID ile giriş yapmak ister misin? Tercihini sonra Profil ekranından da değiştirebilirsin.',
+      [
+        { text: 'Hayır, teşekkürler', style: 'cancel' },
+        { text: 'Aç', onPress: () => void setBiometricEnabled(true) },
+      ],
+    )
+  } catch {
+    // Sessiz geç
+  }
+}

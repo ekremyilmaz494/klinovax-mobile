@@ -1,11 +1,13 @@
+import { Ionicons } from '@expo/vector-icons'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,16 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ScreenError } from '@/components/ui/ScreenError'
+import { Button, Stack, Text, useTheme } from '@/design-system'
+import { shareCertificatePdf } from '@/lib/api/cert-download'
 import { ApiError, apiFetch } from '@/lib/api/client'
 import { useAuthStore } from '@/store/auth'
 import type { Certificate, CertificatesResponse } from '@/types/staff'
 
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
-
 export default function CertificatesScreen() {
+  const t = useTheme()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const [refreshing, setRefreshing] = useState(false)
@@ -33,9 +33,9 @@ export default function CertificatesScreen() {
     queryFn: () => apiFetch<CertificatesResponse>('/api/staff/certificates?page=1&limit=50'),
   })
 
-  if (error instanceof ApiError && error.status === 401) {
-    void logout()
-  }
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) void logout()
+  }, [error, logout])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -44,9 +44,9 @@ export default function CertificatesScreen() {
 
   if (isLoading && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={styles.safe}>
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator color={PRIMARY} size="large" />
+      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       </SafeAreaView>
     )
@@ -54,7 +54,7 @@ export default function CertificatesScreen() {
 
   if (error && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={styles.safe}>
+      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
         <ScreenError
           message={error.message || 'Sertifikalar yüklenemedi.'}
           onRetry={() => void refetch()}
@@ -66,28 +66,32 @@ export default function CertificatesScreen() {
   const items = data?.certificates ?? []
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <FlatList
         data={items}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <CertificateCard cert={item} />}
-        contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
         ListHeaderComponent={
           items.length > 0 ? (
-            <Text style={styles.header}>
-              {data?.total ?? items.length} sertifika
-            </Text>
+            <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
+              <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+                {data?.total ?? items.length} SERTİFİKA
+              </Text>
+              <Text variant="title-2">Başarımların</Text>
+            </View>
           ) : null
         }
         ListEmptyComponent={
           <EmptyState
+            icon="rosette"
             title="Henüz sertifikan yok"
             description="Bir eğitimi başarıyla tamamladığında sertifikan burada görünecek."
           />
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
         }
       />
     </SafeAreaView>
@@ -95,6 +99,10 @@ export default function CertificatesScreen() {
 }
 
 function CertificateCard({ cert }: { cert: Certificate }) {
+  const t = useTheme()
+  const router = useRouter()
+  const [sharing, setSharing] = useState(false)
+
   const issued = new Date(cert.issuedAt).toLocaleDateString('tr-TR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
@@ -102,81 +110,131 @@ function CertificateCard({ cert }: { cert: Certificate }) {
     ? new Date(cert.expiresAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : null
 
+  const goPreview = () => {
+    router.push({
+      pathname: '/certificates/[id]/preview',
+      params: { id: cert.id, code: cert.certificateCode, title: cert.training.title },
+    })
+  }
+
+  const onShare = async () => {
+    if (sharing) return
+    setSharing(true)
+    try {
+      await shareCertificatePdf({ id: cert.id, certificateCode: cert.certificateCode })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Paylaşılamadı.'
+      Alert.alert('Hata', msg)
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.title} numberOfLines={2}>{cert.training.title}</Text>
-        {cert.isExpired
-          ? <Badge label="Süresi doldu" tone="danger" />
-          : <Badge label={`%${cert.score}`} tone="success" />}
-      </View>
+    <Pressable
+      onPress={goPreview}
+      style={({ pressed }) => [
+        {
+          backgroundColor: t.colors.surface.primary,
+          borderRadius: t.radius.lg,
+          borderWidth: t.hairline,
+          borderColor: t.colors.border.subtle,
+          padding: 22,
+          opacity: pressed ? 0.92 : 1,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${cert.training.title} sertifikasını önizle`}
+    >
       {cert.training.category ? (
-        <Text style={styles.category}>{cert.training.category}</Text>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+          {cert.training.category}
+        </Text>
       ) : null}
 
-      <View style={styles.meta}>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Verildi</Text>
-          <Text style={styles.metaValue}>{issued}</Text>
-        </View>
-        {expires && (
-          <View style={styles.metaCol}>
-            <Text style={styles.metaLabel}>Geçerlilik</Text>
-            <Text style={[styles.metaValue, cert.isExpired && styles.expiredText]}>{expires}</Text>
-          </View>
+      <Stack direction="row" justify="space-between" gap={3} align="flex-start">
+        <Text variant="title-3" numberOfLines={2} style={{ flex: 1 }}>
+          {cert.training.title}
+        </Text>
+        {cert.isExpired ? (
+          <Badge label="Süresi doldu" tone="danger" />
+        ) : (
+          <Badge label={`%${cert.score}`} tone="success" />
         )}
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Deneme</Text>
-          <Text style={styles.metaValue}>#{cert.attemptNumber}</Text>
-        </View>
+      </Stack>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          marginTop: 18,
+          paddingVertical: 14,
+          borderTopWidth: t.hairline,
+          borderBottomWidth: t.hairline,
+          borderColor: t.colors.border.subtle,
+        }}
+      >
+        <MetaCol label="Verildi" value={issued} />
+        <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
+        <MetaCol label="Geçerlilik" value={expires ?? '—'} expired={cert.isExpired} />
+        <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
+        <MetaCol label="Deneme" value={`#${cert.attemptNumber}`} />
       </View>
 
-      <Text style={styles.code} selectable>
-        Sertifika No: {cert.certificateCode}
+      <Text
+        variant="mono"
+        tone="tertiary"
+        selectable
+        style={{ marginTop: 12, fontVariant: ['tabular-nums'] }}
+      >
+        {cert.certificateCode}
       </Text>
 
-      {cert.training.isArchived && (
-        <Text style={styles.archivedNote}>Bu eğitim arşivlenmiş.</Text>
-      )}
+      {cert.training.isArchived ? (
+        <Text variant="caption" tone="tertiary" italic style={{ marginTop: 6 }}>
+          Bu eğitim arşivlenmiş.
+        </Text>
+      ) : null}
+
+      <Stack direction="row" gap={3} style={{ marginTop: 18 }}>
+        <View style={{ flex: 1 }}>
+          <Button
+            label="Önizle"
+            variant="primary"
+            onPress={goPreview}
+            iconLeft={<Ionicons name="eye-outline" size={18} color={t.colors.accent.clayOnAccent} />}
+            fullWidth
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            label={sharing ? '…' : 'Paylaş'}
+            variant="outline"
+            onPress={onShare}
+            disabled={sharing}
+            loading={sharing}
+            iconLeft={
+              !sharing ? (
+                <Ionicons name="share-outline" size={18} color={t.colors.accent.clay} />
+              ) : undefined
+            }
+            fullWidth
+          />
+        </View>
+      </Stack>
+    </Pressable>
+  )
+}
+
+function MetaCol({ label, value, expired }: { label: string; value: string; expired?: boolean }) {
+  return (
+    <View style={{ flex: 1, paddingHorizontal: 8 }}>
+      <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+        {label}
+      </Text>
+      <Text variant="bodyEmph" tone={expired ? 'danger' : 'primary'} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, paddingBottom: 48 },
-  header: { fontSize: 13, color: MUTED, marginBottom: 12, fontWeight: '500' },
-
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' },
-  title: { flex: 1, fontSize: 15, fontWeight: '600', color: FG },
-  category: { fontSize: 12, color: MUTED, marginTop: 4 },
-
-  meta: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  metaCol: { minWidth: 80 },
-  metaLabel: { fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.3 },
-  metaValue: { fontSize: 14, color: FG, fontWeight: '500', marginTop: 2 },
-  expiredText: { color: '#dc2626' },
-
-  code: {
-    marginTop: 12,
-    fontSize: 12,
-    color: MUTED,
-    fontVariant: ['tabular-nums'],
-  },
-  archivedNote: { marginTop: 8, fontSize: 12, color: '#92400e', fontStyle: 'italic' },
-})

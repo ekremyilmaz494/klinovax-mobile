@@ -1,36 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Tag, type TagTone } from '@/design-system'
 
-type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'primary'
-
-const TONE: Record<Tone, { bg: string; fg: string }> = {
-  neutral: { bg: '#f1f5f9', fg: '#475569' },
-  success: { bg: '#dcfce7', fg: '#166534' },
-  warning: { bg: '#fef3c7', fg: '#92400e' },
-  danger:  { bg: '#fee2e2', fg: '#991b1b' },
-  info:    { bg: '#dbeafe', fg: '#1e40af' },
-  primary: { bg: '#d1fae5', fg: '#0d9668' },
-}
+type LegacyTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'primary'
 
 type Props = {
   label: string
-  tone?: Tone
+  tone?: LegacyTone
 }
 
+/**
+ * Legacy Badge alias kept for backward compatibility with existing call sites.
+ * Forwards to the new Tag primitive.
+ */
 export function Badge({ label, tone = 'neutral' }: Props) {
-  const t = TONE[tone]
-  return (
-    <View style={[styles.badge, { backgroundColor: t.bg }]}>
-      <Text style={[styles.text, { color: t.fg }]} numberOfLines={1}>{label}</Text>
-    </View>
-  )
+  const tagTone: TagTone = tone
+  return <Tag label={label} tone={tagTone} />
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  text: { fontSize: 12, fontWeight: '600' },
-})

@@ -1,32 +1,31 @@
 import { useEvent } from 'expo'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  AppState,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { WebView } from 'react-native-webview'
 
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { IconSymbol } from '@/components/ui/icon-symbol'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { ScreenError } from '@/components/ui/ScreenError'
+import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system'
 import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam'
 import { loadSession } from '@/lib/auth/secure-token'
 import { API_BASE_URL } from '@/lib/config'
-import type { ExamVideoItem, ExamVideosResponse } from '@/types/exam'
-
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
+import type { CompleteVideoVars } from '@/lib/query/mutation-defaults'
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys'
+import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam'
 
 /**
  * Video aşaması ekranı — eğitim videoları sırayla izlenir, her tamamlanma
@@ -34,14 +33,28 @@ const MUTED = '#64748b'
  * `allVideosCompleted: true` döner ve attempt status `post_exam`'a geçer.
  */
 export default function VideosScreen() {
+  const t = useTheme()
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
   const queryClient = useQueryClient()
   const [token, setToken] = useState<string | null>(null)
+  const [tokenReady, setTokenReady] = useState(false)
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
 
-  // Bearer token'ı session'dan al — VideoView'e header olarak verilir
+  const reloadToken = async () => {
+    const session = await loadSession()
+    setToken(session?.accessToken ?? null)
+    setTokenReady(true)
+  }
+
   useEffect(() => {
-    void loadSession().then((s) => setToken(s?.accessToken ?? null))
+    void reloadToken()
+  }, [])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void reloadToken()
+    })
+    return () => sub.remove()
   }, [])
 
   const { data, error, isLoading, refetch } = useQuery<ExamVideosResponse, Error>({
@@ -49,7 +62,6 @@ export default function VideosScreen() {
     queryFn: () => fetchExamVideos(assignmentId),
   })
 
-  // İlk açılışta tamamlanmamış ilk video'yu aktif yap
   useEffect(() => {
     if (!data || activeVideoId) return
     const next = data.videos.find((v) => !v.completed && v.contentType !== 'pdf')
@@ -62,12 +74,12 @@ export default function VideosScreen() {
   )
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <Stack.Screen options={{ title: data?.trainingTitle ?? 'Videolar' }} />
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <ExpoStack.Screen options={{ title: data?.trainingTitle ?? 'Videolar' }} />
 
       {isLoading && !data ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator color={PRIMARY} size="large" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       ) : error && !data ? (
         <ScreenError
@@ -75,8 +87,8 @@ export default function VideosScreen() {
           onRetry={() => void refetch()}
         />
       ) : data && data.videos.length === 0 ? (
-        <EmptyState title="Bu eğitime video eklenmemiş" />
-      ) : data && activeVideo ? (
+        <EmptyState icon="play.fill" title="Bu eğitime video eklenmemiş" />
+      ) : data && activeVideo && tokenReady ? (
         <Body
           assignmentId={assignmentId}
           token={token}
@@ -100,6 +112,10 @@ export default function VideosScreen() {
             )
           }}
         />
+      ) : data && activeVideo && !tokenReady ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={t.colors.accent.clay} size="large" />
+        </View>
       ) : null}
     </SafeAreaView>
   )
@@ -120,16 +136,55 @@ function Body({
   onSelectVideo: (id: string) => void
   onAllCompleted: () => void
 }) {
+  const t = useTheme()
   const completedCount = videos.filter((v) => v.completed && v.contentType !== 'pdf').length
   const totalRequired = videos.filter((v) => v.contentType !== 'pdf').length
   const progressPct = totalRequired === 0 ? 0 : Math.round((completedCount / totalRequired) * 100)
 
   const isPdf = activeVideo.contentType === 'pdf'
 
+  const renderVideoItem = ({ item, index }: { item: ExamVideoItem; index: number }) => {
+    const isActive = item.id === activeVideo.id
+    return (
+      <Pressable
+        onPress={() => onSelectVideo(item.id)}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          backgroundColor: t.colors.surface.primary,
+          borderRadius: t.radius.md,
+          padding: 12,
+          marginBottom: 8,
+          borderWidth: isActive ? 2 : t.hairline,
+          borderColor: isActive ? t.colors.accent.clay : t.colors.border.subtle,
+          opacity: pressed ? 0.92 : 1,
+        })}
+      >
+        <IconDot
+          variant={item.completed ? 'success' : 'neutral'}
+          size={28}
+          numeral={item.completed ? undefined : index + 1}
+        />
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyEmph" numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
+            {formatDuration(item.duration)}
+            {item.contentType === 'pdf' ? ' · PDF' : ''}
+          </Text>
+        </View>
+        {isActive ? <Tag label="Şu an" tone="primary" /> : null}
+      </Pressable>
+    )
+  }
+
   return (
     <View style={{ flex: 1 }}>
       {!isPdf ? (
         <VideoBlock
+          key={`${activeVideo.id}:${token ?? 'public'}`}
           assignmentId={assignmentId}
           token={token}
           video={activeVideo}
@@ -138,55 +193,102 @@ function Body({
           }}
         />
       ) : (
-        <View style={[styles.pdfBlock, { margin: 16 }]}>
-          <Text style={styles.pdfTitle}>{activeVideo.title}</Text>
-          <Text style={styles.pdfNote}>
-            PDF içerik mobilde henüz oynatılamıyor. Lütfen web'den izleyin.
-          </Text>
-        </View>
+        <PdfBlock token={token} video={activeVideo} />
       )}
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.progressRow}>
-          <Text style={styles.progressLabel}>İlerleme</Text>
-          <Text style={styles.progressText}>
-            {completedCount}/{totalRequired} video
-          </Text>
-        </View>
-        <ProgressBar value={progressPct} height={8} />
-
-        <Text style={styles.sectionTitle}>Tüm videolar</Text>
-        {videos.map((v, i) => (
-          <Pressable
-            key={v.id}
-            style={[styles.videoItem, v.id === activeVideo.id && styles.videoItemActive]}
-            onPress={() => onSelectVideo(v.id)}
-          >
-            <View style={[styles.videoDot, v.completed && styles.videoDotDone]}>
-              <Text style={[styles.videoDotText, v.completed && styles.videoDotTextDone]}>
-                {v.completed ? '✓' : i + 1}
+      <FlatList
+        data={videos}
+        keyExtractor={(item) => item.id}
+        renderItem={renderVideoItem}
+        contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+        ListHeaderComponent={
+          <>
+            <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 8, marginTop: 4 }}>
+              <Text variant="overline" tone="tertiary">
+                İLERLEME
               </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.videoTitle} numberOfLines={2}>{v.title}</Text>
-              <Text style={styles.videoMeta}>
-                {formatDuration(v.duration)}
-                {v.contentType === 'pdf' ? ' · PDF' : ''}
+              <Text
+                variant="caption"
+                tone="primary"
+                style={{ fontVariant: ['tabular-nums'], fontFamily: 'InterTight_600SemiBold' }}
+              >
+                {completedCount}/{totalRequired} video
               </Text>
+            </Stack>
+            <ProgressBar value={progressPct} height={8} />
+            <Text variant="title-3" style={{ marginTop: 24, marginBottom: 12 }}>
+              Tüm videolar
+            </Text>
+          </>
+        }
+        ListFooterComponent={
+          totalRequired > 0 && completedCount >= totalRequired ? (
+            <View style={{ marginTop: 24 }}>
+              <Button
+                label="Son sınava geç"
+                variant="primary"
+                size="lg"
+                onPress={() => router.replace(`/exam/${assignmentId}/questions?phase=post`)}
+                fullWidth
+              />
             </View>
-            {v.id === activeVideo.id && <Badge label="Şu an" tone="primary" />}
-          </Pressable>
-        ))}
+          ) : null
+        }
+      />
+    </View>
+  )
+}
 
-        {totalRequired > 0 && completedCount >= totalRequired && (
-          <Pressable
-            style={styles.cta}
-            onPress={() => router.replace(`/exam/${assignmentId}/questions?phase=post`)}
+function PdfBlock({ token, video }: { token: string | null; video: ExamVideoItem }) {
+  const t = useTheme()
+  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`
+  const source = token
+    ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } }
+    : { uri: sourceUrl }
+
+  return (
+    <View
+      style={{
+        height: 340,
+        backgroundColor: t.colors.surface.primary,
+        borderRadius: t.radius.lg,
+        borderWidth: t.hairline,
+        borderColor: t.colors.border.subtle,
+        overflow: 'hidden',
+        margin: 16,
+      }}
+    >
+      <Stack
+        direction="row"
+        align="center"
+        gap={3}
+        style={{
+          padding: 12,
+          borderBottomWidth: t.hairline,
+          borderBottomColor: t.colors.border.subtle,
+        }}
+      >
+        <Text variant="bodyEmph" style={{ flex: 1 }} numberOfLines={1}>
+          {video.title}
+        </Text>
+        <Tag label="PDF" tone="warning" outlined />
+      </Stack>
+      <WebView
+        source={source}
+        style={{ flex: 1, backgroundColor: t.colors.surface.primary }}
+        startInLoadingState
+        renderLoading={() => (
+          <View
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Text style={styles.ctaText}>Son sınava geç</Text>
-          </Pressable>
+            <ActivityIndicator color={t.colors.accent.clay} />
+          </View>
         )}
-      </ScrollView>
+      />
     </View>
   )
 }
@@ -202,9 +304,9 @@ function VideoBlock({
   video: ExamVideoItem
   onCompleted: (allDone: boolean) => void
 }) {
+  const t = useTheme()
   const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`
 
-  // expo-video VideoSource: bearer header + start position desteği
   const source = useMemo(
     () =>
       token
@@ -223,21 +325,26 @@ function VideoBlock({
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing })
   const { muted } = useEvent(player, 'mutedChange', { muted: player.muted })
 
-  // Heartbeat — 10 sn'de bir progress kaydet
   const lastSavedRef = useRef(0)
   const heartbeatMutation = useMutation({
     mutationFn: (body: { videoId: string; position: number; watchedTime: number; completed?: boolean }) =>
       saveVideoProgress(assignmentId, body),
+    onError: (err) => {
+      // Heartbeat sessiz fail eder — kullanıcıya alert atma. Production'da bu
+      // log aggregator'a gider; pek çok heartbeat fail olursa investigate.
+      console.warn('[videos] heartbeat save failed', err)
+    },
   })
+  const heartbeatMutationRef = useRef(heartbeatMutation)
+  useEffect(() => { heartbeatMutationRef.current = heartbeatMutation })
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (!player.playing) return
       const now = Math.floor(player.currentTime)
-      // 10sn'de bir veya pozisyon önemli ölçüde değiştiyse kaydet
       if (now - lastSavedRef.current >= 10) {
         lastSavedRef.current = now
-        heartbeatMutation.mutate({
+        heartbeatMutationRef.current.mutate({
           videoId: video.id,
           position: now,
           watchedTime: now,
@@ -245,74 +352,124 @@ function VideoBlock({
       }
     }, 5000)
     return () => clearInterval(interval)
-  }, [player, video.id, heartbeatMutation])
+  }, [player, video.id])
 
-  // Completion detection — currentTime >= duration - 1
   const completedRef = useRef(video.completed)
   useEffect(() => {
     completedRef.current = video.completed
   }, [video.completed])
 
-  const completeMutation = useMutation({
-    mutationFn: () =>
-      saveVideoProgress(assignmentId, {
-        videoId: video.id,
-        position: video.duration,
-        watchedTime: video.duration,
-        completed: true,
-      }),
-    onSuccess: (data) => {
-      completedRef.current = true
-      onCompleted(data.allVideosCompleted)
-    },
+  const completeMutation = useMutation<VideoProgressResponse, Error, CompleteVideoVars>({
+    mutationKey: MUTATION_KEYS.completeVideo,
   })
+  const completeMutationRef = useRef(completeMutation)
+  useEffect(() => { completeMutationRef.current = completeMutation })
 
   useEffect(() => {
     const id = setInterval(() => {
       if (!player.duration) return
       if (
         !completedRef.current &&
-        !completeMutation.isPending &&
+        !completeMutationRef.current.isPending &&
         player.currentTime >= player.duration - 1
       ) {
-        completeMutation.mutate()
+        completeMutationRef.current.mutate(
+          {
+            assignmentId,
+            videoId: video.id,
+            position: video.duration,
+            watchedTime: video.duration,
+          },
+          {
+            onSuccess: (data) => {
+              completedRef.current = true
+              onCompleted(data.allVideosCompleted)
+            },
+            onError: (err) => {
+              // Tamamlama backend'e yazılamadı — kullanıcı yeniden açmazsa
+              // bir sonraki açılışta video baştan oynar. Görünür hata göster.
+              Alert.alert(
+                'Tamamlama kaydedilemedi',
+                err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
+              )
+            },
+          },
+        )
       }
     }, 2000)
     return () => clearInterval(id)
-  }, [player, completeMutation])
+  }, [player, assignmentId, video.id, video.duration, onCompleted])
 
   return (
-    <View style={styles.videoBlock}>
+    <View
+      style={{
+        backgroundColor: '#000',
+        borderRadius: t.radius.lg,
+        overflow: 'hidden',
+        margin: 16,
+        marginBottom: 16,
+      }}
+    >
       <VideoView
-        style={styles.videoView}
+        style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }}
         player={player}
         nativeControls
         allowsFullscreen
         allowsPictureInPicture={false}
         contentFit="contain"
       />
-      <View style={styles.videoFooter}>
+      <Stack
+        direction="row"
+        align="center"
+        gap={3}
+        style={{
+          padding: 14,
+          backgroundColor: t.colors.surface.secondary,
+        }}
+      >
         <View style={{ flex: 1 }}>
-          <Text style={styles.activeTitle} numberOfLines={2}>{video.title}</Text>
-          <Text style={styles.activeMeta}>
-            {isPlaying ? '▶ Oynatılıyor' : '⏸ Duraklatıldı'} · {formatDuration(video.duration)}
+          <Text variant="bodyEmph" numberOfLines={2}>
+            {video.title}
           </Text>
+          <Stack direction="row" align="center" gap={2} style={{ marginTop: 4 }}>
+            <IconSymbol
+              name={isPlaying ? 'play.fill' : 'pause.fill'}
+              size={12}
+              color={t.colors.text.tertiary}
+            />
+            <Text variant="caption" tone="tertiary">
+              {isPlaying ? 'Oynatılıyor' : 'Duraklatıldı'} · {formatDuration(video.duration)}
+            </Text>
+          </Stack>
         </View>
         <Pressable
           onPress={() => {
             const next = !player.muted
             player.muted = next
-            // iOS simulator audio routing bazı sürümlerde muted bayrağını
-            // ignore ediyor → volume'ı da 0'a çek (gerçek cihazda her ikisi
-            // de tutarlı çalışır).
             player.volume = next ? 0 : 1
           }}
-          style={styles.muteBtn}
           hitSlop={8}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: t.colors.surface.primary,
+            borderWidth: t.hairline,
+            borderColor: t.colors.border.subtle,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? 'Sesi aç' : 'Sesi kapat'}
         >
-          <Text style={styles.muteText}>{muted ? '🔇' : '🔊'}</Text>
+          <IconSymbol
+            name={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
+            size={20}
+            color={t.colors.text.primary}
+          />
         </Pressable>
-      </View>
+      </Stack>
     </View>
   )
 }
@@ -322,84 +479,3 @@ function formatDuration(s: number): string {
   const r = s % 60
   return `${m}:${String(r).padStart(2, '0')}`
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, paddingBottom: 48 },
-
-  videoBlock: {
-    backgroundColor: '#000',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  videoView: { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' },
-  videoFooter: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#0f172a', gap: 12 },
-  activeTitle: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  activeMeta: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
-  muteBtn: {
-    width: 44, height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  muteText: { fontSize: 22 },
-
-  pdfBlock: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fcd34d',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  pdfTitle: { fontSize: 15, fontWeight: '600', color: '#92400e' },
-  pdfNote: { fontSize: 13, color: '#78350f', marginTop: 6, lineHeight: 18 },
-
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  progressLabel: { fontSize: 13, color: MUTED, fontWeight: '500' },
-  progressText: { fontSize: 13, color: FG, fontWeight: '600' },
-
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: FG, marginTop: 24, marginBottom: 8 },
-
-  videoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  videoItemActive: { borderColor: PRIMARY },
-  videoDot: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  videoDotDone: { backgroundColor: PRIMARY },
-  videoDotText: { fontSize: 13, fontWeight: '700', color: MUTED },
-  videoDotTextDone: { color: '#fff' },
-  videoTitle: { fontSize: 14, color: FG, fontWeight: '500' },
-  videoMeta: { fontSize: 12, color: MUTED, marginTop: 2 },
-
-  cta: {
-    marginTop: 24,
-    backgroundColor: PRIMARY,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  ctaText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-})

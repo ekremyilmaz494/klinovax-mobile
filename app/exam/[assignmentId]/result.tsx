@@ -1,21 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { useEffect } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
+import { useEffect, useRef } from 'react'
+import { ActivityIndicator, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ScreenError } from '@/components/ui/ScreenError'
+import { Button, Card, Stack, Text, useTheme } from '@/design-system'
 import { fetchExamResults } from '@/lib/api/exam'
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam'
 
-const PRIMARY = '#0d9668'
-const BG = '#f1f5f9'
-const FG = '#0f172a'
-const MUTED = '#64748b'
-const SUCCESS = '#16a34a'
-const DANGER = '#dc2626'
-
 export default function ExamResultScreen() {
+  const t = useTheme()
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
   const qc = useQueryClient()
 
@@ -24,8 +19,10 @@ export default function ExamResultScreen() {
     queryFn: () => fetchExamResults(assignmentId),
   })
 
-  // Sınav bittikten sonra liste/dashboard/sertifika cache'leri taze olsun
+  const invalidatedRef = useRef(false)
   useEffect(() => {
+    if (invalidatedRef.current) return
+    invalidatedRef.current = true
     qc.invalidateQueries({ queryKey: ['my-trainings'] })
     qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
     qc.invalidateQueries({ queryKey: ['certificates'] })
@@ -33,14 +30,14 @@ export default function ExamResultScreen() {
   }, [qc, assignmentId])
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <Stack.Screen
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <ExpoStack.Screen
         options={{ title: 'Sonuç', headerBackVisible: false, headerLeft: () => null }}
       />
 
       {isLoading ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator color={PRIMARY} size="large" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       ) : error || !data ? (
         <ScreenError
@@ -55,125 +52,139 @@ export default function ExamResultScreen() {
 }
 
 function ResultBody({ data }: { data: ExamResultsResponse }) {
+  const t = useTheme()
   const passed = data.isPassed
-  const heroBg = passed ? '#ecfdf5' : '#fef2f2'
-  const heroFg = passed ? SUCCESS : DANGER
-  const heroBorder = passed ? '#a7f3d0' : '#fecaca'
+  const heroBg = passed ? t.colors.status.successBg : t.colors.status.dangerBg
+  const heroBorder = passed ? t.colors.status.success : t.colors.status.danger
+  const heroAccent = passed ? t.colors.status.success : t.colors.status.danger
 
   return (
-    <ScrollView contentContainerStyle={styles.body}>
-      <View style={[styles.hero, { backgroundColor: heroBg, borderColor: heroBorder }]}>
-        <Text style={[styles.heroBadge, { color: heroFg }]}>
-          {passed ? 'BAŞARILI' : 'BAŞARISIZ'}
+    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <View
+        style={{
+          backgroundColor: heroBg,
+          borderRadius: t.radius.xl,
+          borderWidth: 1,
+          borderColor: heroBorder,
+          padding: 36,
+          alignItems: 'center',
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'InterTight_700Bold',
+            fontSize: 12,
+            letterSpacing: 1.6,
+            color: heroAccent,
+            textTransform: 'uppercase',
+          }}
+        >
+          {passed ? 'Başarılı' : 'Başarısız'}
         </Text>
-        <Text style={styles.heroScore}>%{Math.round(data.score)}</Text>
-        <Text style={styles.heroPassing}>Geçme barajı: %{data.passingScore}</Text>
+        <Text
+          italic
+          style={{
+            fontFamily: 'Fraunces_700Bold',
+            fontSize: 80,
+            lineHeight: 88,
+            letterSpacing: -2,
+            color: t.colors.text.primary,
+            marginTop: 8,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          %{Math.round(data.score)}
+        </Text>
+        <Text variant="footnote" tone="tertiary" style={{ marginTop: 8 }}>
+          Geçme barajı:{' '}
+          <Text variant="footnote" style={{ fontFamily: 'InterTight_600SemiBold', color: t.colors.text.primary }}>
+            %{data.passingScore}
+          </Text>
+        </Text>
       </View>
 
-      {!passed && (
-        <View style={styles.failNote}>
-          <Text style={styles.failTitle}>Tekrar dene</Text>
-          <Text style={styles.failText}>
-            Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.
-            Doğru cevaplar başarılı denemeden sonra görünür olacak.
+      {!passed ? (
+        <Card variant="warning" rail style={{ marginTop: 24 }}>
+          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+            TEKRAR DENE
           </Text>
-        </View>
-      )}
+          <Text variant="body" tone="primary">
+            Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor. Doğru cevaplar başarılı denemeden sonra görünür olacak.
+          </Text>
+        </Card>
+      ) : null}
 
-      {passed && data.results && data.results.length > 0 && (
+      {passed && data.results && data.results.length > 0 ? (
         <>
-          <Text style={styles.sectionTitle}>Soru bazlı detay</Text>
-          {data.results.map((r, i) => (
-            <ResultRow key={i} index={i + 1} item={r} />
-          ))}
+          <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+            Soru bazlı detay
+          </Text>
+          <View style={{ gap: 10 }}>
+            {data.results.map((r, i) => (
+              <ResultRow key={r.questionText.substring(0, 40)} index={i + 1} item={r} />
+            ))}
+          </View>
         </>
-      )}
+      ) : null}
 
-      <Pressable
-        style={styles.cta}
-        onPress={() => router.replace('/(tabs)/trainings')}
-      >
-        <Text style={styles.ctaText}>Eğitim listesine dön</Text>
-      </Pressable>
+      <View style={{ marginTop: 32 }}>
+        <Button
+          label="Eğitim listesine dön"
+          variant="primary"
+          size="lg"
+          onPress={() => router.replace('/(tabs)/trainings')}
+          fullWidth
+        />
+      </View>
     </ScrollView>
   )
 }
 
 function ResultRow({ index, item }: { index: number; item: ExamResultDetail }) {
+  const t = useTheme()
   const correct = item.isCorrect
+  const railColor = correct ? t.colors.status.success : t.colors.status.danger
   return (
-    <View style={[styles.resultCard, !correct && styles.resultCardWrong]}>
-      <Text style={styles.resultIndex}>Soru {index}</Text>
-      <Text style={styles.resultQuestion}>{item.questionText}</Text>
+    <View
+      style={{
+        backgroundColor: t.colors.surface.primary,
+        borderRadius: t.radius.lg,
+        borderWidth: t.hairline,
+        borderColor: t.colors.border.subtle,
+        borderLeftWidth: 4,
+        borderLeftColor: railColor,
+        padding: 16,
+      }}
+    >
+      <Text variant="overline" tone="tertiary">
+        Soru {index}
+      </Text>
+      <Text variant="title-3" style={{ marginTop: 6 }}>
+        {item.questionText}
+      </Text>
 
-      <View style={styles.resultLine}>
-        <Text style={styles.resultLabel}>Cevabın:</Text>
-        <Text style={[styles.resultValue, !correct && { color: DANGER }]}>
+      <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: 12 }} wrap>
+        <Text variant="footnote" tone="tertiary" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+          Cevabın:
+        </Text>
+        <Text
+          variant="footnote"
+          style={{ flex: 1, color: correct ? t.colors.text.primary : t.colors.status.danger }}
+        >
           {item.selectedOptionText ?? 'Boş bırakıldı'}
         </Text>
-      </View>
+      </Stack>
 
-      {!correct && item.correctOptionText && (
-        <View style={styles.resultLine}>
-          <Text style={styles.resultLabel}>Doğrusu:</Text>
-          <Text style={[styles.resultValue, { color: SUCCESS }]}>{item.correctOptionText}</Text>
-        </View>
-      )}
+      {!correct && item.correctOptionText ? (
+        <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: 8 }} wrap>
+          <Text variant="footnote" tone="tertiary" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+            Doğrusu:
+          </Text>
+          <Text variant="footnote" style={{ flex: 1, color: t.colors.status.success }}>
+            {item.correctOptionText}
+          </Text>
+        </Stack>
+      ) : null}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 20, paddingBottom: 48 },
-
-  hero: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 28,
-    alignItems: 'center',
-  },
-  heroBadge: { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
-  heroScore: { fontSize: 48, fontWeight: '800', color: FG, marginTop: 8 },
-  heroPassing: { fontSize: 13, color: MUTED, marginTop: 6 },
-
-  failNote: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fcd34d',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 20,
-  },
-  failTitle: { fontSize: 13, fontWeight: '700', color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5 },
-  failText: { fontSize: 14, color: '#78350f', marginTop: 6, lineHeight: 20 },
-
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: FG, marginTop: 24, marginBottom: 12 },
-
-  resultCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: SUCCESS,
-  },
-  resultCardWrong: { borderLeftColor: DANGER },
-  resultIndex: { fontSize: 11, color: MUTED, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  resultQuestion: { fontSize: 14, color: FG, marginTop: 4, fontWeight: '500', lineHeight: 20 },
-  resultLine: { flexDirection: 'row', marginTop: 8, gap: 8, flexWrap: 'wrap' },
-  resultLabel: { fontSize: 13, color: MUTED, fontWeight: '600' },
-  resultValue: { fontSize: 13, color: FG, flex: 1 },
-
-  cta: {
-    marginTop: 32,
-    backgroundColor: PRIMARY,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  ctaText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-})

@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { View } from 'react-native'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { Button, Text, useTheme } from '@/design-system'
 
 type Props = {
   message: string
@@ -6,35 +8,44 @@ type Props = {
 }
 
 export function ScreenError({ message, onRetry }: Props) {
+  const t = useTheme()
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.title}>Bir sorun oluştu</Text>
-      <Text style={styles.msg}>{message}</Text>
-      {onRetry && (
-        <Pressable style={styles.btn} onPress={onRetry}>
-          <Text style={styles.btnText}>Tekrar dene</Text>
-        </Pressable>
-      )}
+    <View
+      style={{
+        paddingVertical: 48,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        gap: 12,
+      }}
+    >
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: t.colors.status.dangerBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 4,
+        }}
+      >
+        <IconSymbol
+          name="exclamationmark.triangle.fill"
+          size={28}
+          color={t.colors.status.danger}
+        />
+      </View>
+      <Text variant="title-3" tone="primary" align="center">
+        Bir sorun oluştu
+      </Text>
+      <Text variant="body" tone="tertiary" align="center" style={{ maxWidth: 320 }}>
+        {message}
+      </Text>
+      {onRetry ? (
+        <View style={{ marginTop: 8 }}>
+          <Button label="Tekrar dene" variant="primary" onPress={onRetry} />
+        </View>
+      ) : null}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  title: { fontSize: 16, fontWeight: '600', color: '#991b1b' },
-  msg: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 6 },
-  btn: {
-    marginTop: 16,
-    backgroundColor: '#0d9668',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  btnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-})
