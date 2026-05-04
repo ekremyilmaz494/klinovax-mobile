@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { ActivityIndicator, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ScreenError } from '@/components/ui/ScreenError'
 import { Button, Card, Stack, Text, useTheme } from '@/design-system'
+import { useAndroidBackGuard } from '@/hooks/use-android-back-guard'
 import { fetchExamResults } from '@/lib/api/exam'
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam'
 
@@ -28,6 +29,13 @@ export default function ExamResultScreen() {
     qc.invalidateQueries({ queryKey: ['certificates'] })
     qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
   }, [qc, assignmentId])
+
+  // Android donanım back: questions ekranına dönmek absürt (sınav bitti),
+  // iOS'taki "Eğitim listesine dön" butonuyla aynı hedefe yönlendir.
+  useAndroidBackGuard(useCallback(() => {
+    router.replace('/(tabs)/trainings')
+    return true
+  }, []))
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>

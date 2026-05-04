@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ScreenError } from '@/components/ui/ScreenError'
 import { Button, Stack, Text, useTheme } from '@/design-system'
+import { useAndroidBackGuard } from '@/hooks/use-android-back-guard'
 import { fetchExamQuestions } from '@/lib/api/exam'
 import { useOnline } from '@/lib/network/use-online'
 import type {
@@ -214,6 +215,18 @@ function QuestionsView({
   }
 
   const timerColor = remaining < 60 ? t.colors.status.danger : t.colors.accent.clay
+
+  // iOS'ta gesture + header back tamamen kapalı. Android donanım back de aynı
+  // şekilde engellenmeli — kullanıcı sınavı yarıda yarıda atlamasın, "Bitir"
+  // butonu tek çıkış yolu.
+  useAndroidBackGuard(useCallback(() => {
+    Alert.alert(
+      'Sınav devam ediyor',
+      'Sınavı tamamlamadan çıkamazsın. Bitirmek için sağ alttaki "Bitir" butonunu kullan.',
+      [{ text: 'Tamam', style: 'default' }],
+    )
+    return true
+  }, []))
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
