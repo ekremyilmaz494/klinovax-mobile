@@ -21,7 +21,12 @@ import { registerForPushNotifications } from '@/lib/notifications/push'
 import { registerMutationDefaults } from '@/lib/query/mutation-defaults'
 import { setupOnlineBridge } from '@/lib/query/online-bridge'
 import { clearPersistedQueryCache, persistOptions } from '@/lib/query/persister'
+import { initSentry, Sentry } from '@/lib/sentry'
 import { useAuthStore } from '@/store/auth'
+
+// Crash reporting'i her şeyden önce başlat — splash gizlenmeden, font yüklenmeden.
+// EXPO_PUBLIC_SENTRY_DSN yoksa veya __DEV__ ise no-op.
+initSentry()
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
@@ -156,7 +161,7 @@ function buildNavigationTheme(mode: 'light' | 'dark'): NavTheme {
   }
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme()
   // QueryClient'ı useState initializer'da yarat: registerMutationDefaults'un
   // Provider mount'undan önce çalışmasını garanti eder. Module-level singleton
@@ -235,3 +240,7 @@ export default function RootLayout() {
     </PersistQueryClientProvider>
   )
 }
+
+// Sentry.wrap: error boundary + touch event breadcrumbs ekler. Init no-op olduysa
+// passthrough HOC olarak çalışır, davranışı değiştirmez.
+export default Sentry.wrap(RootLayout)

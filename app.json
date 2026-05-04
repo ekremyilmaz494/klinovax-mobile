@@ -65,7 +65,8 @@
           "color": "#C2410C",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,
