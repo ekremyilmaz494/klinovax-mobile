@@ -339,6 +339,38 @@ Bunlardan biri kırmızıysa merge butonu kilitli kalır.
 - **Native değişiklik** (yeni dependency, plugin, native config) → ZORUNLU yeni EAS build + store submission. OTA bunu çözmez.
 - Şüpheliyse: yeni build yap. OTA hatası prod'da fark edilirse kullanıcılar bozuk sürümde kalır.
 
+### Henüz aktive edilmemiş (TODO — müşteri öncesi)
+
+> Bu bölüm, ileride aktive edilecek release parçalarının tek listesi. Aktive ettikçe maddeyi sil.
+
+**iOS submit (Apple Developer hesabı gelince):**
+
+`eas.json` → `submit.production.ios` placeholder'ları doldur:
+
+| Placeholder                    | Nereden bulunur                                                          |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `<<KULLANICI_APPLE_ID>>`       | Apple Developer hesabının e-posta adresi                                 |
+| `<<APPLE_TEAM_ID>>`            | https://developer.apple.com/account → Membership → Team ID               |
+| `<<APP_STORE_CONNECT_APP_ID>>` | App Store Connect → My Apps → app → App Information → Apple ID (sayısal) |
+
+Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS interaktif olarak App-Specific Password ister (Apple ID 2FA için); `EXPO_APPLE_APP_SPECIFIC_PASSWORD` ile EAS env'e koy.
+
+**Android submit (Play Console hazır olunca):**
+
+1. Google Play Console → Setup → API access → service account oluştur (Editor + Release Manager rolü).
+2. JSON key indir → repo köküne `google-play-service-account.json` (zaten `.gitignore`'da; ASLA commit'leme).
+3. Test: `eas submit --profile production --platform android`. `eas.json`'da `track: "internal"` set; ilk submit'te internal testing track'e gider, manuel olarak production'a promote edilir.
+
+**Sentry production tracking (DSN + token alınınca):**
+
+Şu an `@sentry/react-native` kurulu ama **production'da no-op** — `EXPO_PUBLIC_SENTRY_DSN` set değil. Aktive etmek için:
+
+1. Sentry → Project Settings → Client Keys (DSN) → DSN kopyala.
+2. EAS env'e ekle: `eas env:create --scope project --environment production --name EXPO_PUBLIC_SENTRY_DSN --value "https://...@sentry.io/..."` (preview için ayrıca ekle).
+3. Sourcemap upload için auth token: Sentry → Settings → Auth Tokens → `project:releases` + `project:write` scope'lu token oluştur.
+4. `eas env:create --scope project --environment production --name SENTRY_AUTH_TOKEN --value "..." --visibility secret`.
+5. Test: Production build → kasten `throw new Error('sentry test')` → Sentry dashboard'da release+dist ile görünmeli.
+
 ---
 
 ## Don'ts (yapma)
@@ -379,6 +411,8 @@ Bunlardan biri kırmızıysa merge butonu kilitli kalır.
 - **Reanimated worklets**: `useAnimatedStyle` callback'inde `'worklet'` direktifi opsiyonel ama ileride Math fonksiyonları için ekle.
 - **`fontVariant: ['tabular-nums']` Fraunces'te**: tnum OpenType feature yok, iOS sessizce yok sayar. Inter Tight'ta çalışır. Timer'da minor jitter normal.
 - **NewArch enabled**: `app.json:newArchEnabled=true` — Fabric/TurboModules. Eski paketleri eklerken uyumluluk kontrol et.
+- **Sentry production'da SESSİZ**: `@sentry/react-native` plugin kurulu ama `EXPO_PUBLIC_SENTRY_DSN` EAS env'de set değil → `Sentry.init({ dsn: undefined })` no-op'a dönüşür, hata fırlatmaz. Prod'da crash event'i gelmiyorsa şaşırma; "Henüz aktive edilmemiş" bölümündeki adımları izle.
+- **iOS submit aktif değil**: `eas.json` → `submit.production.ios` placeholder'lar (`<<KULLANICI_APPLE_ID>>` vb.) hâlâ duruyor. `eas submit --platform ios` çağrılırsa hata verir. Apple Developer hesabı gelince "Henüz aktive edilmemiş" bölümünden doldur.
 
 ---
 
