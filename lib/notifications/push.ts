@@ -1,10 +1,10 @@
-import Constants from 'expo-constants'
-import * as Device from 'expo-device'
-import * as Notifications from 'expo-notifications'
-import * as SecureStore from 'expo-secure-store'
-import { Platform } from 'react-native'
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-import { apiFetch } from '@/lib/api/client'
+import { apiFetch } from '@/lib/api/client';
 
 /**
  * Klinovax push notification servisi.
@@ -20,24 +20,24 @@ import { apiFetch } from '@/lib/api/client'
  * çıkışı bloklamamalı. Loglar dev console'da görünür, kullanıcıya yansımaz.
  */
 
-const PUSH_TOKEN_KEY = 'klinovax.expoPushToken'
+const PUSH_TOKEN_KEY = 'klinovax.expoPushToken';
 
-let cachedToken: string | null = null
+let cachedToken: string | null = null;
 
 async function getStoredPushToken(): Promise<string | null> {
-  if (cachedToken) return cachedToken
-  cachedToken = await SecureStore.getItemAsync(PUSH_TOKEN_KEY)
-  return cachedToken
+  if (cachedToken) return cachedToken;
+  cachedToken = await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
+  return cachedToken;
 }
 
 async function setStoredPushToken(token: string): Promise<void> {
-  cachedToken = token
-  await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token)
+  cachedToken = token;
+  await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
 }
 
 async function clearStoredPushToken(): Promise<void> {
-  cachedToken = null
-  await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY)
+  cachedToken = null;
+  await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
 }
 
 /**
@@ -47,21 +47,21 @@ async function clearStoredPushToken(): Promise<void> {
 export async function registerForPushNotifications(): Promise<string | null> {
   // Simulator/emulator gerçek push almaz — Apple sınırı (iOS), benzer Android
   if (!Device.isDevice) {
-    if (__DEV__) console.warn('[push] Simulator/emulator — token alınamaz')
-    return null
+    if (__DEV__) console.warn('[push] Simulator/emulator — token alınamaz');
+    return null;
   }
 
   try {
     // 1. İzin durumu kontrol et
-    const { status: existing } = await Notifications.getPermissionsAsync()
-    let finalStatus = existing
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
     if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync()
-      finalStatus = status
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      if (__DEV__) console.warn('[push] Bildirim izni verilmedi:', finalStatus)
-      return null
+      if (__DEV__) console.warn('[push] Bildirim izni verilmedi:', finalStatus);
+      return null;
     }
 
     // 2. Android channel'ı yaratmak gerek (iOS otomatik)
@@ -71,24 +71,22 @@ export async function registerForPushNotifications(): Promise<string | null> {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#0d9668',
-      })
+      });
     }
 
     // 3. Expo push token al — projectId zorunlu (EAS Build sonrası app config'ten gelir)
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      Constants.easConfig?.projectId
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) {
-      if (__DEV__) console.warn('[push] EAS projectId yok — `eas init` sonrası push çalışacak')
-      return null
+      if (__DEV__) console.warn('[push] EAS projectId yok — `eas init` sonrası push çalışacak');
+      return null;
     }
 
-    const tokenResp = await Notifications.getExpoPushTokenAsync({ projectId })
-    const token = tokenResp.data
-    if (!token) return null
+    const tokenResp = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenResp.data;
+    if (!token) return null;
 
     // 4. Backend'e kaydet (aynı token'ı tekrar gönderse bile upsert ile zarar yok)
-    if ((await getStoredPushToken()) === token) return token
+    if ((await getStoredPushToken()) === token) return token;
     await apiFetch('/api/staff/push/expo/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -96,12 +94,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
         platform: Platform.OS === 'ios' ? 'ios' : 'android',
         deviceName: Device.deviceName ?? undefined,
       }),
-    })
-    await setStoredPushToken(token)
-    return token
+    });
+    await setStoredPushToken(token);
+    return token;
   } catch (err) {
-    if (__DEV__) console.warn('[push] Register hatası:', err)
-    return null
+    if (__DEV__) console.warn('[push] Register hatası:', err);
+    return null;
   }
 }
 
@@ -110,16 +108,16 @@ export async function registerForPushNotifications(): Promise<string | null> {
  * Local cache'i de temizler.
  */
 export async function unregisterPushToken(): Promise<void> {
-  const token = await getStoredPushToken()
-  if (!token) return
-  await clearStoredPushToken()
+  const token = await getStoredPushToken();
+  if (!token) return;
+  await clearStoredPushToken();
   try {
     await apiFetch('/api/staff/push/expo/unregister', {
       method: 'POST',
       body: JSON.stringify({ token }),
-    })
+    });
   } catch (err) {
-    if (__DEV__) console.warn('[push] Unregister hatası:', err)
+    if (__DEV__) console.warn('[push] Unregister hatası:', err);
     // Sessiz geç — logout flow'unu bloklamamalı
   }
 }

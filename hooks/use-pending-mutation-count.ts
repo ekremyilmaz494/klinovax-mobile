@@ -1,6 +1,6 @@
-import { useMutationState } from '@tanstack/react-query'
+import { useMutationState } from '@tanstack/react-query';
 
-import { isPersistedMutationKey } from '@/lib/query/mutation-keys'
+import { isPersistedMutationKey } from '@/lib/query/mutation-keys';
 
 /**
  * Persist edilen mutation kuyruğunda **paused** (offline'da bekleyen) veya
@@ -14,10 +14,10 @@ export function usePendingMutationCount(): number {
   return useMutationState({
     filters: {
       predicate: (mutation) => {
-        if (!isPersistedMutationKey(mutation.options.mutationKey)) return false
-        return mutation.state.isPaused || mutation.state.status === 'pending'
+        if (!isPersistedMutationKey(mutation.options.mutationKey)) return false;
+        return mutation.state.isPaused || mutation.state.status === 'pending';
       },
     },
     select: () => 1 as const,
-  }).length
+  }).length;
 }

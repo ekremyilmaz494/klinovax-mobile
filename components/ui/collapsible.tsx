@@ -1,12 +1,12 @@
-import { PropsWithChildren, useState } from 'react'
-import { TouchableOpacity, View } from 'react-native'
+import { PropsWithChildren, useState } from 'react';
+import { TouchableOpacity, View } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { Text, useTheme } from '@/design-system'
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Text, useTheme } from '@/design-system';
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const t = useTheme()
+  const [isOpen, setIsOpen] = useState(false);
+  const t = useTheme();
 
   return (
     <View>
@@ -25,5 +25,5 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
       </TouchableOpacity>
       {isOpen && <View style={{ marginTop: 6, marginLeft: 24 }}>{children}</View>}
     </View>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { Button, Text, useTheme } from '@/design-system'
-import { promptBiometric } from '@/lib/auth/biometric'
-import { setLastUnlockAt, shouldPromptBiometric } from '@/lib/auth/biometric-policy'
-import { useAuthStore } from '@/store/auth'
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Button, Text, useTheme } from '@/design-system';
+import { promptBiometric } from '@/lib/auth/biometric';
+import { setLastUnlockAt, shouldPromptBiometric } from '@/lib/auth/biometric-policy';
+import { useAuthStore } from '@/store/auth';
 
 /**
  * Tüm tabs/ekranların ÜZERİNE binen tam ekran kilit. `auth.unlocked === false`
@@ -17,40 +17,40 @@ import { useAuthStore } from '@/store/auth'
  *   Logout dışında uygulamaya giremezler.
  */
 export function BiometricLockScreen() {
-  const t = useTheme()
-  const unlock = useAuthStore((s) => s.unlock)
-  const logout = useAuthStore((s) => s.logout)
-  const [busy, setBusy] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const t = useTheme();
+  const unlock = useAuthStore((s) => s.unlock);
+  const logout = useAuthStore((s) => s.logout);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const tryUnlock = async () => {
-    setBusy(true)
-    setError(null)
+    setBusy(true);
+    setError(null);
     try {
-      const need = await shouldPromptBiometric()
+      const need = await shouldPromptBiometric();
       if (!need) {
-        await setLastUnlockAt(Date.now())
-        unlock()
-        return
+        await setLastUnlockAt(Date.now());
+        unlock();
+        return;
       }
-      const ok = await promptBiometric('Klinovax\'a giriş')
+      const ok = await promptBiometric("Klinovax'a giriş");
       if (ok) {
-        await setLastUnlockAt(Date.now())
-        unlock()
+        await setLastUnlockAt(Date.now());
+        unlock();
       } else {
-        setError('Doğrulama başarısız.')
+        setError('Doğrulama başarısız.');
       }
     } catch {
-      setError('Beklenmeyen hata oluştu.')
+      setError('Beklenmeyen hata oluştu.');
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   useEffect(() => {
-    void tryUnlock()
+    void tryUnlock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   return (
     <SafeAreaView
@@ -59,7 +59,9 @@ export function BiometricLockScreen() {
         { backgroundColor: t.colors.surface.canvas, zIndex: 999 },
       ]}
     >
-      <View style={{ flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <View
+        style={{ flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 8 }}
+      >
         <Text variant="overline" tone="tertiary">
           BİYOMETRİK GİRİŞ
         </Text>
@@ -109,14 +111,9 @@ export function BiometricLockScreen() {
             disabled={busy}
             fullWidth
           />
-          <Button
-            label="Çıkış Yap"
-            variant="ghost"
-            onPress={() => void logout()}
-            fullWidth
-          />
+          <Button label="Çıkış Yap" variant="ghost" onPress={() => void logout()} fullWidth />
         </View>
       </View>
     </SafeAreaView>
-  )
+  );
 }

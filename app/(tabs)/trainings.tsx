@@ -1,27 +1,21 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { ProgressBar } from '@/components/ui/ProgressBar'
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Chip, Stack, Text, useTheme } from '@/design-system'
-import { ApiError, apiFetch } from '@/lib/api/client'
-import { useAuthStore } from '@/store/auth'
-import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff'
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { ApiError, apiFetch } from '@/lib/api/client';
+import { useAuthStore } from '@/store/auth';
+import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff';
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 20;
 
-type FilterValue = AssignmentStatus | 'all'
+type FilterValue = AssignmentStatus | 'all';
 
 const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'all', label: 'Hepsi' },
@@ -29,70 +23,64 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'in_progress', label: 'Devam' },
   { value: 'passed', label: 'Geçti' },
   { value: 'failed', label: 'Kaldı' },
-]
+];
 
 const STATUS_TONE: Record<AssignmentStatus, 'info' | 'warning' | 'success' | 'danger'> = {
   assigned: 'info',
   in_progress: 'warning',
   passed: 'success',
   failed: 'danger',
-}
+};
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
   assigned: 'Atandı',
   in_progress: 'Devam',
   passed: 'Geçti',
   failed: 'Kaldı',
-}
+};
 
 export default function TrainingsScreen() {
-  const t = useTheme()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
-  const [filter, setFilter] = useState<FilterValue>('all')
-  const [refreshing, setRefreshing] = useState(false)
+  const t = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const [filter, setFilter] = useState<FilterValue>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const {
-    data,
-    error,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    refetch,
-  } = useInfiniteQuery<MyTrainingsResponse, Error>({
-    queryKey: ['my-trainings', filter],
-    enabled: !!user,
-    initialPageParam: 1,
-    queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams()
-      params.set('page', String(pageParam))
-      params.set('limit', String(PAGE_SIZE))
-      if (filter !== 'all') params.set('status', filter)
-      return apiFetch<MyTrainingsResponse>(`/api/staff/my-trainings?${params.toString()}`)
-    },
-    getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
-  })
+  const { data, error, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } =
+    useInfiniteQuery<MyTrainingsResponse, Error>({
+      queryKey: ['my-trainings', filter],
+      enabled: !!user,
+      initialPageParam: 1,
+      queryFn: ({ pageParam }) => {
+        const params = new URLSearchParams();
+        params.set('page', String(pageParam));
+        params.set('limit', String(PAGE_SIZE));
+        if (filter !== 'all') params.set('status', filter);
+        return apiFetch<MyTrainingsResponse>(`/api/staff/my-trainings?${params.toString()}`);
+      },
+      getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
+    });
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) void logout()
-  }, [error, logout])
+    if (error instanceof ApiError && error.status === 401) void logout();
+  }, [error, logout]);
 
-  const items = useMemo<MyTrainingItem[]>(
-    () => data?.pages.flatMap((p) => p.data) ?? [],
-    [data],
-  )
+  const items = useMemo<MyTrainingItem[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    try { await refetch() } finally { setRefreshing(false) }
-  }, [refetch])
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage()
+      void fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -143,21 +131,25 @@ export default function TrainingsScreen() {
             ) : null
           }
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={t.colors.accent.clay}
+            />
           }
           onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
         />
       )}
     </SafeAreaView>
-  )
+  );
 }
 
 function TrainingCard({ item }: { item: MyTrainingItem }) {
-  const t = useTheme()
-  const tone = STATUS_TONE[item.status]
-  const label = STATUS_LABEL[item.status]
-  const isOverdue = item.daysLeft === 0 && item.status !== 'passed'
+  const t = useTheme();
+  const tone = STATUS_TONE[item.status];
+  const label = STATUS_LABEL[item.status];
+  const isOverdue = item.daysLeft === 0 && item.status !== 'passed';
 
   return (
     <Pressable
@@ -189,7 +181,10 @@ function TrainingCard({ item }: { item: MyTrainingItem }) {
       <Stack direction="row" justify="space-between" style={{ marginTop: 14 }}>
         <Text variant="footnote" tone="tertiary">
           Son tarih:{' '}
-          <Text variant="footnote" style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold' }}>
+          <Text
+            variant="footnote"
+            style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold' }}
+          >
             {item.deadline || '—'}
           </Text>
         </Text>
@@ -211,12 +206,19 @@ function TrainingCard({ item }: { item: MyTrainingItem }) {
         {typeof item.score === 'number' ? (
           <Text variant="footnote" tone="tertiary">
             Skor:{' '}
-            <Text variant="footnote" style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold', fontVariant: ['tabular-nums'] }}>
+            <Text
+              variant="footnote"
+              style={{
+                color: t.colors.text.primary,
+                fontFamily: 'InterTight_600SemiBold',
+                fontVariant: ['tabular-nums'],
+              }}
+            >
               %{item.score}
             </Text>
           </Text>
         ) : null}
       </Stack>
     </Pressable>
-  )
+  );
 }

@@ -1,50 +1,52 @@
-import { Ionicons } from '@expo/vector-icons'
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { WebView } from 'react-native-webview'
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { Text, useTheme } from '@/design-system'
-import { ApiError } from '@/lib/api/client'
-import { cacheCertificatePdf, shareCertificatePdf } from '@/lib/api/cert-download'
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Text, useTheme } from '@/design-system';
+import { ApiError } from '@/lib/api/client';
+import { cacheCertificatePdf, shareCertificatePdf } from '@/lib/api/cert-download';
 
 export default function CertificatePreviewScreen() {
-  const t = useTheme()
-  const { id, code, title } = useLocalSearchParams<{ id: string; code: string; title?: string }>()
-  const router = useRouter()
-  const [uri, setUri] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [sharing, setSharing] = useState(false)
+  const t = useTheme();
+  const { id, code, title } = useLocalSearchParams<{ id: string; code: string; title?: string }>();
+  const router = useRouter();
+  const [uri, setUri] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     void (async () => {
       try {
-        const fileUri = await cacheCertificatePdf({ id, certificateCode: code })
-        if (!cancelled) setUri(fileUri)
+        const fileUri = await cacheCertificatePdf({ id, certificateCode: code });
+        if (!cancelled) setUri(fileUri);
       } catch (err) {
-        if (cancelled) return
-        const msg = err instanceof ApiError ? err.message : 'PDF yüklenemedi.'
-        setError(msg)
+        if (cancelled) return;
+        const msg = err instanceof ApiError ? err.message : 'PDF yüklenemedi.';
+        setError(msg);
       }
-    })()
-    return () => { cancelled = true }
-  }, [id, code])
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, code]);
 
   const onShare = async () => {
-    if (sharing) return
-    setSharing(true)
+    if (sharing) return;
+    setSharing(true);
     try {
-      await shareCertificatePdf({ id, certificateCode: code })
+      await shareCertificatePdf({ id, certificateCode: code });
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Paylaşılamadı.'
-      Alert.alert('Hata', msg)
+      const msg = err instanceof ApiError ? err.message : 'Paylaşılamadı.';
+      Alert.alert('Hata', msg);
     } finally {
-      setSharing(false)
+      setSharing(false);
     }
-  }
+  };
 
   return (
     <>
@@ -70,9 +72,20 @@ export default function CertificatePreviewScreen() {
           ),
         }}
       />
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         {error ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+              gap: 16,
+            }}
+          >
             <View
               style={{
                 width: 64,
@@ -94,7 +107,15 @@ export default function CertificatePreviewScreen() {
             </Text>
           </View>
         ) : !uri ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+              gap: 16,
+            }}
+          >
             <ActivityIndicator size="large" color={t.colors.accent.clay} />
             <Text variant="subhead" tone="tertiary">
               PDF hazırlanıyor…
@@ -123,7 +144,7 @@ export default function CertificatePreviewScreen() {
         )}
       </SafeAreaView>
     </>
-  )
+  );
 }
 
 function HeaderCircleButton({
@@ -133,13 +154,13 @@ function HeaderCircleButton({
   disabled,
   accessibilityLabel,
 }: {
-  onPress: () => void
-  icon: keyof typeof Ionicons.glyphMap
-  busy?: boolean
-  disabled?: boolean
-  accessibilityLabel: string
+  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+  busy?: boolean;
+  disabled?: boolean;
+  accessibilityLabel: string;
 }) {
-  const t = useTheme()
+  const t = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -167,5 +188,5 @@ function HeaderCircleButton({
         />
       )}
     </Pressable>
-  )
+  );
 }

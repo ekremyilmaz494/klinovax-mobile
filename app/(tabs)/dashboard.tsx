@@ -1,54 +1,53 @@
-import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { ProgressBar } from '@/components/ui/ProgressBar'
-import { ScreenError } from '@/components/ui/ScreenError'
-import { StatCard } from '@/components/ui/StatCard'
-import { Card, IconDot, Stack, Text, useTheme } from '@/design-system'
-import { ApiError, apiFetch } from '@/lib/api/client'
-import { useAuthStore } from '@/store/auth'
-import type { DashboardResponse, RecentActivity, UpcomingTraining } from '@/types/staff'
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ScreenError } from '@/components/ui/ScreenError';
+import { StatCard } from '@/components/ui/StatCard';
+import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { ApiError, apiFetch } from '@/lib/api/client';
+import { useAuthStore } from '@/store/auth';
+import type { DashboardResponse, RecentActivity, UpcomingTraining } from '@/types/staff';
 
 export default function DashboardScreen() {
-  const t = useTheme()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
-  const [refreshing, setRefreshing] = useState(false)
+  const t = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery<DashboardResponse, Error>({
     queryKey: ['staff-dashboard'],
     queryFn: () => apiFetch<DashboardResponse>('/api/staff/dashboard'),
     enabled: !!user,
-  })
+  });
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
+    setRefreshing(true);
     try {
-      await refetch()
+      await refetch();
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
-  }, [refetch])
+  }, [refetch]);
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) void logout()
-  }, [error, logout])
+    if (error instanceof ApiError && error.status === 401) void logout();
+  }, [error, logout]);
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={t.colors.accent.clay}
+          />
         }
       >
         <View style={{ marginBottom: 24 }}>
@@ -124,7 +123,12 @@ export default function DashboardScreen() {
             </View>
 
             <View style={{ marginTop: 24 }}>
-              <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 10 }}>
+              <Stack
+                direction="row"
+                justify="space-between"
+                align="center"
+                style={{ marginBottom: 10 }}
+              >
                 <Text variant="title-3">Genel ilerleme</Text>
                 <Text
                   style={{
@@ -187,12 +191,12 @@ export default function DashboardScreen() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 function UpcomingItem({ item }: { item: UpcomingTraining }) {
-  const t = useTheme()
-  const daysTone = item.daysLeft <= 7 ? 'danger' : item.daysLeft <= 14 ? 'warning' : 'neutral'
+  const t = useTheme();
+  const daysTone = item.daysLeft <= 7 ? 'danger' : item.daysLeft <= 14 ? 'warning' : 'neutral';
   return (
     <View
       style={{
@@ -216,7 +220,7 @@ function UpcomingItem({ item }: { item: UpcomingTraining }) {
         <ProgressBar value={item.progress} height={6} />
       </View>
     </View>
-  )
+  );
 }
 
 function ActivityItem({
@@ -224,12 +228,13 @@ function ActivityItem({
   isFirst,
   isLast,
 }: {
-  item: RecentActivity
-  isFirst: boolean
-  isLast: boolean
+  item: RecentActivity;
+  isFirst: boolean;
+  isLast: boolean;
 }) {
-  const t = useTheme()
-  const variant = item.type === 'success' ? 'success' : item.type === 'error' ? 'danger' : 'neutral'
+  const t = useTheme();
+  const variant =
+    item.type === 'success' ? 'success' : item.type === 'error' ? 'danger' : 'neutral';
   return (
     <View style={{ flexDirection: 'row', paddingVertical: 12, paddingRight: 14, gap: 12 }}>
       {/* Timeline rail */}
@@ -266,6 +271,5 @@ function ActivityItem({
         </Text>
       </View>
     </View>
-  )
+  );
 }
-

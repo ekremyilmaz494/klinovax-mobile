@@ -1,18 +1,18 @@
-import { View } from 'react-native'
-import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol'
-import { useTheme } from '../theme'
-import { Text } from './Text'
+import { View } from 'react-native';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { useTheme } from '../theme';
+import { Text } from './Text';
 
-export type IconDotVariant = 'success' | 'danger' | 'warning' | 'neutral' | 'accent'
+export type IconDotVariant = 'success' | 'danger' | 'warning' | 'neutral' | 'accent';
 
 export interface IconDotProps {
-  variant?: IconDotVariant
-  size?: number
+  variant?: IconDotVariant;
+  size?: number;
   /** Optional override icon. Defaults: success=checkmark, danger=xmark, neutral=circle.fill */
-  icon?: IconSymbolName
+  icon?: IconSymbolName;
   /** Render a number instead of an icon (for step lists) */
-  numeral?: number
-  filled?: boolean
+  numeral?: number;
+  filled?: boolean;
 }
 
 export function IconDot({
@@ -22,19 +22,17 @@ export function IconDot({
   numeral,
   filled = true,
 }: IconDotProps) {
-  const t = useTheme()
+  const t = useTheme();
   const map = {
     success: { fg: t.colors.status.success, bg: t.colors.status.successBg },
-    danger:  { fg: t.colors.status.danger,  bg: t.colors.status.dangerBg },
+    danger: { fg: t.colors.status.danger, bg: t.colors.status.dangerBg },
     warning: { fg: t.colors.status.warning, bg: t.colors.status.warningBg },
-    accent:  { fg: t.colors.accent.clay,    bg: t.colors.accent.clayMuted },
-    neutral: { fg: t.colors.text.tertiary,  bg: t.colors.surface.secondary },
-  }[variant]
+    accent: { fg: t.colors.accent.clay, bg: t.colors.accent.clayMuted },
+    neutral: { fg: t.colors.text.tertiary, bg: t.colors.surface.secondary },
+  }[variant];
   const defaultIcon: IconSymbolName =
-    variant === 'success' ? 'checkmark' :
-    variant === 'danger' ? 'xmark' :
-    'circle.fill'
-  const showIcon = icon ?? defaultIcon
+    variant === 'success' ? 'checkmark' : variant === 'danger' ? 'xmark' : 'circle.fill';
+  const showIcon = icon ?? defaultIcon;
   return (
     <View
       style={{
@@ -63,5 +61,5 @@ export function IconDot({
         <IconSymbol name={showIcon} size={Math.round(size * 0.55)} color={map.fg} />
       )}
     </View>
-  )
+  );
 }

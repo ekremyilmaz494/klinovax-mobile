@@ -1,4 +1,4 @@
-import Constants from 'expo-constants'
+import Constants from 'expo-constants';
 
 /**
  * API base URL — production fallback `https://klinovax.com`.
@@ -20,4 +20,4 @@ import Constants from 'expo-constants'
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
-  'https://klinovax.com'
+  'https://klinovax.com';

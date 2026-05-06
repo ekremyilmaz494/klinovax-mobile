@@ -1,46 +1,40 @@
-import { useFocusEffect, useNavigation } from 'expo-router'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NotificationCard } from '@/components/notifications/NotificationCard'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Chip, Stack, Text, useTheme } from '@/design-system'
-import { useMarkAllAsRead, useNotifications } from '@/hooks/use-notifications'
-import { ApiError } from '@/lib/api/client'
-import { useAuthStore } from '@/store/auth'
-import type { NotificationItem } from '@/types/notifications'
+import { NotificationCard } from '@/components/notifications/NotificationCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { useMarkAllAsRead, useNotifications } from '@/hooks/use-notifications';
+import { ApiError } from '@/lib/api/client';
+import { useAuthStore } from '@/store/auth';
+import type { NotificationItem } from '@/types/notifications';
 
-type Filter = 'all' | 'unread'
+type Filter = 'all' | 'unread';
 
 export default function NotificationsScreen() {
-  const t = useTheme()
-  const logout = useAuthStore((s) => s.logout)
-  const navigation = useNavigation()
-  const [filter, setFilter] = useState<Filter>('all')
-  const [refreshing, setRefreshing] = useState(false)
+  const t = useTheme();
+  const logout = useAuthStore((s) => s.logout);
+  const navigation = useNavigation();
+  const [filter, setFilter] = useState<Filter>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data, error, isLoading, refetch } = useNotifications()
-  const { mutate: markAllMutate, isPending: markAllPending } = useMarkAllAsRead()
+  const { data, error, isLoading, refetch } = useNotifications();
+  const { mutate: markAllMutate, isPending: markAllPending } = useMarkAllAsRead();
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) void logout()
-  }, [error, logout])
+    if (error instanceof ApiError && error.status === 401) void logout();
+  }, [error, logout]);
 
   useFocusEffect(
     useCallback(() => {
-      void refetch()
+      void refetch();
     }, [refetch]),
-  )
+  );
 
-  const unreadCount = data?.unreadCount ?? 0
+  const unreadCount = data?.unreadCount ?? 0;
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () =>
@@ -70,42 +64,48 @@ export default function NotificationsScreen() {
             </Text>
           </Pressable>
         ) : null,
-    })
-  }, [navigation, unreadCount, markAllMutate, markAllPending, t])
+    });
+  }, [navigation, unreadCount, markAllMutate, markAllPending, t]);
 
   const items = useMemo<NotificationItem[]>(() => {
-    const all = data?.notifications ?? []
-    return filter === 'unread' ? all.filter((n) => !n.isRead) : all
-  }, [data, filter])
+    const all = data?.notifications ?? [];
+    return filter === 'unread' ? all.filter((n) => !n.isRead) : all;
+  }, [data, filter]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
+    setRefreshing(true);
     try {
-      await refetch()
+      await refetch();
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
-  }, [refetch])
+  }, [refetch]);
 
   if (isLoading && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   if (error && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <ScreenError
           message={error.message || 'Bildirimler yüklenemedi.'}
           onRetry={() => void refetch()}
         />
       </SafeAreaView>
-    )
+    );
   }
 
   return (
@@ -149,9 +149,13 @@ export default function NotificationsScreen() {
           )
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={t.colors.accent.clay}
+          />
         }
       />
     </SafeAreaView>
-  )
+  );
 }

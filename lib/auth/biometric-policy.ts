@@ -1,24 +1,24 @@
-import * as SecureStore from 'expo-secure-store'
+import * as SecureStore from 'expo-secure-store';
 
-const LAST_UNLOCK_KEY = 'klinovax.lastUnlockAt'
+const LAST_UNLOCK_KEY = 'klinovax.lastUnlockAt';
 
 /**
  * Son başarılı biometric doğrulamasının zaman damgası — eğer
  * "X dakika geçti, tekrar sor" stratejisi seçilirse kullanılır.
  */
 export async function getLastUnlockAt(): Promise<number | null> {
-  const v = await SecureStore.getItemAsync(LAST_UNLOCK_KEY)
-  if (!v) return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
+  const v = await SecureStore.getItemAsync(LAST_UNLOCK_KEY);
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 export async function setLastUnlockAt(ms: number): Promise<void> {
-  await SecureStore.setItemAsync(LAST_UNLOCK_KEY, String(ms))
+  await SecureStore.setItemAsync(LAST_UNLOCK_KEY, String(ms));
 }
 
 export async function clearLastUnlockAt(): Promise<void> {
-  await SecureStore.deleteItemAsync(LAST_UNLOCK_KEY)
+  await SecureStore.deleteItemAsync(LAST_UNLOCK_KEY);
 }
 
 /**
@@ -31,7 +31,7 @@ export async function clearLastUnlockAt(): Promise<void> {
  * trade-off, çünkü cihaz lock screen'i zaten Face ID kapısının arkasında.
  */
 export async function shouldPromptBiometric(): Promise<boolean> {
-  const last = await getLastUnlockAt()
-  if (!last) return true
-  return new Date(last).toDateString() !== new Date().toDateString()
+  const last = await getLastUnlockAt();
+  if (!last) return true;
+  return new Date(last).toDateString() !== new Date().toDateString();
 }

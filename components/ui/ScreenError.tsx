@@ -1,14 +1,14 @@
-import { View } from 'react-native'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { Button, Text, useTheme } from '@/design-system'
+import { View } from 'react-native';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Button, Text, useTheme } from '@/design-system';
 
 type Props = {
-  message: string
-  onRetry?: () => void
-}
+  message: string;
+  onRetry?: () => void;
+};
 
 export function ScreenError({ message, onRetry }: Props) {
-  const t = useTheme()
+  const t = useTheme();
   return (
     <View
       style={{
@@ -29,11 +29,7 @@ export function ScreenError({ message, onRetry }: Props) {
           marginBottom: 4,
         }}
       >
-        <IconSymbol
-          name="exclamationmark.triangle.fill"
-          size={28}
-          color={t.colors.status.danger}
-        />
+        <IconSymbol name="exclamationmark.triangle.fill" size={28} color={t.colors.status.danger} />
       </View>
       <Text variant="title-3" tone="primary" align="center">
         Bir sorun oluştu
@@ -47,5 +43,5 @@ export function ScreenError({ message, onRetry }: Props) {
         </View>
       ) : null}
     </View>
-  )
+  );
 }

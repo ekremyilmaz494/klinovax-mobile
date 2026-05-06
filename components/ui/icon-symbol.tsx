@@ -1,12 +1,12 @@
 // Fallback for using MaterialIcons on Android and web.
 
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols'
-import { ComponentProps } from 'react'
-import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native'
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { ComponentProps } from 'react';
+import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>
-export type IconSymbolName = keyof typeof MAPPING
+type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
+export type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * SF Symbols → Material Icons mapping.
@@ -45,11 +45,11 @@ const MAPPING = {
   'exclamationmark.triangle.fill': 'warning',
   tray: 'inbox',
   clock: 'schedule',
-  'calendar': 'calendar-today',
+  calendar: 'calendar-today',
   'graduationcap.fill': 'school',
   'star.fill': 'star',
   gear: 'settings',
-} as IconMapping
+} as IconMapping;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -62,11 +62,11 @@ export function IconSymbol({
   color,
   style,
 }: {
-  name: IconSymbolName
-  size?: number
-  color: string | OpaqueColorValue
-  style?: StyleProp<TextStyle>
-  weight?: SymbolWeight
+  name: IconSymbolName;
+  size?: number;
+  color: string | OpaqueColorValue;
+  style?: StyleProp<TextStyle>;
+  weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />
+  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

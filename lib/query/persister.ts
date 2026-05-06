@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
-import { type PersistQueryClientOptions } from '@tanstack/react-query-persist-client'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { type PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
 
-import { isPersistedMutationKey } from './mutation-keys'
+import { isPersistedMutationKey } from './mutation-keys';
 
 /**
  * React Query offline persistence — `QueryClient` cache'i AsyncStorage'a serialize
@@ -25,10 +25,10 @@ const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
   key: 'klinovax-query-cache-v1',
   throttleTime: 1_000, // 1sn'lik debounce — write storm önler
-})
+});
 
 export async function clearPersistedQueryCache(): Promise<void> {
-  await persister.removeClient?.()
+  await persister.removeClient?.();
 }
 
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
@@ -44,8 +44,8 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
      * offline'da drop edilsin.
      */
     shouldDehydrateMutation: (mutation) => {
-      if (!isPersistedMutationKey(mutation.options.mutationKey)) return false
-      return mutation.state.isPaused || mutation.state.status === 'pending'
+      if (!isPersistedMutationKey(mutation.options.mutationKey)) return false;
+      return mutation.state.isPaused || mutation.state.status === 'pending';
     },
   },
-}
+};

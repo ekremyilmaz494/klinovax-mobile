@@ -1,5 +1,5 @@
-import NetInfo, { NetInfoStateType, type NetInfoState } from '@react-native-community/netinfo'
-import { useEffect, useState } from 'react'
+import NetInfo, { NetInfoStateType, type NetInfoState } from '@react-native-community/netinfo';
+import { useEffect, useState } from 'react';
 
 /**
  * Cihazın internet erişimini izleyen hook.
@@ -15,40 +15,40 @@ import { useEffect, useState } from 'react'
  */
 
 export type OnlineStatus = {
-  isOnline: boolean
-  isConnected: boolean
-  type: NetInfoState['type']
-}
+  isOnline: boolean;
+  isConnected: boolean;
+  type: NetInfoState['type'];
+};
 
 export function useOnline(): OnlineStatus {
   const [state, setState] = useState<OnlineStatus>({
     isOnline: true,
     isConnected: true,
     type: NetInfoStateType.unknown,
-  })
+  });
 
   useEffect(() => {
     const sub = NetInfo.addEventListener((s) => {
-      const connected = s.isConnected === true
-      const reachable = s.isInternetReachable !== false // null ya da true → online say
+      const connected = s.isConnected === true;
+      const reachable = s.isInternetReachable !== false; // null ya da true → online say
       setState({
         isOnline: connected && reachable,
         isConnected: connected,
         type: s.type,
-      })
-    })
+      });
+    });
     // İlk değer için fetch
     void NetInfo.fetch().then((s) => {
-      const connected = s.isConnected === true
-      const reachable = s.isInternetReachable !== false
+      const connected = s.isConnected === true;
+      const reachable = s.isInternetReachable !== false;
       setState({
         isOnline: connected && reachable,
         isConnected: connected,
         type: s.type,
-      })
-    })
-    return () => sub()
-  }, [])
+      });
+    });
+    return () => sub();
+  }, []);
 
-  return state
+  return state;
 }

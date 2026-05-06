@@ -9,90 +9,86 @@
  *   5) GET  /api/exam/[attemptId]/results → ExamResultsResponse
  */
 
-export type ExamPhase = 'pre' | 'post'
+export type ExamPhase = 'pre' | 'post';
 
-export type AttemptStatus =
-  | 'pre_exam'
-  | 'watching_videos'
-  | 'post_exam'
-  | 'completed'
+export type AttemptStatus = 'pre_exam' | 'watching_videos' | 'post_exam' | 'completed';
 
 export type ExamStartResponse = {
-  id: string
-  status: AttemptStatus
-  attemptNumber: number
-  examOnly: boolean
+  id: string;
+  status: AttemptStatus;
+  attemptNumber: number;
+  examOnly: boolean;
   /** Backend "post-exam" döndürürse mobile post-exam ekranına atlar (examOnly true). */
-  redirectTo?: 'post-exam'
-}
+  redirectTo?: 'post-exam';
+};
 
 export type ExamOption = {
   /** Görsel id — a/b/c/d. Backend her render için deterministic atar. */
-  id: string
+  id: string;
   /** Gerçek option UUID — save-answer ve submit'e bu yollanır. */
-  optionId: string
-  text: string
-}
+  optionId: string;
+  text: string;
+};
 
 export type ExamQuestion = {
   /** 1-based sıra numarası — sadece UI gösterim için. */
-  id: number
-  questionId: string
-  text: string
-  options: ExamOption[]
+  id: number;
+  questionId: string;
+  text: string;
+  options: ExamOption[];
   /** Daha önce kaydedilen cevap (a/b/c/d görsel id'si). */
-  savedAnswer?: string
-}
+  savedAnswer?: string;
+};
 
 export type ExamQuestionsResponse = {
-  trainingTitle: string
-  examType: string
+  trainingTitle: string;
+  examType: string;
   /** Saniye cinsinden toplam süre. */
-  totalTime: number
-  questions: ExamQuestion[]
-}
+  totalTime: number;
+  questions: ExamQuestion[];
+};
 
 export type ExamSubmitResponse =
   | { phase: 'pre'; score: number; nextStep: 'videos' }
-  | { phase: 'post'; score: number; isPassed: boolean; passingScore: number }
+  | { phase: 'post'; score: number; isPassed: boolean; passingScore: number };
 
 export type ExamResultDetail = {
-  questionText: string
-  selectedOptionText: string | null
-  correctOptionText: string | null
-  isCorrect: boolean
-}
+  questionText: string;
+  selectedOptionText: string | null;
+  correctOptionText: string | null;
+  isCorrect: boolean;
+};
 
 export type ExamResultsResponse = {
-  isPassed: boolean
-  score: number
-  passingScore: number
+  isPassed: boolean;
+  score: number;
+  passingScore: number;
   /** isPassed=false ise null (anti-cheat) */
-  results: ExamResultDetail[] | null
-}
+  results: ExamResultDetail[] | null;
+};
 
 export type ExamVideoItem = {
-  id: string
-  title: string
+  id: string;
+  title: string;
   /** Backend `/api/stream/[id]` proxy URL'i (göreceli). MUTLAKA API_BASE_URL ile prefixle. */
-  url: string
-  duration: number
-  contentType: 'video' | 'pdf' | string
-  pageCount?: number | null
-  completed: boolean
+  url: string;
+  duration: number;
+  contentType: 'video' | 'pdf' | string;
+  pageCount?: number | null;
+  completed: boolean;
   /** Saniye (video) veya sayfa numarası (pdf). */
-  lastPosition: number
-  documentUrl?: string
-}
+  lastPosition: number;
+  documentUrl?: string;
+};
 
 export type ExamVideosResponse = {
-  trainingTitle: string
-  attemptStatus: AttemptStatus | 'review' | null
-  videos: ExamVideoItem[]
-}
+  trainingTitle: string;
+  attemptStatus: AttemptStatus | 'review' | null;
+  videos: ExamVideoItem[];
+};
 
 export type VideoProgressResponse = {
-  progress: true
+  progress: true;
   /** Tüm zorunlu (non-pdf) videolar tamamlandığında true; backend status post_exam'a geçer. */
-  allVideosCompleted: boolean
-}
+  allVideosCompleted: boolean;
+};

@@ -1,69 +1,72 @@
-import { Ionicons } from '@expo/vector-icons'
-import { useQuery } from '@tanstack/react-query'
-import { useRouter } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Button, Stack, Text, useTheme } from '@/design-system'
-import { shareCertificatePdf } from '@/lib/api/cert-download'
-import { ApiError, apiFetch } from '@/lib/api/client'
-import { useAuthStore } from '@/store/auth'
-import type { Certificate, CertificatesResponse } from '@/types/staff'
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Button, Stack, Text, useTheme } from '@/design-system';
+import { shareCertificatePdf } from '@/lib/api/cert-download';
+import { ApiError, apiFetch } from '@/lib/api/client';
+import { useAuthStore } from '@/store/auth';
+import type { Certificate, CertificatesResponse } from '@/types/staff';
 
 export default function CertificatesScreen() {
-  const t = useTheme()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
-  const [refreshing, setRefreshing] = useState(false)
+  const t = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data, error, isLoading, refetch } = useQuery<CertificatesResponse, Error>({
     queryKey: ['certificates'],
     enabled: !!user,
     queryFn: () => apiFetch<CertificatesResponse>('/api/staff/certificates?page=1&limit=50'),
-  })
+  });
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) void logout()
-  }, [error, logout])
+    if (error instanceof ApiError && error.status === 401) void logout();
+  }, [error, logout]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    try { await refetch() } finally { setRefreshing(false) }
-  }, [refetch])
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   if (isLoading && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   if (error && !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <ScreenError
           message={error.message || 'Sertifikalar yüklenemedi.'}
           onRetry={() => void refetch()}
         />
       </SafeAreaView>
-    )
+    );
   }
 
-  const items = data?.certificates ?? []
+  const items = data?.certificates ?? [];
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -91,44 +94,54 @@ export default function CertificatesScreen() {
           />
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent.clay} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={t.colors.accent.clay}
+          />
         }
       />
     </SafeAreaView>
-  )
+  );
 }
 
 function CertificateCard({ cert }: { cert: Certificate }) {
-  const t = useTheme()
-  const router = useRouter()
-  const [sharing, setSharing] = useState(false)
+  const t = useTheme();
+  const router = useRouter();
+  const [sharing, setSharing] = useState(false);
 
   const issued = new Date(cert.issuedAt).toLocaleDateString('tr-TR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
   const expires = cert.expiresAt
-    ? new Date(cert.expiresAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : null
+    ? new Date(cert.expiresAt).toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : null;
 
   const goPreview = () => {
     router.push({
       pathname: '/certificates/[id]/preview',
       params: { id: cert.id, code: cert.certificateCode, title: cert.training.title },
-    })
-  }
+    });
+  };
 
   const onShare = async () => {
-    if (sharing) return
-    setSharing(true)
+    if (sharing) return;
+    setSharing(true);
     try {
-      await shareCertificatePdf({ id: cert.id, certificateCode: cert.certificateCode })
+      await shareCertificatePdf({ id: cert.id, certificateCode: cert.certificateCode });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Paylaşılamadı.'
-      Alert.alert('Hata', msg)
+      const msg = err instanceof Error ? err.message : 'Paylaşılamadı.';
+      Alert.alert('Hata', msg);
     } finally {
-      setSharing(false)
+      setSharing(false);
     }
-  }
+  };
 
   return (
     <Pressable
@@ -201,7 +214,9 @@ function CertificateCard({ cert }: { cert: Certificate }) {
             label="Önizle"
             variant="primary"
             onPress={goPreview}
-            iconLeft={<Ionicons name="eye-outline" size={18} color={t.colors.accent.clayOnAccent} />}
+            iconLeft={
+              <Ionicons name="eye-outline" size={18} color={t.colors.accent.clayOnAccent} />
+            }
             fullWidth
           />
         </View>
@@ -222,7 +237,7 @@ function CertificateCard({ cert }: { cert: Certificate }) {
         </View>
       </Stack>
     </Pressable>
-  )
+  );
 }
 
 function MetaCol({ label, value, expired }: { label: string; value: string; expired?: boolean }) {
@@ -235,6 +250,5 @@ function MetaCol({ label, value, expired }: { label: string; value: string; expi
         {value}
       </Text>
     </View>
-  )
+  );
 }
-

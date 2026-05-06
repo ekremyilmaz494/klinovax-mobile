@@ -1,12 +1,12 @@
-import { router } from 'expo-router'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Text, useTheme } from '@/design-system'
-import { useMarkAsRead } from '@/hooks/use-notifications'
-import { timeAgo } from '@/lib/format/time-ago'
-import type { NotificationItem } from '@/types/notifications'
+import { Text, useTheme } from '@/design-system';
+import { useMarkAsRead } from '@/hooks/use-notifications';
+import { timeAgo } from '@/lib/format/time-ago';
+import type { NotificationItem } from '@/types/notifications';
 
-import { NotificationTypeIcon } from './NotificationTypeIcon'
+import { NotificationTypeIcon } from './NotificationTypeIcon';
 
 /**
  * Bildirim listesi kartı.
@@ -23,15 +23,15 @@ import { NotificationTypeIcon } from './NotificationTypeIcon'
  *   - Orta: title (Inter Tight 600 unread / 500 read) + message + time-ago
  */
 export function NotificationCard({ item }: { item: NotificationItem }) {
-  const t = useTheme()
-  const markAsRead = useMarkAsRead()
+  const t = useTheme();
+  const markAsRead = useMarkAsRead();
 
   const handlePress = () => {
-    if (!item.isRead) markAsRead.mutate(item.id)
+    if (!item.isRead) markAsRead.mutate(item.id);
     if (item.relatedTrainingId) {
-      router.push(`/trainings/${item.relatedTrainingId}`)
+      router.push(`/trainings/${item.relatedTrainingId}`);
     }
-  }
+  };
 
   return (
     <Pressable
@@ -51,7 +51,9 @@ export function NotificationCard({ item }: { item: NotificationItem }) {
       ]}
       accessibilityRole="button"
       accessibilityLabel={`${item.title} bildirimi`}
-      accessibilityHint={item.relatedTrainingId ? 'İlgili eğitime gider' : 'Okundu olarak işaretler'}
+      accessibilityHint={
+        item.relatedTrainingId ? 'İlgili eğitime gider' : 'Okundu olarak işaretler'
+      }
     >
       <View style={{ position: 'relative' }}>
         {!item.isRead ? (
@@ -96,5 +98,5 @@ export function NotificationCard({ item }: { item: NotificationItem }) {
         </Text>
       </View>
     </Pressable>
-  )
+  );
 }

@@ -1,26 +1,22 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Button, Stack, Text, useTheme } from '@/design-system'
-import { useAndroidBackGuard } from '@/hooks/use-android-back-guard'
-import { fetchExamQuestions } from '@/lib/api/exam'
-import { useOnline } from '@/lib/network/use-online'
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Button, Stack, Text, useTheme } from '@/design-system';
+import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
+import { fetchExamQuestions } from '@/lib/api/exam';
+import { useOnline } from '@/lib/network/use-online';
+import type { SaveAnswerVars, SubmitExamVars } from '@/lib/query/mutation-defaults';
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import type {
-  SaveAnswerVars,
-  SubmitExamVars,
-} from '@/lib/query/mutation-defaults'
-import { MUTATION_KEYS } from '@/lib/query/mutation-keys'
-import type { ExamPhase, ExamQuestion, ExamQuestionsResponse, ExamSubmitResponse } from '@/types/exam'
+  ExamPhase,
+  ExamQuestion,
+  ExamQuestionsResponse,
+  ExamSubmitResponse,
+} from '@/types/exam';
 
 /**
  * Sınav soru ekranı.
@@ -32,56 +28,65 @@ import type { ExamPhase, ExamQuestion, ExamQuestionsResponse, ExamSubmitResponse
  *   - "Bitir" → tüm cevaplar submit edilir → result ekranına geçilir.
  */
 export default function ExamQuestionsScreen() {
-  const t = useTheme()
+  const t = useTheme();
   const { assignmentId, phase: phaseParam } = useLocalSearchParams<{
-    assignmentId: string
-    phase: ExamPhase
-  }>()
-  const phase: ExamPhase = phaseParam === 'post' ? 'post' : 'pre'
+    assignmentId: string;
+    phase: ExamPhase;
+  }>();
+  const phase: ExamPhase = phaseParam === 'post' ? 'post' : 'pre';
 
   const { data, error, isLoading, refetch } = useQuery<ExamQuestionsResponse, Error>({
     queryKey: ['exam-questions', assignmentId, phase],
     queryFn: () => fetchExamQuestions(assignmentId, phase),
     gcTime: 0,
     staleTime: 0,
-  })
+  });
 
   if (isLoading) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <ExpoStack.Screen options={{ title: 'Yükleniyor…', headerBackVisible: false }} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   if (error || !data) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <ExpoStack.Screen options={{ title: 'Hata' }} />
         <ScreenError
           message={error?.message ?? 'Sorular yüklenemedi.'}
           onRetry={() => void refetch()}
         />
       </SafeAreaView>
-    )
+    );
   }
 
   if (data.questions.length === 0) {
     return (
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
         <ExpoStack.Screen options={{ title: 'Hata' }} />
         <ScreenError
           message="Bu sınava soru tanımlanmamış. Lütfen kurum yöneticisi ile iletişime geç."
           onRetry={() => void refetch()}
         />
       </SafeAreaView>
-    )
+    );
   }
 
-  return <QuestionsView assignmentId={assignmentId} phase={phase} data={data} />
+  return <QuestionsView assignmentId={assignmentId} phase={phase} data={data} />;
 }
 
 function QuestionsView({
@@ -89,36 +94,38 @@ function QuestionsView({
   phase,
   data,
 }: {
-  assignmentId: string
-  phase: ExamPhase
-  data: ExamQuestionsResponse
+  assignmentId: string;
+  phase: ExamPhase;
+  data: ExamQuestionsResponse;
 }) {
-  const t = useTheme()
-  const { isOnline } = useOnline()
-  const [currentIdx, setCurrentIdx] = useState(0)
+  const t = useTheme();
+  const { isOnline } = useOnline();
+  const [currentIdx, setCurrentIdx] = useState(0);
 
   const initial = useMemo(() => {
-    const m = new Map<string, string>()
+    const m = new Map<string, string>();
     for (const q of data.questions) {
       if (q.savedAnswer) {
-        const found = q.options.find((o) => o.optionId === q.savedAnswer || o.id === q.savedAnswer)
-        if (found) m.set(q.questionId, found.optionId)
+        const found = q.options.find((o) => o.optionId === q.savedAnswer || o.id === q.savedAnswer);
+        if (found) m.set(q.questionId, found.optionId);
       }
     }
-    return m
-  }, [data.questions])
+    return m;
+  }, [data.questions]);
 
-  const [answers, setAnswers] = useState<Map<string, string>>(initial)
-  const answersRef = useRef(answers)
-  useEffect(() => { answersRef.current = answers }, [answers])
+  const [answers, setAnswers] = useState<Map<string, string>>(initial);
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   const saveMutation = useMutation<{ saved: true }, Error, SaveAnswerVars>({
     mutationKey: MUTATION_KEYS.saveAnswer,
-  })
+  });
 
   const submitMutation = useMutation<ExamSubmitResponse, Error, SubmitExamVars>({
     mutationKey: MUTATION_KEYS.submitExam,
-  })
+  });
 
   const handleSubmitNavigate = (res: ExamSubmitResponse) => {
     if (res.phase === 'pre') {
@@ -131,11 +138,11 @@ function QuestionsView({
             onPress: () => router.replace(`/exam/${assignmentId}/videos`),
           },
         ],
-      )
+      );
     } else {
-      router.replace(`/exam/${assignmentId}/result`)
+      router.replace(`/exam/${assignmentId}/result`);
     }
-  }
+  };
 
   const buildSubmitVars = (): SubmitExamVars => ({
     assignmentId,
@@ -144,64 +151,64 @@ function QuestionsView({
       selectedOptionId,
     })),
     phase,
-  })
+  });
 
   const triggerSubmit = (opts?: { silent?: boolean }) => {
     submitMutation.mutate(buildSubmitVars(), {
       onSuccess: (res) => handleSubmitNavigate(res),
       onError: (err) => {
-        if (opts?.silent) return
-        Alert.alert('Sınav gönderilemedi', err.message)
+        if (opts?.silent) return;
+        Alert.alert('Sınav gönderilemedi', err.message);
       },
-    })
-  }
+    });
+  };
 
-  const endRef = useRef<number>(Date.now() + data.totalTime * 1000)
-  const [remaining, setRemaining] = useState<number>(data.totalTime)
-  const autoSubmittedRef = useRef(false)
+  const endRef = useRef<number>(Date.now() + data.totalTime * 1000);
+  const [remaining, setRemaining] = useState<number>(data.totalTime);
+  const autoSubmittedRef = useRef(false);
 
   useEffect(() => {
     const tick = () => {
-      const remMs = endRef.current - Date.now()
-      const rem = Math.max(0, Math.ceil(remMs / 1000))
-      setRemaining(rem)
+      const remMs = endRef.current - Date.now();
+      const rem = Math.max(0, Math.ceil(remMs / 1000));
+      setRemaining(rem);
       if (rem === 0 && !autoSubmittedRef.current) {
-        autoSubmittedRef.current = true
-        triggerSubmit({ silent: true })
+        autoSubmittedRef.current = true;
+        triggerSubmit({ silent: true });
       }
-    }
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   // currentIdx normalde [0, length-1] arasında — Önceki/Sonraki butonları clamp'liyor.
   // Yine de defansif: setState batching, refetch ile soru sayısı azalması gibi rare
   // durumlarda taşma olabilir; sessiz null yerine ilk soruya düşür.
-  const safeIdx = Math.min(currentIdx, data.questions.length - 1)
-  const question = data.questions[safeIdx]
-  const totalAnswered = answers.size
-  const totalQuestions = data.questions.length
+  const safeIdx = Math.min(currentIdx, data.questions.length - 1);
+  const question = data.questions[safeIdx];
+  const totalAnswered = answers.size;
+  const totalQuestions = data.questions.length;
 
   const handleSelect = (q: ExamQuestion, optionUuid: string) => {
     setAnswers((prev) => {
-      const next = new Map(prev)
-      next.set(q.questionId, optionUuid)
-      return next
-    })
+      const next = new Map(prev);
+      next.set(q.questionId, optionUuid);
+      return next;
+    });
     saveMutation.mutate({
       assignmentId,
       questionId: q.questionId,
       selectedOptionId: optionUuid,
       examPhase: phase,
-    })
-  }
+    });
+  };
 
   const handleSubmit = () => {
-    const unanswered = totalQuestions - totalAnswered
+    const unanswered = totalQuestions - totalAnswered;
     const offlineNote = !isOnline
       ? '\n\nİnternet yok — sınavın internet bağlantısı gelince otomatik gönderilecek.'
-      : ''
+      : '';
     Alert.alert(
       'Sınavı bitir',
       (unanswered > 0
@@ -211,22 +218,24 @@ function QuestionsView({
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Bitir', style: 'destructive', onPress: () => triggerSubmit() },
       ],
-    )
-  }
+    );
+  };
 
-  const timerColor = remaining < 60 ? t.colors.status.danger : t.colors.accent.clay
+  const timerColor = remaining < 60 ? t.colors.status.danger : t.colors.accent.clay;
 
   // iOS'ta gesture + header back tamamen kapalı. Android donanım back de aynı
   // şekilde engellenmeli — kullanıcı sınavı yarıda yarıda atlamasın, "Bitir"
   // butonu tek çıkış yolu.
-  useAndroidBackGuard(useCallback(() => {
-    Alert.alert(
-      'Sınav devam ediyor',
-      'Sınavı tamamlamadan çıkamazsın. Bitirmek için sağ alttaki "Bitir" butonunu kullan.',
-      [{ text: 'Tamam', style: 'default' }],
-    )
-    return true
-  }, []))
+  useAndroidBackGuard(
+    useCallback(() => {
+      Alert.alert(
+        'Sınav devam ediyor',
+        'Sınavı tamamlamadan çıkamazsın. Bitirmek için sağ alttaki "Bitir" butonunu kullan.',
+        [{ text: 'Tamam', style: 'default' }],
+      );
+      return true;
+    }, []),
+  );
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -263,11 +272,7 @@ function QuestionsView({
           >
             {formatTime(remaining)}
           </Text>
-          <Text
-            variant="subhead"
-            tone="tertiary"
-            style={{ fontVariant: ['tabular-nums'] }}
-          >
+          <Text variant="subhead" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
             Soru {currentIdx + 1} / {totalQuestions}
           </Text>
         </Stack>
@@ -278,16 +283,14 @@ function QuestionsView({
 
         <View style={{ marginTop: 20, gap: 10 }}>
           {question.options.map((opt) => {
-            const selected = answers.get(question.questionId) === opt.optionId
+            const selected = answers.get(question.questionId) === opt.optionId;
             return (
               <Pressable
                 key={opt.optionId}
                 onPress={() => handleSelect(question, opt.optionId)}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
-                  backgroundColor: selected
-                    ? t.colors.accent.clayMuted
-                    : t.colors.surface.primary,
+                  backgroundColor: selected ? t.colors.accent.clayMuted : t.colors.surface.primary,
                   padding: 14,
                   borderRadius: t.radius.md,
                   borderWidth: selected ? 2 : t.hairline,
@@ -329,7 +332,7 @@ function QuestionsView({
                   {opt.text}
                 </Text>
               </Pressable>
-            )
+            );
           })}
         </View>
       </ScrollView>
@@ -374,11 +377,11 @@ function QuestionsView({
         </View>
       </View>
     </SafeAreaView>
-  )
+  );
 }
 
 function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
