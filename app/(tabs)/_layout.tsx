@@ -1,18 +1,18 @@
-import { Tabs } from 'expo-router'
-import { StyleSheet } from 'react-native'
+import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { darkTheme, FontFamily, lightTheme } from '@/design-system'
-import { useColorScheme } from '@/hooks/use-color-scheme'
-import { useUnreadCount } from '@/hooks/use-notifications'
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { darkTheme, FontFamily, lightTheme } from '@/design-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUnreadCount } from '@/hooks/use-notifications';
 
 export default function TabLayout() {
   // Bildirim tab badge'i — query her tab focus'ta refetch oluyor (notifications.tsx
   // useFocusEffect). Burada sadece unread count'u izle ve `tabBarBadge` prop'una
   // bağla; React-Navigation re-render'da badge'i günceller.
-  const unreadCount = useUnreadCount()
-  const scheme = useColorScheme()
-  const t = scheme === 'dark' ? darkTheme : lightTheme
+  const unreadCount = useUnreadCount();
+  const scheme = useColorScheme();
+  const t = scheme === 'dark' ? darkTheme : lightTheme;
 
   return (
     <Tabs
@@ -52,14 +52,18 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Anasayfa',
-          tabBarIcon: ({ color, size }) => <IconSymbol size={size} name="house.fill" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol size={size} name="house.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="trainings"
         options={{
           title: 'Eğitimlerim',
-          tabBarIcon: ({ color, size }) => <IconSymbol size={size} name="book.fill" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol size={size} name="book.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -73,7 +77,9 @@ export default function TabLayout() {
         name="notifications"
         options={{
           title: 'Bildirimler',
-          tabBarIcon: ({ color, size }) => <IconSymbol size={size} name="bell.fill" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol size={size} name="bell.fill" color={color} />
+          ),
           // 99+ üstü daraltma — iOS native pattern (Mail/Messages)
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
         }}
@@ -82,9 +88,11 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => <IconSymbol size={size} name="person.fill" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol size={size} name="person.fill" color={color} />
+          ),
         }}
       />
     </Tabs>
-  )
+  );
 }

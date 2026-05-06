@@ -1,7 +1,7 @@
-import { File, Paths } from 'expo-file-system'
-import * as Sharing from 'expo-sharing'
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
-import { ApiError, apiRequest } from './client'
+import { ApiError, apiRequest } from './client';
 
 /**
  * Sertifika PDF'ini /api/certificates/:id/pdf'ten indirip cache'e yazar.
@@ -10,22 +10,26 @@ import { ApiError, apiRequest } from './client'
  * bırakıyoruz (Cache-Control: private, max-age=3600).
  */
 export async function cacheCertificatePdf(params: {
-  id: string
-  certificateCode: string
+  id: string;
+  certificateCode: string;
 }): Promise<string> {
-  const res = await apiRequest(`/api/certificates/${params.id}/pdf`)
+  const res = await apiRequest(`/api/certificates/${params.id}/pdf`);
   if (!res.ok) {
-    let body: unknown = null
-    try { body = await res.json() } catch { /* ignore */ }
-    throw new ApiError(res.status, body ?? { error: 'PDF indirilemedi' })
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, body ?? { error: 'PDF indirilemedi' });
   }
 
-  const buffer = await res.arrayBuffer()
-  const fileName = `sertifika-${params.certificateCode}.pdf`
-  const file = new File(Paths.cache, fileName)
-  await file.create({ overwrite: true })
-  await file.write(new Uint8Array(buffer))
-  return file.uri
+  const buffer = await res.arrayBuffer();
+  const fileName = `sertifika-${params.certificateCode}.pdf`;
+  const file = new File(Paths.cache, fileName);
+  await file.create({ overwrite: true });
+  await file.write(new Uint8Array(buffer));
+  return file.uri;
 }
 
 /**
@@ -34,14 +38,14 @@ export async function cacheCertificatePdf(params: {
  * çünkü iOS'ta bağımsız bir Downloads klasörü yok — share sheet > Files.
  */
 export async function shareCertificatePdf(params: {
-  id: string
-  certificateCode: string
+  id: string;
+  certificateCode: string;
 }): Promise<void> {
-  const uri = await cacheCertificatePdf(params)
-  if (!(await Sharing.isAvailableAsync())) return
+  const uri = await cacheCertificatePdf(params);
+  if (!(await Sharing.isAvailableAsync())) return;
   await Sharing.shareAsync(uri, {
     mimeType: 'application/pdf',
     dialogTitle: 'Sertifikayı Paylaş',
     UTI: 'com.adobe.pdf',
-  })
+  });
 }

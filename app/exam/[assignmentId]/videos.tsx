@@ -1,8 +1,8 @@
-import { useEvent } from 'expo'
-import { useVideoPlayer, VideoView } from 'expo-video'
-import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEvent } from 'expo';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,21 +11,21 @@ import {
   Pressable,
   StyleSheet,
   View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { WebView } from 'react-native-webview'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
-import { EmptyState } from '@/components/ui/EmptyState'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { ProgressBar } from '@/components/ui/ProgressBar'
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system'
-import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam'
-import { loadSession } from '@/lib/auth/secure-token'
-import { API_BASE_URL } from '@/lib/config'
-import type { CompleteVideoVars } from '@/lib/query/mutation-defaults'
-import { MUTATION_KEYS } from '@/lib/query/mutation-keys'
-import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam'
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam';
+import { loadSession } from '@/lib/auth/secure-token';
+import { API_BASE_URL } from '@/lib/config';
+import type { CompleteVideoVars } from '@/lib/query/mutation-defaults';
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
+import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam';
 
 /**
  * Video aşaması ekranı — eğitim videoları sırayla izlenir, her tamamlanma
@@ -33,45 +33,45 @@ import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@
  * `allVideosCompleted: true` döner ve attempt status `post_exam`'a geçer.
  */
 export default function VideosScreen() {
-  const t = useTheme()
-  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
-  const queryClient = useQueryClient()
-  const [token, setToken] = useState<string | null>(null)
-  const [tokenReady, setTokenReady] = useState(false)
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
+  const t = useTheme();
+  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
+  const queryClient = useQueryClient();
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   const reloadToken = async () => {
-    const session = await loadSession()
-    setToken(session?.accessToken ?? null)
-    setTokenReady(true)
-  }
+    const session = await loadSession();
+    setToken(session?.accessToken ?? null);
+    setTokenReady(true);
+  };
 
   useEffect(() => {
-    void reloadToken()
-  }, [])
+    void reloadToken();
+  }, []);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void reloadToken()
-    })
-    return () => sub.remove()
-  }, [])
+      if (state === 'active') void reloadToken();
+    });
+    return () => sub.remove();
+  }, []);
 
   const { data, error, isLoading, refetch } = useQuery<ExamVideosResponse, Error>({
     queryKey: ['exam-videos', assignmentId],
     queryFn: () => fetchExamVideos(assignmentId),
-  })
+  });
 
   useEffect(() => {
-    if (!data || activeVideoId) return
-    const next = data.videos.find((v) => !v.completed && v.contentType !== 'pdf')
-    setActiveVideoId(next?.id ?? data.videos[0]?.id ?? null)
-  }, [data, activeVideoId])
+    if (!data || activeVideoId) return;
+    const next = data.videos.find((v) => !v.completed && v.contentType !== 'pdf');
+    setActiveVideoId(next?.id ?? data.videos[0]?.id ?? null);
+  }, [data, activeVideoId]);
 
   const activeVideo = useMemo(
     () => data?.videos.find((v) => v.id === activeVideoId) ?? null,
     [data, activeVideoId],
-  )
+  );
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -96,20 +96,16 @@ export default function VideosScreen() {
           activeVideo={activeVideo}
           onSelectVideo={setActiveVideoId}
           onAllCompleted={() => {
-            queryClient.invalidateQueries({ queryKey: ['exam-videos', assignmentId] })
-            queryClient.invalidateQueries({ queryKey: ['my-trainings'] })
-            queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] })
-            queryClient.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
-            Alert.alert(
-              'Tüm videolar tamamlandı',
-              'Şimdi son sınava geçilecek.',
-              [
-                {
-                  text: 'Devam et',
-                  onPress: () => router.replace(`/exam/${assignmentId}/questions?phase=post`),
-                },
-              ],
-            )
+            queryClient.invalidateQueries({ queryKey: ['exam-videos', assignmentId] });
+            queryClient.invalidateQueries({ queryKey: ['my-trainings'] });
+            queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
+            Alert.alert('Tüm videolar tamamlandı', 'Şimdi son sınava geçilecek.', [
+              {
+                text: 'Devam et',
+                onPress: () => router.replace(`/exam/${assignmentId}/questions?phase=post`),
+              },
+            ]);
           }}
         />
       ) : data && activeVideo && !tokenReady ? (
@@ -118,7 +114,7 @@ export default function VideosScreen() {
         </View>
       ) : null}
     </SafeAreaView>
-  )
+  );
 }
 
 function Body({
@@ -129,22 +125,22 @@ function Body({
   onSelectVideo,
   onAllCompleted,
 }: {
-  assignmentId: string
-  token: string | null
-  videos: ExamVideoItem[]
-  activeVideo: ExamVideoItem
-  onSelectVideo: (id: string) => void
-  onAllCompleted: () => void
+  assignmentId: string;
+  token: string | null;
+  videos: ExamVideoItem[];
+  activeVideo: ExamVideoItem;
+  onSelectVideo: (id: string) => void;
+  onAllCompleted: () => void;
 }) {
-  const t = useTheme()
-  const completedCount = videos.filter((v) => v.completed && v.contentType !== 'pdf').length
-  const totalRequired = videos.filter((v) => v.contentType !== 'pdf').length
-  const progressPct = totalRequired === 0 ? 0 : Math.round((completedCount / totalRequired) * 100)
+  const t = useTheme();
+  const completedCount = videos.filter((v) => v.completed && v.contentType !== 'pdf').length;
+  const totalRequired = videos.filter((v) => v.contentType !== 'pdf').length;
+  const progressPct = totalRequired === 0 ? 0 : Math.round((completedCount / totalRequired) * 100);
 
-  const isPdf = activeVideo.contentType === 'pdf'
+  const isPdf = activeVideo.contentType === 'pdf';
 
   const renderVideoItem = ({ item, index }: { item: ExamVideoItem; index: number }) => {
-    const isActive = item.id === activeVideo.id
+    const isActive = item.id === activeVideo.id;
     return (
       <Pressable
         onPress={() => onSelectVideo(item.id)}
@@ -177,8 +173,8 @@ function Body({
         </View>
         {isActive ? <Tag label="Şu an" tone="primary" /> : null}
       </Pressable>
-    )
-  }
+    );
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -189,7 +185,7 @@ function Body({
           token={token}
           video={activeVideo}
           onCompleted={(allDone) => {
-            if (allDone) onAllCompleted()
+            if (allDone) onAllCompleted();
           }}
         />
       ) : (
@@ -203,7 +199,12 @@ function Body({
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
         ListHeaderComponent={
           <>
-            <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 8, marginTop: 4 }}>
+            <Stack
+              direction="row"
+              justify="space-between"
+              align="center"
+              style={{ marginBottom: 8, marginTop: 4 }}
+            >
               <Text variant="overline" tone="tertiary">
                 İLERLEME
               </Text>
@@ -236,15 +237,15 @@ function Body({
         }
       />
     </View>
-  )
+  );
 }
 
 function PdfBlock({ token, video }: { token: string | null; video: ExamVideoItem }) {
-  const t = useTheme()
-  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`
+  const t = useTheme();
+  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`;
   const source = token
     ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } }
-    : { uri: sourceUrl }
+    : { uri: sourceUrl };
 
   return (
     <View
@@ -290,7 +291,7 @@ function PdfBlock({ token, video }: { token: string | null; video: ExamVideoItem
         )}
       />
     </View>
-  )
+  );
 }
 
 function VideoBlock({
@@ -299,75 +300,80 @@ function VideoBlock({
   video,
   onCompleted,
 }: {
-  assignmentId: string
-  token: string | null
-  video: ExamVideoItem
-  onCompleted: (allDone: boolean) => void
+  assignmentId: string;
+  token: string | null;
+  video: ExamVideoItem;
+  onCompleted: (allDone: boolean) => void;
 }) {
-  const t = useTheme()
-  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`
+  const t = useTheme();
+  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`;
 
   const source = useMemo(
-    () =>
-      token
-        ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } }
-        : sourceUrl,
+    () => (token ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } } : sourceUrl),
     [sourceUrl, token],
-  )
+  );
 
   const player = useVideoPlayer(source, (p) => {
-    p.timeUpdateEventInterval = 5
+    p.timeUpdateEventInterval = 5;
     if (video.lastPosition && video.lastPosition < video.duration - 5) {
-      p.currentTime = video.lastPosition
+      p.currentTime = video.lastPosition;
     }
-  })
+  });
 
-  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing })
-  const { muted } = useEvent(player, 'mutedChange', { muted: player.muted })
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { muted } = useEvent(player, 'mutedChange', { muted: player.muted });
 
-  const lastSavedRef = useRef(0)
+  const lastSavedRef = useRef(0);
   const heartbeatMutation = useMutation({
-    mutationFn: (body: { videoId: string; position: number; watchedTime: number; completed?: boolean }) =>
-      saveVideoProgress(assignmentId, body),
+    mutationFn: (body: {
+      videoId: string;
+      position: number;
+      watchedTime: number;
+      completed?: boolean;
+    }) => saveVideoProgress(assignmentId, body),
     onError: (err) => {
       // Heartbeat sessiz fail eder — kullanıcıya alert atma. Production'da bu
       // log aggregator'a gider; pek çok heartbeat fail olursa investigate.
-      console.warn('[videos] heartbeat save failed', err)
+      console.warn('[videos] heartbeat save failed', err);
     },
-  })
-  const heartbeatMutationRef = useRef(heartbeatMutation)
-  useEffect(() => { heartbeatMutationRef.current = heartbeatMutation })
+  });
+  const heartbeatMutationRef = useRef(heartbeatMutation);
+  useEffect(() => {
+    heartbeatMutationRef.current = heartbeatMutation;
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!player.playing) return
-      const now = Math.floor(player.currentTime)
+      if (!player.playing) return;
+      const now = Math.floor(player.currentTime);
       if (now - lastSavedRef.current >= 10) {
-        lastSavedRef.current = now
+        lastSavedRef.current = now;
         heartbeatMutationRef.current.mutate({
           videoId: video.id,
           position: now,
           watchedTime: now,
-        })
+        });
       }
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [player, video.id])
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [player, video.id]);
 
-  const completedRef = useRef(video.completed)
+  const completedRef = useRef(video.completed);
   useEffect(() => {
-    completedRef.current = video.completed
-  }, [video.completed])
+    completedRef.current = video.completed;
+  }, [video.completed]);
 
   const completeMutation = useMutation<VideoProgressResponse, Error, CompleteVideoVars>({
     mutationKey: MUTATION_KEYS.completeVideo,
-  })
-  const completeMutationRef = useRef(completeMutation)
-  useEffect(() => { completeMutationRef.current = completeMutation })
+  });
+  const completeMutationRef = useRef(completeMutation);
+  useEffect(() => {
+    completeMutationRef.current = completeMutation;
+  });
 
   useEffect(() => {
     const id = setInterval(() => {
-      if (!player.duration) return
+      if (!player.duration) return;
       if (
         !completedRef.current &&
         !completeMutationRef.current.isPending &&
@@ -382,8 +388,8 @@ function VideoBlock({
           },
           {
             onSuccess: (data) => {
-              completedRef.current = true
-              onCompleted(data.allVideosCompleted)
+              completedRef.current = true;
+              onCompleted(data.allVideosCompleted);
             },
             onError: (err) => {
               // Tamamlama backend'e yazılamadı — kullanıcı yeniden açmazsa
@@ -391,14 +397,14 @@ function VideoBlock({
               Alert.alert(
                 'Tamamlama kaydedilemedi',
                 err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
-              )
+              );
             },
           },
-        )
+        );
       }
-    }, 2000)
-    return () => clearInterval(id)
-  }, [player, assignmentId, video.id, video.duration, onCompleted])
+    }, 2000);
+    return () => clearInterval(id);
+  }, [player, assignmentId, video.id, video.duration, onCompleted]);
 
   return (
     <View
@@ -444,9 +450,9 @@ function VideoBlock({
         </View>
         <Pressable
           onPress={() => {
-            const next = !player.muted
-            player.muted = next
-            player.volume = next ? 0 : 1
+            const next = !player.muted;
+            player.muted = next;
+            player.volume = next ? 0 : 1;
           }}
           hitSlop={8}
           style={({ pressed }) => ({
@@ -471,11 +477,11 @@ function VideoBlock({
         </Pressable>
       </Stack>
     </View>
-  )
+  );
 }
 
 function formatDuration(s: number): string {
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return `${m}:${String(r).padStart(2, '0')}`
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')}`;
 }

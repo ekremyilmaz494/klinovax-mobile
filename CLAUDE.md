@@ -17,18 +17,18 @@
 
 ## Stack
 
-| Katman | Seçim |
-|---|---|
-| Runtime | React Native 0.81 + Expo SDK 54 + React 19 + new architecture |
-| Routing | Expo Router 6 (file-based, typed routes) |
-| Diller | TypeScript 5 (strict), JSX |
-| State | Zustand (`store/auth.ts` — tek store, sadece auth) |
-| Server state | TanStack Query v5 + AsyncStorage persistence + paused mutations |
-| Auth | Custom JWT (access+refresh) → `expo-secure-store`, biometrik kilit `expo-local-authentication` |
-| Push | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz) |
-| Media | `expo-video` (yeni player API), `react-native-webview` (PDF) |
-| Animasyon | `react-native-reanimated` v4 (worklets, UI thread) |
-| Fontlar | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir) |
+| Katman       | Seçim                                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| Runtime      | React Native 0.81 + Expo SDK 54 + React 19 + new architecture                                  |
+| Routing      | Expo Router 6 (file-based, typed routes)                                                       |
+| Diller       | TypeScript 5 (strict), JSX                                                                     |
+| State        | Zustand (`store/auth.ts` — tek store, sadece auth)                                             |
+| Server state | TanStack Query v5 + AsyncStorage persistence + paused mutations                                |
+| Auth         | Custom JWT (access+refresh) → `expo-secure-store`, biometrik kilit `expo-local-authentication` |
+| Push         | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz)                          |
+| Media        | `expo-video` (yeni player API), `react-native-webview` (PDF)                                   |
+| Animasyon    | `react-native-reanimated` v4 (worklets, UI thread)                                             |
+| Fontlar      | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir)      |
 
 ---
 
@@ -64,19 +64,31 @@ Variant ölçeği: `display`, `title-1/2/3`, `headline`, `body`, `bodyEmph`, `ca
 ### Primitives — bunları kullan, JSX'te raw `<View>` minimum
 
 ```tsx
-import { Text, Surface, Card, Button, Stack, Divider, Tag, Chip, IconDot, Hero, useTheme } from '@/design-system'
+import {
+  Text,
+  Surface,
+  Card,
+  Button,
+  Stack,
+  Divider,
+  Tag,
+  Chip,
+  IconDot,
+  Hero,
+  useTheme,
+} from '@/design-system';
 ```
 
-| Primitive | Kullanım |
-|---|---|
-| `<Text variant="..." tone="..." />` | TÜM metin (başlık, body, caption hepsi) |
-| `<Card variant="default\|accent\|warning\|success\|danger" rail>` | Kartlar — `rail` sol accent strip |
+| Primitive                                                              | Kullanım                                            |
+| ---------------------------------------------------------------------- | --------------------------------------------------- |
+| `<Text variant="..." tone="..." />`                                    | TÜM metin (başlık, body, caption hepsi)             |
+| `<Card variant="default\|accent\|warning\|success\|danger" rail>`      | Kartlar — `rail` sol accent strip                   |
 | `<Button variant="primary\|ghost\|danger\|outline" size="sm\|md\|lg">` | Tüm CTA — Pressable + reanimated scale yapma manuel |
-| `<Stack direction="row\|column" gap={n} />` | Flex container — boilerplate öldür |
-| `<Tag tone="..." outlined?>` | Pill etiket (Badge alias'ı geriye uyum için) |
-| `<Chip selected onPress>` | Filtre chip'i — clay seçili, hairline default |
-| `<IconDot variant="..." size={20\|24\|28} numeral?>` | Aktivite/step daireleri (✓✗• emoji ASLA) |
-| `<Hero overline title subhead>` | Ekran üstü başlık bloğu |
+| `<Stack direction="row\|column" gap={n} />`                            | Flex container — boilerplate öldür                  |
+| `<Tag tone="..." outlined?>`                                           | Pill etiket (Badge alias'ı geriye uyum için)        |
+| `<Chip selected onPress>`                                              | Filtre chip'i — clay seçili, hairline default       |
+| `<IconDot variant="..." size={20\|24\|28} numeral?>`                   | Aktivite/step daireleri (✓✗• emoji ASLA)            |
+| `<Hero overline title subhead>`                                        | Ekran üstü başlık bloğu                             |
 
 ### Kurallar (hard rules)
 
@@ -184,6 +196,7 @@ hydrated=true
 ### 401 + refresh
 
 `lib/api/client.ts:apiRequest`:
+
 1. Bearer token ile fetch.
 2. 401 → `performRefresh` (concurrent 401'lerde tek inflight).
 3. Refresh `{ ok: true; token }` → orijinal isteği yeni token ile retry.
@@ -193,11 +206,12 @@ hydrated=true
 ### `setOnAuthFailure(callback)` pattern
 
 `app/_layout.tsx:AuthGate`'te:
+
 ```tsx
 useEffect(() => {
-  setOnAuthFailure(logout)
-  return () => setOnAuthFailure(null)
-}, [logout])
+  setOnAuthFailure(logout);
+  return () => setOnAuthFailure(null);
+}, [logout]);
 ```
 
 Bu sayede client.ts UI/store'u bilmez; bridge tek noktadan. Yeni `apiFetch` callsite eklerken 401 handler ekstra şart değil — auth-failure global temizliyor. **Ama** ekran-level refresh ihtiyaçları için her query'de `useEffect(() => { if (error?.status === 401) void logout() }, [error, logout])` pattern'i hâlâ doğru (defensive sync).
@@ -205,6 +219,7 @@ Bu sayede client.ts UI/store'u bilmez; bridge tek noktadan. Yeni `apiFetch` call
 ### Logout
 
 `store/auth.ts:logout`:
+
 1. `unregisterPushToken()` — bearer hâlâ geçerliyken (clearSession'dan ÖNCE). Hata `console.warn`.
 2. `clearSession()` — SecureStore.
 3. `set({ user: null, unlocked: true })` — store reset.
@@ -225,27 +240,32 @@ Bu sayede client.ts UI/store'u bilmez; bridge tek noktadan. Yeni `apiFetch` call
 ## Konvansiyonlar
 
 ### Dosya organizasyonu
+
 - Ekrana özel bileşenler: ekran dosyası içinde (örn. `dashboard.tsx`'in altındaki `UpcomingItem`, `ActivityItem`).
 - Domain-genel bileşenler: `components/<domain>/` (örn. `components/notifications/NotificationCard.tsx`).
 - Generic UI: `components/ui/` (StatCard, ProgressBar, vb.) — design-system tüketicisi.
 - Hiçbir zaman "components/Common" gibi muğlak klasör.
 
 ### Naming
+
 - Türkçe UI metinleri (TR), İngilizce kod (EN). Comment'ler karma — tercihen TR (kullanıcı TR konuşuyor).
 - Ekran component'i default export, alt component'ler named export değil — local function declaration.
 - Type'lar: `types/` altında merkezi (`staff.ts`, `notifications.ts`, `exam.ts`).
 
 ### Stil
+
 - Inline style yerine `useTheme()` + token. `StyleSheet.create` zorunlu değil, modern RN'de inline style memo'lanır.
 - Spacing: `t.space[1..16]` (4pt scale). 4-8-12-16-20-24-32-40-48-64.
 - Radius: `t.radius.{sm,md,lg,xl,pill}`.
 
 ### Comment pattern
+
 - **HER ZAMAN açıkla**: NEDEN (gizli kısıt, race condition, "bu şu yüzden böyle"). Kod ne yaptığını söyler — comment niçinini söyler.
 - **ASLA açıklama**: ne yaptığını (`// fetch user` kötü), şu anki task'ı (`// added for issue #123`), caller listesi (`// used by X`).
 - Türkçe yazılabilir, kısa olsun.
 
 ### Tasks / kod yorumları
+
 - TODO'larda ne yapılacağı + neden + kim/ne zaman bilgisi olsun, yoksa yazma.
 - Geriye uyum yorumu (`// removed`, `// deprecated`) yazma — git history zaten var.
 
@@ -257,9 +277,12 @@ Bu sayede client.ts UI/store'u bilmez; bridge tek noktadan. Yeni `apiFetch` call
 # Dev server (iOS simulator)
 npx expo start --ios -c          # cache temizle ile
 
-# Tip + lint
-npx tsc --noEmit
-npx expo lint
+# Tip + lint + format
+npm run typecheck                # tsc --noEmit
+npm run lint                     # expo lint
+npm run lint:fix                 # auto-fix
+npm run format                   # prettier --write
+npm run format:check             # CI'da çalışan kontrol
 
 # EAS builds
 npm run eas:dev:ios              # development build (push çalışır)
@@ -270,6 +293,51 @@ npm run eas:prod                 # production (iOS + Android)
 npx expo install @expo-google-fonts/<name>
 # Sonra design-system/fonts.ts'e ekle
 ```
+
+---
+
+## Branching ve Release
+
+### Akış
+
+```
+main (korumalı)        ← her zaman App Store/Play Store sürümü
+  ├─ feat/<konu>       ← yeni özellik (kısa ömürlü, 1-3 gün)
+  ├─ fix/<konu>        ← bug fix
+  └─ hotfix/<konu>     ← prod'da acil yama
+```
+
+### Kurallar (HARD)
+
+1. ❌ **`main`'e direct push YASAK** — branch protection enforce eder.
+2. ✅ Yeni iş için: `git checkout -b feat/<konu> main` → kod → push → PR aç → CI yeşil → squash merge.
+3. ✅ Hotfix için: `git checkout -b hotfix/<konu> main` → fix → PR → merge → tag bump → EAS prod build.
+4. ✅ Branch isimleri: `feat/`, `fix/`, `hotfix/`, `chore/`, `docs/`, `refactor/` prefix'lerinden biri.
+5. ✅ Commit mesajları: Conventional Commits (`feat:`, `fix:`, `chore:` ...). commitlint enforce eder.
+6. ✅ PR template'i doldur — özellikle "Store impact" ve "Test edildi" bölümleri.
+
+### Release süreci
+
+1. `main`'e merge sonrası → `app.json` → `expo.version` bump (semver: `1.0.0` → `1.0.1`).
+2. Tag at: `git tag -a v1.0.1 -m "Release: ..."` + `git push --tags`.
+3. EAS production build: `npm run eas:prod`.
+4. Sentry dashboard'da release otomatik oluşur (`SENTRY_AUTH_TOKEN` + version+buildNumber ile).
+5. TestFlight/Play Internal'da iç test → onaylandıktan sonra `npm run eas:submit:ios` / `:android`.
+
+### CI checks (PR açıldığında otomatik koşar)
+
+- `typecheck` — `tsc --noEmit`
+- `lint` — `expo lint`
+- `format-check` — `prettier --check`
+- `expo-doctor` — Expo config sağlığı
+
+Bunlardan biri kırmızıysa merge butonu kilitli kalır.
+
+### OTA (Expo Updates) güvenlik kuralı
+
+- **JS-only değişiklikler** → `expo update` ile OTA yayını mümkün (hızlı).
+- **Native değişiklik** (yeni dependency, plugin, native config) → ZORUNLU yeni EAS build + store submission. OTA bunu çözmez.
+- Şüpheliyse: yeni build yap. OTA hatası prod'da fark edilirse kullanıcılar bozuk sürümde kalır.
 
 ---
 

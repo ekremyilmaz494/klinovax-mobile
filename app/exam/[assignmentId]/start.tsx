@@ -1,48 +1,48 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router'
-import { Alert, ScrollView, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
+import { Alert, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScreenError } from '@/components/ui/ScreenError'
-import { Button, Stack, Text, useTheme } from '@/design-system'
-import { startExam } from '@/lib/api/exam'
-import { useOnline } from '@/lib/network/use-online'
+import { ScreenError } from '@/components/ui/ScreenError';
+import { Button, Stack, Text, useTheme } from '@/design-system';
+import { startExam } from '@/lib/api/exam';
+import { useOnline } from '@/lib/network/use-online';
 
 /**
  * Sınav öncesi kurallar ekranı. "Başla" butonu /exam/[id]/start çağırır
  * ve attempt status'üne göre uygun ekrana yönlendirir.
  */
 export default function ExamStartScreen() {
-  const t = useTheme()
-  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
-  const qc = useQueryClient()
-  const { isOnline } = useOnline()
+  const t = useTheme();
+  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
+  const qc = useQueryClient();
+  const { isOnline } = useOnline();
 
   const startMutation = useMutation({
     mutationFn: () => startExam(assignmentId),
     networkMode: 'online',
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['my-trainings'] })
-      qc.invalidateQueries({ queryKey: ['staff-dashboard'] })
-      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] })
+      qc.invalidateQueries({ queryKey: ['my-trainings'] });
+      qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
+      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
       switch (data.status) {
         case 'pre_exam':
-          router.replace(`/exam/${assignmentId}/questions?phase=pre`)
-          break
+          router.replace(`/exam/${assignmentId}/questions?phase=pre`);
+          break;
         case 'post_exam':
-          router.replace(`/exam/${assignmentId}/questions?phase=post`)
-          break
+          router.replace(`/exam/${assignmentId}/questions?phase=post`);
+          break;
         case 'watching_videos':
-          router.replace(`/exam/${assignmentId}/videos`)
-          break
+          router.replace(`/exam/${assignmentId}/videos`);
+          break;
         case 'completed':
-          router.replace(`/exam/${assignmentId}/result`)
-          break
+          router.replace(`/exam/${assignmentId}/result`);
+          break;
       }
     },
-  })
+  });
 
-  const error = startMutation.error as Error | null
+  const error = startMutation.error as Error | null;
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -71,8 +71,14 @@ export default function ExamStartScreen() {
           <Rule n={1} text="Sınava başladığınızda süreniz işlemeye başlar." />
           <Rule n={2} text="Cevaplarınız her seçimde otomatik kaydedilir." />
           <Rule n={3} text="Soruları istediğiniz sırada cevaplayabilirsiniz." />
-          <Rule n={4} text="Uygulamayı kapatırsanız sayım devam eder; süre dolarsa otomatik gönderilir." />
-          <Rule n={5} text="Son sınavda bir sorunun cevabı 30 saniye içinde değiştirilebilir, sonra kilitlenir." />
+          <Rule
+            n={4}
+            text="Uygulamayı kapatırsanız sayım devam eder; süre dolarsa otomatik gönderilir."
+          />
+          <Rule
+            n={5}
+            text="Son sınavda bir sorunun cevabı 30 saniye içinde değiştirilebilir, sonra kilitlenir."
+          />
         </View>
 
         {error ? (
@@ -100,10 +106,10 @@ export default function ExamStartScreen() {
                 Alert.alert(
                   'İnternet gerekli',
                   'Sınav başlatmak için internet bağlantısı gerekiyor. Lütfen bağlantınızı kontrol edin.',
-                )
-                return
+                );
+                return;
               }
-              startMutation.mutate()
+              startMutation.mutate();
             }}
             fullWidth
           />
@@ -113,11 +119,11 @@ export default function ExamStartScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 function Rule({ n, text }: { n: number; text: string }) {
-  const t = useTheme()
+  const t = useTheme();
   return (
     <Stack direction="row" align="flex-start" gap={3}>
       <View
@@ -146,5 +152,5 @@ function Rule({ n, text }: { n: number; text: string }) {
         {text}
       </Text>
     </Stack>
-  )
+  );
 }

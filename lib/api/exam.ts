@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch } from './client';
 import type {
   ExamPhase,
   ExamQuestionsResponse,
@@ -7,7 +7,7 @@ import type {
   ExamSubmitResponse,
   ExamVideosResponse,
   VideoProgressResponse,
-} from '@/types/exam'
+} from '@/types/exam';
 
 /**
  * Sınav akışı çağrıları — tümü `apiFetch` üzerinden gider, 401 → otomatik refresh.
@@ -22,16 +22,14 @@ import type {
 export function startExam(assignmentId: string): Promise<ExamStartResponse> {
   return apiFetch<ExamStartResponse>(`/api/exam/${assignmentId}/start`, {
     method: 'POST',
-  })
+  });
 }
 
 export function fetchExamQuestions(
   assignmentId: string,
   phase: ExamPhase,
 ): Promise<ExamQuestionsResponse> {
-  return apiFetch<ExamQuestionsResponse>(
-    `/api/exam/${assignmentId}/questions?phase=${phase}`,
-  )
+  return apiFetch<ExamQuestionsResponse>(`/api/exam/${assignmentId}/questions?phase=${phase}`);
 }
 
 export function saveExamAnswer(
@@ -41,25 +39,25 @@ export function saveExamAnswer(
   return apiFetch<{ saved: true }>(`/api/exam/${assignmentId}/save-answer`, {
     method: 'POST',
     body: JSON.stringify(body),
-  })
+  });
 }
 
 export function submitExam(
   assignmentId: string,
   body: {
-    answers: { questionId: string; selectedOptionId: string }[]
-    phase: ExamPhase
-    tabSwitchCount?: number
+    answers: { questionId: string; selectedOptionId: string }[];
+    phase: ExamPhase;
+    tabSwitchCount?: number;
   },
 ): Promise<ExamSubmitResponse> {
   return apiFetch<ExamSubmitResponse>(`/api/exam/${assignmentId}/submit`, {
     method: 'POST',
     body: JSON.stringify(body),
-  })
+  });
 }
 
 export function fetchExamResults(assignmentId: string): Promise<ExamResultsResponse> {
-  return apiFetch<ExamResultsResponse>(`/api/exam/${assignmentId}/results`)
+  return apiFetch<ExamResultsResponse>(`/api/exam/${assignmentId}/results`);
 }
 
 /**
@@ -67,7 +65,7 @@ export function fetchExamResults(assignmentId: string): Promise<ExamResultsRespo
  * assignmentId hem trainingId olarak kabul eder; biz assignmentId yolluyoruz.
  */
 export function fetchExamVideos(assignmentId: string): Promise<ExamVideosResponse> {
-  return apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`)
+  return apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`);
 }
 
 /**
@@ -78,15 +76,15 @@ export function fetchExamVideos(assignmentId: string): Promise<ExamVideosRespons
 export function saveVideoProgress(
   assignmentId: string,
   body: {
-    videoId: string
-    watchedTime?: number
-    position?: number
-    completed?: boolean
-    currentPage?: number
+    videoId: string;
+    watchedTime?: number;
+    position?: number;
+    completed?: boolean;
+    currentPage?: number;
   },
 ): Promise<VideoProgressResponse> {
   return apiFetch<VideoProgressResponse>(`/api/exam/${assignmentId}/videos`, {
     method: 'POST',
     body: JSON.stringify(body),
-  })
+  });
 }

@@ -1,15 +1,15 @@
-import { View } from 'react-native'
-import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol'
-import { Text, useTheme } from '@/design-system'
+import { View } from 'react-native';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { Text, useTheme } from '@/design-system';
 
 type Props = {
-  title: string
-  description?: string
-  icon?: IconSymbolName
-}
+  title: string;
+  description?: string;
+  icon?: IconSymbolName;
+};
 
 export function EmptyState({ title, description, icon = 'tray' }: Props) {
-  const t = useTheme()
+  const t = useTheme();
   return (
     <View
       style={{
@@ -41,5 +41,5 @@ export function EmptyState({ title, description, icon = 'tray' }: Props) {
         </Text>
       ) : null}
     </View>
-  )
+  );
 }

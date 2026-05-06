@@ -19,9 +19,7 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification"
-        ],
+        "UIBackgroundModes": ["remote-notification"],
         "NSFaceIDUsageDescription": "Hesabınızı korumak için Face ID kullanılacak.",
         "NSPhotoLibraryAddUsageDescription": "Sertifikanızı galerinize kaydedebilmek için fotoğraf erişimine ihtiyacımız var."
       }

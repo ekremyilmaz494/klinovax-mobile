@@ -1,5 +1,5 @@
-import * as Device from 'expo-device'
-import * as Notifications from 'expo-notifications'
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 
 /**
  * iOS app icon kırmızı sayı badge'i. Cron push'larda backend `badge` field
@@ -11,9 +11,9 @@ import * as Notifications from 'expo-notifications'
  * Hata yutulur — badge UX kritik değil, push akışı bozulmamalı.
  */
 export async function setBadgeCount(count: number): Promise<void> {
-  if (!Device.isDevice) return
+  if (!Device.isDevice) return;
   try {
-    await Notifications.setBadgeCountAsync(Math.max(0, count))
+    await Notifications.setBadgeCountAsync(Math.max(0, count));
   } catch {
     // sessiz — badge sync best-effort
   }

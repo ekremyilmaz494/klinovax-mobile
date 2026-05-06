@@ -1,32 +1,38 @@
-import { useColorScheme } from '@/hooks/use-color-scheme'
-import { Hairline, Motion, Palette, Radius, Shadow, Space } from './tokens'
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Hairline, Motion, Palette, Radius, Shadow, Space } from './tokens';
 
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark';
 
 export interface SemanticColors {
-  surface: { canvas: string; primary: string; secondary: string; sunken: string; inverse: string }
+  surface: { canvas: string; primary: string; secondary: string; sunken: string; inverse: string };
   text: {
-    primary: string
-    secondary: string
-    tertiary: string
-    onAccent: string
-    onInverse: string
-    danger: string
-    success: string
-  }
-  border: { subtle: string; default: string; strong: string; focus: string }
-  accent: { clay: string; clayHover: string; clayMuted: string; clayOnAccent: string; bgMuted: string }
+    primary: string;
+    secondary: string;
+    tertiary: string;
+    onAccent: string;
+    onInverse: string;
+    danger: string;
+    success: string;
+  };
+  border: { subtle: string; default: string; strong: string; focus: string };
+  accent: {
+    clay: string;
+    clayHover: string;
+    clayMuted: string;
+    clayOnAccent: string;
+    bgMuted: string;
+  };
   status: {
-    success: string
-    successBg: string
-    danger: string
-    dangerBg: string
-    warning: string
-    warningBg: string
-    info: string
-    infoBg: string
-  }
-  overlay: { scrim: string; pressed: string }
+    success: string;
+    successBg: string;
+    danger: string;
+    dangerBg: string;
+    warning: string;
+    warningBg: string;
+    info: string;
+    infoBg: string;
+  };
+  overlay: { scrim: string; pressed: string };
 }
 
 export const lightTheme: SemanticColors = {
@@ -74,7 +80,7 @@ export const lightTheme: SemanticColors = {
     scrim: 'rgba(27,26,23,0.45)',
     pressed: 'rgba(27,26,23,0.06)',
   },
-}
+};
 
 export const darkTheme: SemanticColors = {
   surface: {
@@ -121,21 +127,21 @@ export const darkTheme: SemanticColors = {
     scrim: 'rgba(0,0,0,0.55)',
     pressed: 'rgba(255,255,255,0.06)',
   },
-}
+};
 
 export interface Theme {
-  mode: ThemeMode
-  colors: SemanticColors
-  radius: typeof Radius
-  space: typeof Space
-  shadow: typeof Shadow
-  motion: typeof Motion
-  hairline: number
+  mode: ThemeMode;
+  colors: SemanticColors;
+  radius: typeof Radius;
+  space: typeof Space;
+  shadow: typeof Shadow;
+  motion: typeof Motion;
+  hairline: number;
 }
 
 export function useTheme(): Theme {
-  const scheme = useColorScheme()
-  const mode: ThemeMode = scheme === 'dark' ? 'dark' : 'light'
+  const scheme = useColorScheme();
+  const mode: ThemeMode = scheme === 'dark' ? 'dark' : 'light';
   return {
     mode,
     colors: mode === 'dark' ? darkTheme : lightTheme,
@@ -144,5 +150,5 @@ export function useTheme(): Theme {
     shadow: Shadow,
     motion: Motion,
     hairline: Hairline,
-  }
+  };
 }

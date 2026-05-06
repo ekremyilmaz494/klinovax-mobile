@@ -1,5 +1,5 @@
-import type { TextStyle } from 'react-native'
-import { FontFamily } from './fonts'
+import type { TextStyle } from 'react-native';
+import { FontFamily } from './fonts';
 
 export type TypeVariant =
   | 'display'
@@ -16,7 +16,7 @@ export type TypeVariant =
   | 'overline'
   | 'mono'
   | 'metric'
-  | 'metricSmall'
+  | 'metricSmall';
 
 export const Type: Record<TypeVariant, TextStyle> = {
   display: {
@@ -105,4 +105,4 @@ export const Type: Record<TypeVariant, TextStyle> = {
     lineHeight: 26,
     fontVariant: ['tabular-nums'],
   },
-}
+};

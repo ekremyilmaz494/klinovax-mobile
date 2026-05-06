@@ -1,21 +1,28 @@
-import { Pressable, type ViewStyle } from 'react-native'
-import { useTheme } from '../theme'
-import { Text } from './Text'
+import { Pressable, type ViewStyle } from 'react-native';
+import { useTheme } from '../theme';
+import { Text } from './Text';
 
 export interface ChipProps {
-  label: string
-  selected?: boolean
-  onPress?: () => void
-  disabled?: boolean
-  style?: ViewStyle
-  accessibilityLabel?: string
+  label: string;
+  selected?: boolean;
+  onPress?: () => void;
+  disabled?: boolean;
+  style?: ViewStyle;
+  accessibilityLabel?: string;
 }
 
-export function Chip({ label, selected = false, onPress, disabled, style, accessibilityLabel }: ChipProps) {
-  const t = useTheme()
-  const bg = selected ? t.colors.accent.clay : 'transparent'
-  const fg = selected ? t.colors.accent.clayOnAccent : t.colors.text.secondary
-  const borderColor = selected ? t.colors.accent.clay : t.colors.border.default
+export function Chip({
+  label,
+  selected = false,
+  onPress,
+  disabled,
+  style,
+  accessibilityLabel,
+}: ChipProps) {
+  const t = useTheme();
+  const bg = selected ? t.colors.accent.clay : 'transparent';
+  const fg = selected ? t.colors.accent.clayOnAccent : t.colors.text.secondary;
+  const borderColor = selected ? t.colors.accent.clay : t.colors.border.default;
   return (
     <Pressable
       onPress={onPress}
@@ -40,5 +47,5 @@ export function Chip({ label, selected = false, onPress, disabled, style, access
         {label}
       </Text>
     </Pressable>
-  )
+  );
 }

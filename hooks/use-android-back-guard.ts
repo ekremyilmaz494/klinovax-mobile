@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router'
-import { useCallback } from 'react'
-import { BackHandler } from 'react-native'
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import { BackHandler } from 'react-native';
 
 /**
  * Android donanım geri tuşunu ekran focused iken yakala.
@@ -15,8 +15,8 @@ import { BackHandler } from 'react-native'
 export function useAndroidBackGuard(handler: () => boolean) {
   useFocusEffect(
     useCallback(() => {
-      const sub = BackHandler.addEventListener('hardwareBackPress', handler)
-      return () => sub.remove()
+      const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+      return () => sub.remove();
     }, [handler]),
-  )
+  );
 }

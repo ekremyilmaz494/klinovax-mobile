@@ -13,12 +13,12 @@ export const MUTATION_KEYS = {
   saveAnswer: ['exam', 'save-answer'] as const,
   submitExam: ['exam', 'submit'] as const,
   completeVideo: ['exam', 'video-complete'] as const,
-} as const
+} as const;
 
 export type MutationKey =
   | typeof MUTATION_KEYS.saveAnswer
   | typeof MUTATION_KEYS.submitExam
-  | typeof MUTATION_KEYS.completeVideo
+  | typeof MUTATION_KEYS.completeVideo;
 
 /**
  * Persist edilmesi GEREKEN key'lerin set'i. `shouldDehydrateMutation`
@@ -29,9 +29,9 @@ export const PERSISTED_MUTATION_KEYS: ReadonlySet<string> = new Set([
   MUTATION_KEYS.saveAnswer.join('/'),
   MUTATION_KEYS.submitExam.join('/'),
   MUTATION_KEYS.completeVideo.join('/'),
-])
+]);
 
 export function isPersistedMutationKey(key: readonly unknown[] | undefined): boolean {
-  if (!key || key.length === 0) return false
-  return PERSISTED_MUTATION_KEYS.has(key.map(String).join('/'))
+  if (!key || key.length === 0) return false;
+  return PERSISTED_MUTATION_KEYS.has(key.map(String).join('/'));
 }

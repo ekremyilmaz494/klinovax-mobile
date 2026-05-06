@@ -1,10 +1,10 @@
-import { type QueryClient } from '@tanstack/react-query'
+import { type QueryClient } from '@tanstack/react-query';
 
-import { ApiError } from '@/lib/api/client'
-import { saveExamAnswer, saveVideoProgress, submitExam } from '@/lib/api/exam'
-import type { ExamPhase, ExamSubmitResponse, VideoProgressResponse } from '@/types/exam'
+import { ApiError } from '@/lib/api/client';
+import { saveExamAnswer, saveVideoProgress, submitExam } from '@/lib/api/exam';
+import type { ExamPhase, ExamSubmitResponse, VideoProgressResponse } from '@/types/exam';
 
-import { MUTATION_KEYS } from './mutation-keys'
+import { MUTATION_KEYS } from './mutation-keys';
 
 /**
  * Persist edilen mutation'lar için **tek source of truth**: `mutationFn` +
@@ -19,24 +19,24 @@ import { MUTATION_KEYS } from './mutation-keys'
  */
 
 export type SaveAnswerVars = {
-  assignmentId: string
-  questionId: string
-  selectedOptionId: string
-  examPhase: ExamPhase
-}
+  assignmentId: string;
+  questionId: string;
+  selectedOptionId: string;
+  examPhase: ExamPhase;
+};
 
 export type SubmitExamVars = {
-  assignmentId: string
-  answers: { questionId: string; selectedOptionId: string }[]
-  phase: ExamPhase
-}
+  assignmentId: string;
+  answers: { questionId: string; selectedOptionId: string }[];
+  phase: ExamPhase;
+};
 
 export type CompleteVideoVars = {
-  assignmentId: string
-  videoId: string
-  position: number
-  watchedTime: number
-}
+  assignmentId: string;
+  videoId: string;
+  position: number;
+  watchedTime: number;
+};
 
 /**
  * 4xx hatası kalıcı (yetkisiz, validasyon, conflict) — retry boşa harcanır.
@@ -45,9 +45,9 @@ export type CompleteVideoVars = {
  */
 function shouldRetry(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiError) {
-    if (error.status >= 400 && error.status < 500) return false
+    if (error.status >= 400 && error.status < 500) return false;
   }
-  return failureCount < 3
+  return failureCount < 3;
 }
 
 /**
@@ -56,8 +56,8 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
  * submit etti vs.). 409/422 ise idempotent kabul edilir, swallow + invalidate.
  */
 function isAlreadyProcessedError(error: unknown): boolean {
-  if (!(error instanceof ApiError)) return false
-  return error.status === 409 || error.status === 422
+  if (!(error instanceof ApiError)) return false;
+  return error.status === 409 || error.status === 422;
 }
 
 export function registerMutationDefaults(client: QueryClient): void {
@@ -76,7 +76,7 @@ export function registerMutationDefaults(client: QueryClient): void {
       // backend tek source of truth, kullanıcının ekranda gördüğü cevap
       // yerel state olarak kalır.
     },
-  })
+  });
 
   // ─── submitExam ──────────────────────────────────────────────────
   // Sınav teslim. 409/422 (already submitted) durumunda swallow + invalidate.
@@ -88,19 +88,19 @@ export function registerMutationDefaults(client: QueryClient): void {
     onSuccess: (_data: ExamSubmitResponse, vars: SubmitExamVars) => {
       // Liste/dashboard cache'leri yenile — replay sonrası app restart bile
       // olsa fresh data gözüksün
-      void client.invalidateQueries({ queryKey: ['my-trainings'] })
-      void client.invalidateQueries({ queryKey: ['staff-dashboard'] })
-      void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] })
-      void client.invalidateQueries({ queryKey: ['certificates'] })
+      void client.invalidateQueries({ queryKey: ['my-trainings'] });
+      void client.invalidateQueries({ queryKey: ['staff-dashboard'] });
+      void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] });
+      void client.invalidateQueries({ queryKey: ['certificates'] });
     },
     onError: (error: unknown, vars: SubmitExamVars) => {
       if (isAlreadyProcessedError(error)) {
         // Duplicate submit — backend zaten işlemiş; yine invalidate ki UI senkron olsun
-        void client.invalidateQueries({ queryKey: ['my-trainings'] })
-        void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] })
+        void client.invalidateQueries({ queryKey: ['my-trainings'] });
+        void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] });
       }
     },
-  })
+  });
 
   // ─── completeVideo ───────────────────────────────────────────────
   // Video tamamlandı POST. Idempotent: aynı videoId ikinci kez geldiğinde
@@ -116,15 +116,15 @@ export function registerMutationDefaults(client: QueryClient): void {
     networkMode: 'offlineFirst',
     retry: shouldRetry,
     onSuccess: (_data: VideoProgressResponse, vars: CompleteVideoVars) => {
-      void client.invalidateQueries({ queryKey: ['exam-videos', vars.assignmentId] })
-      void client.invalidateQueries({ queryKey: ['my-trainings'] })
-      void client.invalidateQueries({ queryKey: ['staff-dashboard'] })
-      void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] })
+      void client.invalidateQueries({ queryKey: ['exam-videos', vars.assignmentId] });
+      void client.invalidateQueries({ queryKey: ['my-trainings'] });
+      void client.invalidateQueries({ queryKey: ['staff-dashboard'] });
+      void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] });
     },
     onError: (error: unknown, vars: CompleteVideoVars) => {
       if (isAlreadyProcessedError(error)) {
-        void client.invalidateQueries({ queryKey: ['exam-videos', vars.assignmentId] })
+        void client.invalidateQueries({ queryKey: ['exam-videos', vars.assignmentId] });
       }
     },
-  })
+  });
 }

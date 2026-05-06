@@ -1,5 +1,5 @@
-import { API_BASE_URL } from '../config'
-import { loadSession, updateAccessToken, clearSession } from '../auth/secure-token'
+import { API_BASE_URL } from '../config';
+import { loadSession, updateAccessToken, clearSession } from '../auth/secure-token';
 
 /**
  * fetch wrapper'ı — fetch promise'i network hatasıyla reject ederse anlamlı bir
@@ -8,11 +8,11 @@ import { loadSession, updateAccessToken, clearSession } from '../auth/secure-tok
  */
 async function fetchOrThrow(url: string, init?: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init)
+    return await fetch(url, init);
   } catch {
     throw new ApiError(0, {
       error: `Sunucuya ulaşılamadı (${API_BASE_URL}). Backend kapalı olabilir veya cihazınız bu adrese erişemiyor.`,
-    })
+    });
   }
 }
 
@@ -31,31 +31,30 @@ async function fetchOrThrow(url: string, init?: RequestInit): Promise<Response> 
  * Eş zamanlı 401'lerde tek bir refresh promise paylaşılır (refreshInflight) —
  * 5 paralel istek 401 alıyorsa 5 refresh çağrısı yapılmaz, hepsi tek refresh'i bekler.
  */
-type RefreshResult =
-  | { ok: true; token: string }
-  | { ok: false; reason: 'network' | 'auth' }
+type RefreshResult = { ok: true; token: string } | { ok: false; reason: 'network' | 'auth' };
 
-let refreshInflight: Promise<RefreshResult> | null = null
+let refreshInflight: Promise<RefreshResult> | null = null;
 
 async function performRefresh(refreshToken: string): Promise<RefreshResult> {
-  let res: Response
+  let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
-    })
+    });
   } catch {
-    return { ok: false, reason: 'network' }
+    return { ok: false, reason: 'network' };
   }
-  if (!res.ok) return { ok: false, reason: 'auth' }
+  if (!res.ok) return { ok: false, reason: 'auth' };
   try {
-    const data = (await res.json()) as { session?: { accessToken: string; refreshToken: string } }
-    if (!data.session?.accessToken || !data.session.refreshToken) return { ok: false, reason: 'auth' }
-    await updateAccessToken(data.session.accessToken, data.session.refreshToken)
-    return { ok: true, token: data.session.accessToken }
+    const data = (await res.json()) as { session?: { accessToken: string; refreshToken: string } };
+    if (!data.session?.accessToken || !data.session.refreshToken)
+      return { ok: false, reason: 'auth' };
+    await updateAccessToken(data.session.accessToken, data.session.refreshToken);
+    return { ok: true, token: data.session.accessToken };
   } catch {
-    return { ok: false, reason: 'auth' }
+    return { ok: false, reason: 'auth' };
   }
 }
 
@@ -66,14 +65,21 @@ async function performRefresh(refreshToken: string): Promise<RefreshResult> {
  *
  * Network fail durumunda çağrılmaz (kullanıcıyı offline'da zorla logout etmeyiz).
  */
-let onAuthFailure: (() => void | Promise<void>) | null = null
+let onAuthFailure: (() => void | Promise<void>) | null = null;
 export function setOnAuthFailure(cb: (() => void | Promise<void>) | null): void {
-  onAuthFailure = cb
+  onAuthFailure = cb;
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, public body: unknown) {
-    super(typeof body === 'object' && body && 'error' in body ? String((body as { error: unknown }).error) : `HTTP ${status}`)
+  constructor(
+    public status: number,
+    public body: unknown,
+  ) {
+    super(
+      typeof body === 'object' && body && 'error' in body
+        ? String((body as { error: unknown }).error)
+        : `HTTP ${status}`,
+    );
   }
 }
 
@@ -81,64 +87,66 @@ export class ApiError extends Error {
  * apiRequest — bearer + 401-refresh+retry; ham Response döner. JSON, blob, stream
  * gibi farklı içerikler bunun üzerinden tüketilebilir. apiFetch JSON için sarmalar.
  */
-export async function apiRequest(
-  path: string,
-  init: RequestInit = {},
-): Promise<Response> {
-  const session = await loadSession()
-  if (!session) throw new ApiError(401, { error: 'Oturum yok' })
+export async function apiRequest(path: string, init: RequestInit = {}): Promise<Response> {
+  const session = await loadSession();
+  if (!session) throw new ApiError(401, { error: 'Oturum yok' });
 
   const doFetch = async (token: string): Promise<Response> => {
-    const headers = new Headers(init.headers)
-    headers.set('Authorization', `Bearer ${token}`)
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${token}`);
     if (init.body && !headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json')
+      headers.set('Content-Type', 'application/json');
     }
-    return fetchOrThrow(`${API_BASE_URL}${path}`, { ...init, headers })
-  }
+    return fetchOrThrow(`${API_BASE_URL}${path}`, { ...init, headers });
+  };
 
-  let res = await doFetch(session.accessToken)
+  let res = await doFetch(session.accessToken);
 
   if (res.status === 401) {
     if (!refreshInflight) {
       refreshInflight = performRefresh(session.refreshToken).finally(() => {
-        refreshInflight = null
-      })
+        refreshInflight = null;
+      });
     }
-    const result = await refreshInflight
+    const result = await refreshInflight;
     if (!result.ok) {
       if (result.reason === 'network') {
         // Offline iken refresh denemesi başarısız oldu — session'a dokunma,
         // çağrı sahibine network hatası dön. Online'a dönünce yeniden denenir.
         throw new ApiError(0, {
           error: `Sunucuya ulaşılamadı (${API_BASE_URL}). Backend kapalı olabilir veya cihazınız bu adrese erişemiyor.`,
-        })
+        });
       }
       // Auth hatası: session temizle + onAuthFailure (Zustand logout) tetikle
-      await clearSession()
+      await clearSession();
       if (onAuthFailure) {
-        try { await onAuthFailure() } catch (e) { console.warn('[apiRequest] onAuthFailure threw', e) }
+        try {
+          await onAuthFailure();
+        } catch (e) {
+          console.warn('[apiRequest] onAuthFailure threw', e);
+        }
       }
-      throw new ApiError(401, { error: 'Oturum süreniz doldu' })
+      throw new ApiError(401, { error: 'Oturum süreniz doldu' });
     }
-    res = await doFetch(result.token)
+    res = await doFetch(result.token);
   }
 
-  return res
+  return res;
 }
 
-export async function apiFetch<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const res = await apiRequest(path, init)
-  const text = await res.text()
-  let body: unknown = null
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await apiRequest(path, init);
+  const text = await res.text();
+  let body: unknown = null;
   if (text) {
-    try { body = JSON.parse(text) } catch { body = text }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
   }
-  if (!res.ok) throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` })
-  return body as T
+  if (!res.ok) throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` });
+  return body as T;
 }
 
 /**
@@ -146,27 +154,36 @@ export async function apiFetch<T>(
  * stored session'ı varsayar.
  */
 export async function loginRequest(params: {
-  email: string
-  password: string
-  rememberMe: boolean
+  email: string;
+  password: string;
+  rememberMe: boolean;
 }): Promise<{
-  user: { id: string; email: string; role: string }
-  organizationId: string | null
-  organizationSlug: string | null
-  session: { accessToken: string; refreshToken: string; expiresAt: number | null; tokenType: string } | null
-  mustChangePassword: boolean
-  setupCompleted: boolean | null
+  user: { id: string; email: string; role: string };
+  organizationId: string | null;
+  organizationSlug: string | null;
+  session: {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number | null;
+    tokenType: string;
+  } | null;
+  mustChangePassword: boolean;
+  setupCompleted: boolean | null;
 }> {
   const res = await fetchOrThrow(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
-  })
-  const text = await res.text()
-  let body: unknown = null
+  });
+  const text = await res.text();
+  let body: unknown = null;
   if (text) {
-    try { body = JSON.parse(text) } catch { body = text }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
   }
-  if (!res.ok) throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` })
-  return body as Awaited<ReturnType<typeof loginRequest>>
+  if (!res.ok) throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` });
+  return body as Awaited<ReturnType<typeof loginRequest>>;
 }

@@ -1,5 +1,5 @@
-import NetInfo from '@react-native-community/netinfo'
-import { onlineManager } from '@tanstack/react-query'
+import NetInfo from '@react-native-community/netinfo';
+import { onlineManager } from '@tanstack/react-query';
 
 /**
  * NetInfo state'ini TanStack Query'nin `onlineManager`'ına forward eder.
@@ -16,19 +16,19 @@ import { onlineManager } from '@tanstack/react-query'
  * Reachability null → online sayıyoruz (use-online.ts ile aynı bias).
  */
 export function setupOnlineBridge(): () => void {
-  let netInfoUnsub: (() => void) | null = null
+  let netInfoUnsub: (() => void) | null = null;
   onlineManager.setEventListener((setOnline) => {
     const unsub = NetInfo.addEventListener((state) => {
-      const connected = state.isConnected === true
-      const reachable = state.isInternetReachable !== false
-      setOnline(connected && reachable)
-    })
-    netInfoUnsub = unsub
+      const connected = state.isConnected === true;
+      const reachable = state.isInternetReachable !== false;
+      setOnline(connected && reachable);
+    });
+    netInfoUnsub = unsub;
     // setup function bir cleanup dönmeli; TanStack listener swap'larda çağırır
-    return unsub
-  })
+    return unsub;
+  });
   return () => {
-    netInfoUnsub?.()
-    netInfoUnsub = null
-  }
+    netInfoUnsub?.();
+    netInfoUnsub = null;
+  };
 }

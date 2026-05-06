@@ -1,6 +1,6 @@
-import * as SecureStore from 'expo-secure-store'
+import * as SecureStore from 'expo-secure-store';
 
-const FLAG_KEY = 'klinovax.biometricEnabled'
+const FLAG_KEY = 'klinovax.biometricEnabled';
 
 /**
  * Kullanıcının "Face ID / Touch ID ile giriş" tercihini SecureStore'da tutar.
@@ -12,14 +12,14 @@ const FLAG_KEY = 'klinovax.biometricEnabled'
  */
 
 export async function getBiometricEnabled(): Promise<boolean> {
-  const v = await SecureStore.getItemAsync(FLAG_KEY)
-  return v === '1'
+  const v = await SecureStore.getItemAsync(FLAG_KEY);
+  return v === '1';
 }
 
 export async function setBiometricEnabled(enabled: boolean): Promise<void> {
   if (enabled) {
-    await SecureStore.setItemAsync(FLAG_KEY, '1')
+    await SecureStore.setItemAsync(FLAG_KEY, '1');
   } else {
-    await SecureStore.deleteItemAsync(FLAG_KEY)
+    await SecureStore.deleteItemAsync(FLAG_KEY);
   }
 }

@@ -1,34 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, type Theme as NavTheme } from '@react-navigation/native'
-import { QueryClient, useQueryClient } from '@tanstack/react-query'
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
-import { useFonts } from 'expo-font'
-import { Stack, useRouter, useSegments } from 'expo-router'
-import * as SplashScreen from 'expo-splash-screen'
-import { StatusBar } from 'expo-status-bar'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import 'react-native-reanimated'
-import 'react-native-url-polyfill/auto'
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+  type Theme as NavTheme,
+} from '@react-navigation/native';
+import { QueryClient, useQueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { useFonts } from 'expo-font';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import 'react-native-reanimated';
+import 'react-native-url-polyfill/auto';
 
-import { BiometricLockScreen } from '@/components/auth/BiometricLockScreen'
-import { OfflineBanner } from '@/components/network/OfflineBanner'
-import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system'
-import { useColorScheme } from '@/hooks/use-color-scheme'
-import { useUnreadCount } from '@/hooks/use-notifications'
-import { setOnAuthFailure } from '@/lib/api/client'
-import { setBadgeCount } from '@/lib/notifications/badge'
-import { setupNotifications } from '@/lib/notifications/handler'
-import { registerForPushNotifications } from '@/lib/notifications/push'
-import { registerMutationDefaults } from '@/lib/query/mutation-defaults'
-import { setupOnlineBridge } from '@/lib/query/online-bridge'
-import { clearPersistedQueryCache, persistOptions } from '@/lib/query/persister'
-import { initSentry, Sentry } from '@/lib/sentry'
-import { useAuthStore } from '@/store/auth'
+import { BiometricLockScreen } from '@/components/auth/BiometricLockScreen';
+import { OfflineBanner } from '@/components/network/OfflineBanner';
+import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUnreadCount } from '@/hooks/use-notifications';
+import { setOnAuthFailure } from '@/lib/api/client';
+import { setBadgeCount } from '@/lib/notifications/badge';
+import { setupNotifications } from '@/lib/notifications/handler';
+import { registerForPushNotifications } from '@/lib/notifications/push';
+import { registerMutationDefaults } from '@/lib/query/mutation-defaults';
+import { setupOnlineBridge } from '@/lib/query/online-bridge';
+import { clearPersistedQueryCache, persistOptions } from '@/lib/query/persister';
+import { initSentry, Sentry } from '@/lib/sentry';
+import { useAuthStore } from '@/store/auth';
 
 // Crash reporting'i her şeyden önce başlat — splash gizlenmeden, font yüklenmeden.
 // EXPO_PUBLIC_SENTRY_DSN yoksa veya __DEV__ ise no-op.
-initSentry()
+initSentry();
 
-SplashScreen.preventAutoHideAsync().catch(() => {})
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function createQueryClient(): QueryClient {
   const client = new QueryClient({
@@ -40,12 +45,12 @@ function createQueryClient(): QueryClient {
         gcTime: 24 * 60 * 60 * 1000,
       },
     },
-  })
+  });
   // Mutation defaults provider mount'undan ÖNCE kayıtlı olmalı:
   // rehydrate sırasında mutation cache'e koyulan paused mutation'lar
   // mutationFn'i bu registry'den arar.
-  registerMutationDefaults(client)
-  return client
+  registerMutationDefaults(client);
+  return client;
 }
 
 /**
@@ -56,73 +61,75 @@ function createQueryClient(): QueryClient {
  * tetiklenir; başarısız olursa sessiz geçer (push opsiyonel).
  */
 function AuthGate() {
-  const router = useRouter()
-  const segments = useSegments()
-  const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
-  const unlocked = useAuthStore((s) => s.unlocked)
-  const hydrated = useAuthStore((s) => s.hydrated)
-  const hydrate = useAuthStore((s) => s.hydrate)
-  const logout = useAuthStore((s) => s.logout)
-  const navigatedRef = useRef(false)
-  const pushRegisteredRef = useRef(false)
-  const wasAuthedRef = useRef(false)
+  const router = useRouter();
+  const segments = useSegments();
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const unlocked = useAuthStore((s) => s.unlocked);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const logout = useAuthStore((s) => s.logout);
+  const navigatedRef = useRef(false);
+  const pushRegisteredRef = useRef(false);
+  const wasAuthedRef = useRef(false);
 
-  useEffect(() => { void hydrate() }, [hydrate])
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   // API client'taki refresh-AUTH-failure'da Zustand store'u temizle.
   // Network failure'da tetiklenmez — offline'da zorla logout etmeyiz.
   useEffect(() => {
-    setOnAuthFailure(logout)
-    return () => setOnAuthFailure(null)
-  }, [logout])
+    setOnAuthFailure(logout);
+    return () => setOnAuthFailure(null);
+  }, [logout]);
 
   useEffect(() => {
-    if (!hydrated) return
-    const inAuthGroup = segments[0] === '(auth)'
+    if (!hydrated) return;
+    const inAuthGroup = segments[0] === '(auth)';
     if (!user && !inAuthGroup) {
-      navigatedRef.current = true
-      router.replace('/(auth)/login')
+      navigatedRef.current = true;
+      router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
-      navigatedRef.current = true
-      router.replace('/(tabs)/dashboard')
+      navigatedRef.current = true;
+      router.replace('/(tabs)/dashboard');
     }
-  }, [hydrated, user, segments, router])
+  }, [hydrated, user, segments, router]);
 
   // Push registration — user oturum açmış + biometric kilidi geçilmişse bir kez
   useEffect(() => {
-    if (!hydrated || !user || !unlocked || pushRegisteredRef.current) return
-    pushRegisteredRef.current = true
-    void registerForPushNotifications()
-  }, [hydrated, user, unlocked])
+    if (!hydrated || !user || !unlocked || pushRegisteredRef.current) return;
+    pushRegisteredRef.current = true;
+    void registerForPushNotifications();
+  }, [hydrated, user, unlocked]);
 
   // Logout transition (was authed → null user): eski kullanıcıya ait query ve
   // paused mutation'lar ortak cihazda yeni oturuma sızmamalı.
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated) return;
     if (user) {
-      wasAuthedRef.current = true
+      wasAuthedRef.current = true;
     } else if (wasAuthedRef.current) {
-      wasAuthedRef.current = false
-      pushRegisteredRef.current = false
-      queryClient.clear()
-      void clearPersistedQueryCache()
+      wasAuthedRef.current = false;
+      pushRegisteredRef.current = false;
+      queryClient.clear();
+      void clearPersistedQueryCache();
     }
-  }, [hydrated, user, queryClient])
+  }, [hydrated, user, queryClient]);
 
-  return null
+  return null;
 }
 
 export const unstable_settings = {
   anchor: '(tabs)',
-}
+};
 
 function LockOverlay() {
-  const user = useAuthStore((s) => s.user)
-  const unlocked = useAuthStore((s) => s.unlocked)
-  const hydrated = useAuthStore((s) => s.hydrated)
-  if (!hydrated || !user || unlocked) return null
-  return <BiometricLockScreen />
+  const user = useAuthStore((s) => s.user);
+  const unlocked = useAuthStore((s) => s.unlocked);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  if (!hydrated || !user || unlocked) return null;
+  return <BiometricLockScreen />;
 }
 
 /**
@@ -131,16 +138,16 @@ function LockOverlay() {
  * RootLayout içinden çağırıyoruz (Provider'ın içinde her zaman mount).
  */
 function BadgeSync() {
-  const unreadCount = useUnreadCount()
+  const unreadCount = useUnreadCount();
   useEffect(() => {
-    void setBadgeCount(unreadCount)
-  }, [unreadCount])
-  return null
+    void setBadgeCount(unreadCount);
+  }, [unreadCount]);
+  return null;
 }
 
 function buildNavigationTheme(mode: 'light' | 'dark'): NavTheme {
-  const t = mode === 'dark' ? darkTheme : lightTheme
-  const base = mode === 'dark' ? DarkTheme : DefaultTheme
+  const t = mode === 'dark' ? darkTheme : lightTheme;
+  const base = mode === 'dark' ? DarkTheme : DefaultTheme;
   return {
     ...base,
     colors: {
@@ -158,44 +165,44 @@ function buildNavigationTheme(mode: 'light' | 'dark'): NavTheme {
       bold: { fontFamily: FontFamily.bodyBold, fontWeight: '700' },
       heavy: { fontFamily: FontFamily.displayBold, fontWeight: '700' },
     },
-  }
+  };
 }
 
 function RootLayout() {
-  const colorScheme = useColorScheme()
+  const colorScheme = useColorScheme();
   // QueryClient'ı useState initializer'da yarat: registerMutationDefaults'un
   // Provider mount'undan önce çalışmasını garanti eder. Module-level singleton
   // Fast Refresh + test setup'ta sızıntıya yol açabiliyordu.
-  const [client] = useState(() => createQueryClient())
-  const [fontsLoaded, fontError] = useFonts(FontMap)
+  const [client] = useState(() => createQueryClient());
+  const [fontsLoaded, fontError] = useFonts(FontMap);
 
   // Notification handler'ı bir kez mount'ta kur — foreground display + tap routing.
   // queryClient'a bağlı: foreground'da gelen push feed cache'ini invalidate eder.
   useEffect(() => {
-    const teardown = setupNotifications(client)
-    return teardown
-  }, [client])
+    const teardown = setupNotifications(client);
+    return teardown;
+  }, [client]);
 
   // NetInfo → TanStack onlineManager bridge — mutation paused/resume için kritik
   useEffect(() => {
-    const teardown = setupOnlineBridge()
-    return teardown
-  }, [])
+    const teardown = setupOnlineBridge();
+    return teardown;
+  }, []);
 
   // Splash'i fontlar hazır olunca veya yükleme hatasında kapat
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {})
+      SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, fontError])
+  }, [fontsLoaded, fontError]);
 
   const navTheme = useMemo(
     () => buildNavigationTheme(colorScheme === 'dark' ? 'dark' : 'light'),
     [colorScheme],
-  )
-  const t = colorScheme === 'dark' ? darkTheme : lightTheme
+  );
+  const t = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  if (!fontsLoaded && !fontError) return null
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <PersistQueryClientProvider
@@ -204,7 +211,7 @@ function RootLayout() {
       onSuccess={() => {
         // Rehydrate tamamlandı — AsyncStorage'tan gelen paused mutation'lar
         // onlineManager online ise hemen replay olur, offline ise online dönüşünü bekler
-        void client.resumePausedMutations()
+        void client.resumePausedMutations();
       }}
     >
       <ThemeProvider value={navTheme}>
@@ -214,7 +221,11 @@ function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: t.surface.canvas },
             headerShadowVisible: false,
-            headerTitleStyle: { fontFamily: FontFamily.display, fontSize: 18, color: t.text.primary },
+            headerTitleStyle: {
+              fontFamily: FontFamily.display,
+              fontSize: 18,
+              color: t.text.primary,
+            },
             headerTintColor: t.accent.clay,
             headerBackTitle: 'Geri',
             contentStyle: { backgroundColor: t.surface.canvas },
@@ -224,9 +235,15 @@ function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trainings/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="exam/[assignmentId]/start" options={{ headerShown: true }} />
-          <Stack.Screen name="exam/[assignmentId]/questions" options={{ headerShown: true, gestureEnabled: false }} />
+          <Stack.Screen
+            name="exam/[assignmentId]/questions"
+            options={{ headerShown: true, gestureEnabled: false }}
+          />
           <Stack.Screen name="exam/[assignmentId]/videos" options={{ headerShown: true }} />
-          <Stack.Screen name="exam/[assignmentId]/result" options={{ headerShown: true, gestureEnabled: false }} />
+          <Stack.Screen
+            name="exam/[assignmentId]/result"
+            options={{ headerShown: true, gestureEnabled: false }}
+          />
           <Stack.Screen
             name="certificates/[id]/preview"
             options={{ headerShown: true, presentation: 'modal' }}
@@ -238,9 +255,9 @@ function RootLayout() {
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
     </PersistQueryClientProvider>
-  )
+  );
 }
 
 // Sentry.wrap: error boundary + touch event breadcrumbs ekler. Init no-op olduysa
 // passthrough HOC olarak çalışır, davranışı değiştirmez.
-export default Sentry.wrap(RootLayout)
+export default Sentry.wrap(RootLayout);

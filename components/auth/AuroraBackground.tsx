@@ -1,56 +1,56 @@
-import { useEffect } from 'react'
-import { Dimensions, View } from 'react-native'
+import { useEffect } from 'react';
+import { Dimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
-} from 'react-native-reanimated'
+} from 'react-native-reanimated';
 
-import { Palette } from '@/design-system/tokens'
-import { useReducedMotion } from '@/design-system/useReducedMotion'
-import { useTheme } from '@/design-system'
+import { Palette } from '@/design-system/tokens';
+import { useReducedMotion } from '@/design-system/useReducedMotion';
+import { useTheme } from '@/design-system';
 
-const { width: W, height: H } = Dimensions.get('window')
+const { width: W, height: H } = Dimensions.get('window');
 
 interface OrbConfig {
-  color: string
-  size: number
-  baseX: number
-  baseY: number
-  driftX: number
-  driftY: number
-  durationMs: number
-  phase: number
-  opacity: number
+  color: string;
+  size: number;
+  baseX: number;
+  baseY: number;
+  driftX: number;
+  driftY: number;
+  durationMs: number;
+  phase: number;
+  opacity: number;
 }
 
 function Orb({ cfg, reduce }: { cfg: OrbConfig; reduce: boolean }) {
-  const t = useSharedValue(0)
+  const t = useSharedValue(0);
 
   useEffect(() => {
     if (reduce) {
-      t.value = 0
-      return
+      t.value = 0;
+      return;
     }
     t.value = withRepeat(
       withTiming(1, { duration: cfg.durationMs, easing: Easing.inOut(Easing.sin) }),
       -1,
       true,
-    )
-  }, [t, reduce, cfg.durationMs])
+    );
+  }, [t, reduce, cfg.durationMs]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    'worklet'
-    const angle = t.value * Math.PI * 2 + cfg.phase
+    'worklet';
+    const angle = t.value * Math.PI * 2 + cfg.phase;
     return {
       transform: [
         { translateX: Math.sin(angle) * cfg.driftX },
         { translateY: Math.cos(angle) * cfg.driftY },
       ],
-    }
-  })
+    };
+  });
 
   return (
     <Animated.View
@@ -69,13 +69,13 @@ function Orb({ cfg, reduce }: { cfg: OrbConfig; reduce: boolean }) {
         animatedStyle,
       ]}
     />
-  )
+  );
 }
 
 export function AuroraBackground() {
-  const t = useTheme()
-  const reduce = useReducedMotion()
-  const isDark = t.mode === 'dark'
+  const t = useTheme();
+  const reduce = useReducedMotion();
+  const isDark = t.mode === 'dark';
 
   const orbs: OrbConfig[] = [
     {
@@ -122,7 +122,7 @@ export function AuroraBackground() {
       phase: Math.PI * 1.4,
       opacity: isDark ? 0.16 : 0.28,
     },
-  ]
+  ];
 
   return (
     <View
@@ -151,5 +151,5 @@ export function AuroraBackground() {
         }}
       />
     </View>
-  )
+  );
 }
