@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
@@ -127,18 +128,11 @@ function QuestionsView({
     mutationKey: MUTATION_KEYS.submitExam,
   });
 
+  const [preDoneModal, setPreDoneModal] = useState<{ score: number } | null>(null);
+
   const handleSubmitNavigate = (res: ExamSubmitResponse) => {
     if (res.phase === 'pre') {
-      Alert.alert(
-        'Ön sınav tamamlandı',
-        `Skorunuz: %${res.score}\n\nŞimdi eğitim videolarını izleyeceksiniz.`,
-        [
-          {
-            text: 'Devam et',
-            onPress: () => router.replace(`/exam/${assignmentId}/videos`),
-          },
-        ],
-      );
+      setPreDoneModal({ score: res.score });
     } else {
       router.replace(`/exam/${assignmentId}/result`);
     }
@@ -376,6 +370,22 @@ function QuestionsView({
           )}
         </View>
       </View>
+
+      <PhaseTransitionModal
+        visible={preDoneModal !== null}
+        overline="ÖN SINAV TAMAMLANDI"
+        title="Şimdi videolara geçiliyor"
+        body="Ön sınavın kaydedildi. Eğitim videolarını izledikten sonra son sınav açılacak."
+        ctaLabel="Videolara geç"
+        score={preDoneModal?.score}
+        icon="checkmark.seal.fill"
+        tone="success"
+        durationSeconds={60}
+        onContinue={() => {
+          setPreDoneModal(null);
+          router.replace(`/exam/${assignmentId}/videos`);
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
+import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -39,6 +40,7 @@ export default function VideosScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [tokenReady, setTokenReady] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [postExamModal, setPostExamModal] = useState(false);
 
   const reloadToken = async () => {
     const session = await loadSession();
@@ -100,19 +102,30 @@ export default function VideosScreen() {
             queryClient.invalidateQueries({ queryKey: ['my-trainings'] });
             queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
             queryClient.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
-            Alert.alert('Tüm videolar tamamlandı', 'Şimdi son sınava geçilecek.', [
-              {
-                text: 'Devam et',
-                onPress: () => router.replace(`/exam/${assignmentId}/questions?phase=post`),
-              },
-            ]);
+            setPostExamModal(true);
           }}
+          onRequestPostExam={() => setPostExamModal(true)}
         />
       ) : data && activeVideo && !tokenReady ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       ) : null}
+
+      <PhaseTransitionModal
+        visible={postExamModal}
+        overline="SON SINAV BAŞLIYOR"
+        title="Son sınava geçiliyor"
+        body="Eğitim videolarını tamamladın. Şimdi son sınav açılacak — başladığında süre işlemeye başlar ve cevapların kaydedilir."
+        ctaLabel="Sınava başla"
+        icon="exclamationmark.triangle.fill"
+        tone="warning"
+        durationSeconds={60}
+        onContinue={() => {
+          setPostExamModal(false);
+          router.replace(`/exam/${assignmentId}/questions?phase=post`);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -124,6 +137,7 @@ function Body({
   activeVideo,
   onSelectVideo,
   onAllCompleted,
+  onRequestPostExam,
 }: {
   assignmentId: string;
   token: string | null;
@@ -131,6 +145,7 @@ function Body({
   activeVideo: ExamVideoItem;
   onSelectVideo: (id: string) => void;
   onAllCompleted: () => void;
+  onRequestPostExam: () => void;
 }) {
   const t = useTheme();
   const completedCount = videos.filter((v) => v.completed && v.contentType !== 'pdf').length;
@@ -229,7 +244,7 @@ function Body({
                 label="Son sınava geç"
                 variant="primary"
                 size="lg"
-                onPress={() => router.replace(`/exam/${assignmentId}/questions?phase=post`)}
+                onPress={onRequestPostExam}
                 fullWidth
               />
             </View>
