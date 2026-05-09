@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -100,12 +100,16 @@ export default function CertificatesScreen() {
             tintColor={t.colors.accent.clay}
           />
         }
+        windowSize={10}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        removeClippedSubviews={true}
       />
     </SafeAreaView>
   );
 }
 
-function CertificateCard({ cert }: { cert: Certificate }) {
+const CertificateCard = memo(function CertificateCard({ cert }: { cert: Certificate }) {
   const t = useTheme();
   const router = useRouter();
   const [sharing, setSharing] = useState(false);
@@ -238,7 +242,7 @@ function CertificateCard({ cert }: { cert: Certificate }) {
       </Stack>
     </Pressable>
   );
-}
+});
 
 function MetaCol({ label, value, expired }: { label: string; value: string; expired?: boolean }) {
   return (

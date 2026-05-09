@@ -6,6 +6,13 @@ import { unregisterPushToken } from '../lib/notifications/push';
 
 type AuthState = {
   user: StoredUser | null;
+  /**
+   * Memory-cache'lenmiş access token. SecureStore source-of-truth; bu sadece
+   * fast path. Refresh AUTH başarılıysa `setAccessToken` ile güncellenir, böylece
+   * hot path tüketicilerin (video player, vb.) AppState resume'da SecureStore I/O
+   * yapmasına gerek kalmaz.
+   */
+  accessToken: string | null;
   hydrated: boolean;
   /**
    * Biometric kapısının arkasındaysak `false`. Token'ımız var ama henüz
@@ -21,6 +28,8 @@ type AuthState = {
     refreshToken: string;
     user: StoredUser;
   }) => Promise<void>;
+  /** API client refresh path'inden çağrılır (lib/api/client.ts setAccessTokenListener). */
+  setAccessToken: (token: string) => void;
   unlock: () => void;
   lock: () => void;
   logout: () => Promise<void>;
@@ -28,12 +37,14 @@ type AuthState = {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  accessToken: null,
   hydrated: false,
   unlocked: true,
   hydrate: async () => {
     const [session, biometricEnabled] = await Promise.all([loadSession(), getBiometricEnabled()]);
     set({
       user: session?.user ?? null,
+      accessToken: session?.accessToken ?? null,
       // session yok → unlocked irrelevant; session var + biometric flag açık → kilitli başla
       unlocked: !session ? true : !biometricEnabled,
       hydrated: true,
@@ -42,8 +53,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: async ({ accessToken, refreshToken, user }) => {
     await saveSession({ accessToken, refreshToken, user });
     // Yeni login = az önce şifreyle kanıtladı, kilit yok
-    set({ user, unlocked: true });
+    set({ user, accessToken, unlocked: true });
   },
+  setAccessToken: (token) => set({ accessToken: token }),
   unlock: () => set({ unlocked: true }),
   lock: () => set({ unlocked: false }),
   logout: async () => {
@@ -56,6 +68,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.warn('[auth.logout] unregisterPushToken failed', e);
     }
     await clearSession();
-    set({ user: null, unlocked: true });
+    set({ user: null, accessToken: null, unlocked: true });
   },
 }));

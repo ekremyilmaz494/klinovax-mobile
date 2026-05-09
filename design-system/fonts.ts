@@ -1,10 +1,4 @@
-import {
-  Fraunces_400Regular,
-  Fraunces_400Regular_Italic,
-  Fraunces_500Medium,
-  Fraunces_600SemiBold,
-  Fraunces_700Bold,
-} from '@expo-google-fonts/fraunces';
+import { Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import {
   InterTight_400Regular,
   InterTight_500Medium,
@@ -13,10 +7,11 @@ import {
 } from '@expo-google-fonts/inter-tight';
 import { Platform } from 'react-native';
 
+// 9 variant'tan 6'ya indirgendi: typography.ts ve direkt fontFamily kullanımları
+// üzerinde kullanım analizi yapıldı; Fraunces_400Regular / _Italic / _500Medium
+// hiçbir yerde tüketilmiyordu. Italic prop'u <Text> primitive'inde fontStyle:'italic'
+// üzerinden çalıştığı için italic variant'ına gerek yok.
 export const FontMap = {
-  Fraunces_400Regular,
-  Fraunces_400Regular_Italic,
-  Fraunces_500Medium,
   Fraunces_600SemiBold,
   Fraunces_700Bold,
   InterTight_400Regular,
@@ -28,9 +23,6 @@ export const FontMap = {
 export const FontFamily = {
   display: 'Fraunces_600SemiBold',
   displayBold: 'Fraunces_700Bold',
-  displayMedium: 'Fraunces_500Medium',
-  displayRegular: 'Fraunces_400Regular',
-  displayItalic: 'Fraunces_400Regular_Italic',
   body: 'InterTight_400Regular',
   bodyMedium: 'InterTight_500Medium',
   bodySemibold: 'InterTight_600SemiBold',

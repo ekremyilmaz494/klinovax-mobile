@@ -1,17 +1,9 @@
 import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
@@ -22,10 +14,10 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam';
-import { loadSession } from '@/lib/auth/secure-token';
 import { API_BASE_URL } from '@/lib/config';
 import type { CompleteVideoVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
+import { useAuthStore } from '@/store/auth';
 import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam';
 
 /**
@@ -36,28 +28,11 @@ import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@
 export default function VideosScreen() {
   const t = useTheme();
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
-  const queryClient = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
-  const [tokenReady, setTokenReady] = useState(false);
+  // Zustand auth store'dan oku — refresh sonrası listener tarafından sync ediliyor.
+  // SecureStore I/O'su her AppState resume'da yapılmıyor.
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [postExamModal, setPostExamModal] = useState(false);
-
-  const reloadToken = async () => {
-    const session = await loadSession();
-    setToken(session?.accessToken ?? null);
-    setTokenReady(true);
-  };
-
-  useEffect(() => {
-    void reloadToken();
-  }, []);
-
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void reloadToken();
-    });
-    return () => sub.remove();
-  }, []);
 
   const { data, error, isLoading, refetch } = useQuery<ExamVideosResponse, Error>({
     queryKey: ['exam-videos', assignmentId],
@@ -90,23 +65,21 @@ export default function VideosScreen() {
         />
       ) : data && data.videos.length === 0 ? (
         <EmptyState icon="play.fill" title="Bu eğitime video eklenmemiş" />
-      ) : data && activeVideo && tokenReady ? (
+      ) : data && activeVideo && accessToken ? (
         <Body
           assignmentId={assignmentId}
-          token={token}
+          token={accessToken}
           videos={data.videos}
           activeVideo={activeVideo}
           onSelectVideo={setActiveVideoId}
           onAllCompleted={() => {
-            queryClient.invalidateQueries({ queryKey: ['exam-videos', assignmentId] });
-            queryClient.invalidateQueries({ queryKey: ['my-trainings'] });
-            queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
+            // completeVideo mutation defaults zaten aynı 4 cache'i invalidate ediyor
+            // (lib/query/mutation-defaults.ts). Burada tekrar etmek duplicate fetch yaratır.
             setPostExamModal(true);
           }}
           onRequestPostExam={() => setPostExamModal(true)}
         />
-      ) : data && activeVideo && !tokenReady ? (
+      ) : data && activeVideo && !accessToken ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
@@ -154,43 +127,6 @@ function Body({
 
   const isPdf = activeVideo.contentType === 'pdf';
 
-  const renderVideoItem = ({ item, index }: { item: ExamVideoItem; index: number }) => {
-    const isActive = item.id === activeVideo.id;
-    return (
-      <Pressable
-        onPress={() => onSelectVideo(item.id)}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-          backgroundColor: t.colors.surface.primary,
-          borderRadius: t.radius.md,
-          padding: 12,
-          marginBottom: 8,
-          borderWidth: isActive ? 2 : t.hairline,
-          borderColor: isActive ? t.colors.accent.clay : t.colors.border.subtle,
-          opacity: pressed ? 0.92 : 1,
-        })}
-      >
-        <IconDot
-          variant={item.completed ? 'success' : 'neutral'}
-          size={28}
-          numeral={item.completed ? undefined : index + 1}
-        />
-        <View style={{ flex: 1 }}>
-          <Text variant="bodyEmph" numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
-            {formatDuration(item.duration)}
-            {item.contentType === 'pdf' ? ' · PDF' : ''}
-          </Text>
-        </View>
-        {isActive ? <Tag label="Şu an" tone="primary" /> : null}
-      </Pressable>
-    );
-  };
-
   return (
     <View style={{ flex: 1 }}>
       {!isPdf ? (
@@ -210,8 +146,20 @@ function Body({
       <FlatList
         data={videos}
         keyExtractor={(item) => item.id}
-        renderItem={renderVideoItem}
+        renderItem={({ item, index }) => (
+          <VideoListItem
+            item={item}
+            index={index}
+            isActive={item.id === activeVideo.id}
+            onPress={() => onSelectVideo(item.id)}
+            t={t}
+          />
+        )}
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+        windowSize={10}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={
           <>
             <Stack
@@ -494,6 +442,54 @@ function VideoBlock({
     </View>
   );
 }
+
+const VideoListItem = memo(function VideoListItem({
+  item,
+  index,
+  isActive,
+  onPress,
+  t,
+}: {
+  item: ExamVideoItem;
+  index: number;
+  isActive: boolean;
+  onPress: () => void;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: t.colors.surface.primary,
+        borderRadius: t.radius.md,
+        padding: 12,
+        marginBottom: 8,
+        borderWidth: isActive ? 2 : t.hairline,
+        borderColor: isActive ? t.colors.accent.clay : t.colors.border.subtle,
+        opacity: pressed ? 0.92 : 1,
+      })}
+    >
+      <IconDot
+        variant={item.completed ? 'success' : 'neutral'}
+        size={28}
+        numeral={item.completed ? undefined : index + 1}
+      />
+      <View style={{ flex: 1 }}>
+        <Text variant="bodyEmph" numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
+          {formatDuration(item.duration)}
+          {item.contentType === 'pdf' ? ' · PDF' : ''}
+        </Text>
+      </View>
+      {isActive ? <Tag label="Şu an" tone="primary" /> : null}
+    </Pressable>
+  );
+});
 
 function formatDuration(s: number): string {
   const m = Math.floor(s / 60);

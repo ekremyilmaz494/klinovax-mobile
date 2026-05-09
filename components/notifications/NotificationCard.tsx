@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Text, useTheme } from '@/design-system';
@@ -22,7 +23,11 @@ import { NotificationTypeIcon } from './NotificationTypeIcon';
  *   - Sol: type-aware yuvarlak ikon
  *   - Orta: title (Inter Tight 600 unread / 500 read) + message + time-ago
  */
-export function NotificationCard({ item }: { item: NotificationItem }) {
+export const NotificationCard = memo(function NotificationCard({
+  item,
+}: {
+  item: NotificationItem;
+}) {
   const t = useTheme();
   const markAsRead = useMarkAsRead();
 
@@ -99,4 +104,4 @@ export function NotificationCard({ item }: { item: NotificationItem }) {
       </View>
     </Pressable>
   );
-}
+});

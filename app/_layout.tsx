@@ -19,7 +19,7 @@ import { OfflineBanner } from '@/components/network/OfflineBanner';
 import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUnreadCount } from '@/hooks/use-notifications';
-import { setOnAuthFailure } from '@/lib/api/client';
+import { setAccessTokenListener, setOnAuthFailure } from '@/lib/api/client';
 import { setBadgeCount } from '@/lib/notifications/badge';
 import { setupNotifications } from '@/lib/notifications/handler';
 import { registerForPushNotifications } from '@/lib/notifications/push';
@@ -67,15 +67,13 @@ function AuthGate() {
   const user = useAuthStore((s) => s.user);
   const unlocked = useAuthStore((s) => s.unlocked);
   const hydrated = useAuthStore((s) => s.hydrated);
-  const hydrate = useAuthStore((s) => s.hydrate);
   const logout = useAuthStore((s) => s.logout);
   const navigatedRef = useRef(false);
   const pushRegisteredRef = useRef(false);
   const wasAuthedRef = useRef(false);
 
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+  // hydrate çağrısı RootLayout'a taşındı — fontsLoaded sonrası tetiklensin diye.
+  // Burada sadece hydrated state'inin tüketicisiyiz.
 
   // API client'taki refresh-AUTH-failure'da Zustand store'u temizle.
   // Network failure'da tetiklenmez — offline'da zorla logout etmeyiz.
@@ -83,6 +81,15 @@ function AuthGate() {
     setOnAuthFailure(logout);
     return () => setOnAuthFailure(null);
   }, [logout]);
+
+  // Refresh AUTH başarılı olunca yeni token'ı Zustand'a sync et — video player
+  // gibi tüketiciler AppState resume'da SecureStore okumasın.
+  useEffect(() => {
+    setAccessTokenListener((token) => {
+      useAuthStore.getState().setAccessToken(token);
+    });
+    return () => setAccessTokenListener(null);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -175,6 +182,9 @@ function RootLayout() {
   // Fast Refresh + test setup'ta sızıntıya yol açabiliyordu.
   const [client] = useState(() => createQueryClient());
   const [fontsLoaded, fontError] = useFonts(FontMap);
+  const [rehydrated, setRehydrated] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(false);
+  const hydrate = useAuthStore((s) => s.hydrate);
 
   // Notification handler'ı bir kez mount'ta kur — foreground display + tap routing.
   // queryClient'a bağlı: foreground'da gelen push feed cache'ini invalidate eder.
@@ -189,12 +199,29 @@ function RootLayout() {
     return teardown;
   }, []);
 
-  // Splash'i fontlar hazır olunca veya yükleme hatasında kapat
+  // Auth hydrate'i fontlar yüklendikten sonra tetikle — SecureStore I/O ile font
+  // async yükünü sıralayıp JS thread yarışını önler.
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (!fontsLoaded && !fontError) return;
+    void hydrate();
+  }, [fontsLoaded, fontError, hydrate]);
+
+  // Rehydrate stuck/fail olursa kullanıcıyı sonsuz beklemede tutma — 3sn sonra
+  // splash kapanır, app cold fetch'le devam eder.
+  useEffect(() => {
+    const id = setTimeout(() => setRehydrated(true), 3000);
+    return () => clearTimeout(id);
+  }, []);
+
+  // Splash kapatma: fontlar hazır VE React Query AsyncStorage rehydrate tamam.
+  // İkisi olmadan UI'a izin vermek "boş canvas" frame yaratıyordu.
+  useEffect(() => {
+    if (splashHidden) return;
+    if ((fontsLoaded || fontError) && rehydrated) {
+      setSplashHidden(true);
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, rehydrated, splashHidden]);
 
   const navTheme = useMemo(
     () => buildNavigationTheme(colorScheme === 'dark' ? 'dark' : 'light'),
@@ -202,15 +229,18 @@ function RootLayout() {
   );
   const t = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  if (!fontsLoaded && !fontError) return null;
+  // Erken return kaldırıldı: PersistQueryClientProvider mount olmadan rehydrate
+  // tetiklenmiyor. Native splash kapatılana kadar kullanıcı RN tree'yi görmez.
 
   return (
     <PersistQueryClientProvider
       client={client}
       persistOptions={persistOptions}
       onSuccess={() => {
-        // Rehydrate tamamlandı — AsyncStorage'tan gelen paused mutation'lar
-        // onlineManager online ise hemen replay olur, offline ise online dönüşünü bekler
+        // Rehydrate tamamlandı — splash kapanma şartlarından biri sağlandı.
+        setRehydrated(true);
+        // AsyncStorage'tan gelen paused mutation'lar onlineManager online ise
+        // hemen replay olur, offline ise online dönüşünü bekler.
         void client.resumePausedMutations();
       }}
     >
