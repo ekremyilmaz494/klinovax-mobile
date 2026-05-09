@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Dimensions, View } from 'react-native';
 import Animated, {
   Easing,
@@ -77,52 +77,55 @@ export function AuroraBackground() {
   const reduce = useReducedMotion();
   const isDark = t.mode === 'dark';
 
-  const orbs: OrbConfig[] = [
-    {
-      color: isDark ? Palette.clay[600] : Palette.clay[400],
-      size: 420,
-      baseX: -120,
-      baseY: -80,
-      driftX: 60,
-      driftY: 40,
-      durationMs: 9000,
-      phase: 0,
-      opacity: isDark ? 0.18 : 0.32,
-    },
-    {
-      color: isDark ? Palette.sage[600] : Palette.sage[400],
-      size: 360,
-      baseX: W - 200,
-      baseY: H * 0.35,
-      driftX: 50,
-      driftY: 70,
-      durationMs: 11000,
-      phase: Math.PI / 2,
-      opacity: isDark ? 0.14 : 0.26,
-    },
-    {
-      color: isDark ? Palette.amber[600] : Palette.amber[400],
-      size: 380,
-      baseX: -80,
-      baseY: H - 280,
-      driftX: 70,
-      driftY: 50,
-      durationMs: 13000,
-      phase: Math.PI,
-      opacity: isDark ? 0.12 : 0.22,
-    },
-    {
-      color: isDark ? Palette.clay[500] : Palette.clay[300],
-      size: 280,
-      baseX: W * 0.25,
-      baseY: H * 0.55,
-      driftX: 40,
-      driftY: 60,
-      durationMs: 15000,
-      phase: Math.PI * 1.4,
-      opacity: isDark ? 0.16 : 0.28,
-    },
-  ];
+  const orbs = useMemo<OrbConfig[]>(
+    () => [
+      {
+        color: isDark ? Palette.clay[600] : Palette.clay[400],
+        size: 420,
+        baseX: -120,
+        baseY: -80,
+        driftX: 60,
+        driftY: 40,
+        durationMs: 9000,
+        phase: 0,
+        opacity: isDark ? 0.18 : 0.32,
+      },
+      {
+        color: isDark ? Palette.sage[600] : Palette.sage[400],
+        size: 360,
+        baseX: W - 200,
+        baseY: H * 0.35,
+        driftX: 50,
+        driftY: 70,
+        durationMs: 11000,
+        phase: Math.PI / 2,
+        opacity: isDark ? 0.14 : 0.26,
+      },
+      {
+        color: isDark ? Palette.amber[600] : Palette.amber[400],
+        size: 380,
+        baseX: -80,
+        baseY: H - 280,
+        driftX: 70,
+        driftY: 50,
+        durationMs: 13000,
+        phase: Math.PI,
+        opacity: isDark ? 0.12 : 0.22,
+      },
+      {
+        color: isDark ? Palette.clay[500] : Palette.clay[300],
+        size: 280,
+        baseX: W * 0.25,
+        baseY: H * 0.55,
+        driftX: 40,
+        driftY: 60,
+        durationMs: 15000,
+        phase: Math.PI * 1.4,
+        opacity: isDark ? 0.16 : 0.28,
+      },
+    ],
+    [isDark],
+  );
 
   return (
     <View

@@ -155,6 +155,10 @@ export default function NotificationsScreen() {
             tintColor={t.colors.accent.clay}
           />
         }
+        windowSize={10}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        removeClippedSubviews={true}
       />
     </SafeAreaView>
   );

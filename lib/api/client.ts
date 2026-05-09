@@ -52,6 +52,7 @@ async function performRefresh(refreshToken: string): Promise<RefreshResult> {
     if (!data.session?.accessToken || !data.session.refreshToken)
       return { ok: false, reason: 'auth' };
     await updateAccessToken(data.session.accessToken, data.session.refreshToken);
+    accessTokenListener?.(data.session.accessToken);
     return { ok: true, token: data.session.accessToken };
   } catch {
     return { ok: false, reason: 'auth' };
@@ -68,6 +69,16 @@ async function performRefresh(refreshToken: string): Promise<RefreshResult> {
 let onAuthFailure: (() => void | Promise<void>) | null = null;
 export function setOnAuthFailure(cb: (() => void | Promise<void>) | null): void {
   onAuthFailure = cb;
+}
+
+/**
+ * Access token listener — refresh AUTH başarılı olduğunda yeni token ile çağrılır.
+ * Zustand auth store bu sayede memory-cache'i sync tutar; video player gibi tüketiciler
+ * AppState resume'da SecureStore okumadan güncel token'a erişir.
+ */
+let accessTokenListener: ((token: string) => void) | null = null;
+export function setAccessTokenListener(cb: ((token: string) => void) | null): void {
+  accessTokenListener = cb;
 }
 
 export class ApiError extends Error {

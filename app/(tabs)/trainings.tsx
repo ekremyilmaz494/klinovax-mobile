@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -139,13 +139,17 @@ export default function TrainingsScreen() {
           }
           onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
+          windowSize={10}
+          initialNumToRender={8}
+          maxToRenderPerBatch={5}
+          removeClippedSubviews={true}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function TrainingCard({ item }: { item: MyTrainingItem }) {
+const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem }) {
   const t = useTheme();
   const tone = STATUS_TONE[item.status];
   const label = STATUS_LABEL[item.status];
@@ -221,4 +225,4 @@ function TrainingCard({ item }: { item: MyTrainingItem }) {
       </Stack>
     </Pressable>
   );
-}
+});

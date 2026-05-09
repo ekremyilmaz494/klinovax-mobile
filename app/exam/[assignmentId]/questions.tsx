@@ -157,25 +157,6 @@ function QuestionsView({
     });
   };
 
-  const endRef = useRef<number>(Date.now() + data.totalTime * 1000);
-  const [remaining, setRemaining] = useState<number>(data.totalTime);
-  const autoSubmittedRef = useRef(false);
-
-  useEffect(() => {
-    const tick = () => {
-      const remMs = endRef.current - Date.now();
-      const rem = Math.max(0, Math.ceil(remMs / 1000));
-      setRemaining(rem);
-      if (rem === 0 && !autoSubmittedRef.current) {
-        autoSubmittedRef.current = true;
-        triggerSubmit({ silent: true });
-      }
-    };
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // currentIdx normalde [0, length-1] arasında — Önceki/Sonraki butonları clamp'liyor.
   // Yine de defansif: setState batching, refetch ile soru sayısı azalması gibi rare
   // durumlarda taşma olabilir; sessiz null yerine ilk soruya düşür.
@@ -215,8 +196,6 @@ function QuestionsView({
     );
   };
 
-  const timerColor = remaining < 60 ? t.colors.status.danger : t.colors.accent.clay;
-
   // iOS'ta gesture + header back tamamen kapalı. Android donanım back de aynı
   // şekilde engellenmeli — kullanıcı sınavı yarıda yarıda atlamasın, "Bitir"
   // butonu tek çıkış yolu.
@@ -254,18 +233,12 @@ function QuestionsView({
           {data.trainingTitle}
         </Text>
         <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
-          <Text
-            maxFontSizeMultiplier={1.6}
-            style={{
-              fontFamily: 'Fraunces_700Bold',
-              fontSize: 22,
-              lineHeight: 26,
-              color: timerColor,
-              fontVariant: ['tabular-nums'],
-            }}
-          >
-            {formatTime(remaining)}
-          </Text>
+          <ExamTimer
+            totalTime={data.totalTime}
+            onAutoSubmit={() => triggerSubmit({ silent: true })}
+            dangerColor={t.colors.status.danger}
+            defaultColor={t.colors.accent.clay}
+          />
           <Text variant="subhead" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
             Soru {currentIdx + 1} / {totalQuestions}
           </Text>
@@ -387,6 +360,58 @@ function QuestionsView({
         }}
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Timer'ı QuestionsView'den izole eder — saniyelik setRemaining parent state'ini
+ * değiştirmesin diye. Aksi halde 30dk'lık sınav süresince options listesi (Pressable
+ * factory'leri dahil) 1Hz re-render olur. onAutoSubmit ref pattern ile capture
+ * edildiği için parent her render'da yeni callback geçse bile setInterval drift'lemez.
+ */
+function ExamTimer({
+  totalTime,
+  onAutoSubmit,
+  dangerColor,
+  defaultColor,
+}: {
+  totalTime: number;
+  onAutoSubmit: () => void;
+  dangerColor: string;
+  defaultColor: string;
+}) {
+  const endRef = useRef<number>(Date.now() + totalTime * 1000);
+  const [remaining, setRemaining] = useState<number>(totalTime);
+  const submittedRef = useRef(false);
+  const onAutoSubmitRef = useRef(onAutoSubmit);
+  onAutoSubmitRef.current = onAutoSubmit;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const rem = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
+      setRemaining(rem);
+      if (rem === 0 && !submittedRef.current) {
+        submittedRef.current = true;
+        onAutoSubmitRef.current();
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const color = remaining < 60 ? dangerColor : defaultColor;
+  return (
+    <Text
+      maxFontSizeMultiplier={1.6}
+      style={{
+        fontFamily: 'Fraunces_700Bold',
+        fontSize: 22,
+        lineHeight: 26,
+        color,
+        fontVariant: ['tabular-nums'],
+      }}
+    >
+      {formatTime(remaining)}
+    </Text>
   );
 }
 
