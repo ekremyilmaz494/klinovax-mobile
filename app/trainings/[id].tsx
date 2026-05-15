@@ -85,6 +85,21 @@ function Detail({ data }: { data: TrainingDetail }) {
         </Text>
       ) : null}
 
+      {data.isNotStarted ? (
+        <Card variant="accent" rail style={{ marginTop: 16 }}>
+          <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 4 }}>
+            HENÜZ AÇILMADI
+          </Text>
+          <Text variant="body" tone="primary">
+            Bu eğitim{' '}
+            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+              {data.startDate ?? '—'}
+            </Text>{' '}
+            tarihinde açılacak.{data.deadline ? ` Tamamlanma süresi: ${data.deadline}.` : ''}
+          </Text>
+        </Card>
+      ) : null}
+
       {data.isExpired ? (
         <Card variant="danger" rail style={{ marginTop: 16 }}>
           <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
@@ -285,6 +300,7 @@ function VideoRow({ index, video }: { index: number; video: TrainingVideo }) {
 }
 
 function resolveAction(d: TrainingDetail): { label: string; disabled: boolean } {
+  if (d.isNotStarted) return { label: 'Henüz açılmadı', disabled: true };
   if (d.isExpired) return { label: 'Süresi doldu', disabled: true };
   if (d.status === 'passed') return { label: 'Tamamlandı', disabled: true };
   if (d.needsRetry) return { label: 'Yeniden dene', disabled: false };

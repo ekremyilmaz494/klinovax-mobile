@@ -58,6 +58,8 @@ export type MyTrainingItem = {
   status: AssignmentStatus;
   attempt: number;
   maxAttempts: number;
+  startDate: string | null;
+  isNotStarted: boolean;
   deadline: string;
   progress: number;
   daysLeft?: number;
@@ -122,6 +124,8 @@ export type TrainingDetail = {
   lastAttemptScore?: number;
   examOnly: boolean;
   isExpired: boolean;
+  startDate: string | null;
+  isNotStarted: boolean;
   preExamCompleted: boolean;
   videosCompleted: boolean;
   postExamCompleted: boolean;
