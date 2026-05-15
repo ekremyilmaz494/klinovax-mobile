@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Chip, Stack, Text, useTheme } from '@/design-system';
@@ -164,7 +165,7 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
           borderWidth: t.hairline,
           borderColor: t.colors.border.subtle,
           padding: 18,
-          opacity: pressed ? 0.92 : 1,
+          opacity: pressed ? 0.92 : item.isNotStarted ? 0.78 : 1,
         },
       ]}
       onPress={() => router.push(`/trainings/${item.id}`)}
@@ -179,50 +180,69 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
         <Text variant="title-3" numberOfLines={2} style={{ flex: 1 }}>
           {item.title}
         </Text>
-        <Badge label={label} tone={tone} />
+        {item.isNotStarted ? (
+          <Badge label="Yakında" tone="info" />
+        ) : (
+          <Badge label={label} tone={tone} />
+        )}
       </Stack>
 
-      <Stack direction="row" justify="space-between" style={{ marginTop: 14 }}>
-        <Text variant="footnote" tone="tertiary">
-          Son tarih:{' '}
-          <Text
-            variant="footnote"
-            style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold' }}
-          >
-            {item.deadline || '—'}
-          </Text>
-        </Text>
-        {typeof item.daysLeft === 'number' && item.deadline ? (
-          <Text variant="footnote" tone={isOverdue ? 'danger' : 'tertiary'}>
-            {isOverdue ? 'Süresi doldu' : `${item.daysLeft} gün kaldı`}
-          </Text>
-        ) : null}
-      </Stack>
-
-      <View style={{ marginTop: 12 }}>
-        <ProgressBar value={item.progress} height={6} />
-      </View>
-
-      <Stack direction="row" justify="space-between" style={{ marginTop: 12 }}>
-        <Text variant="footnote" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
-          Deneme: {item.attempt}/{item.maxAttempts}
-        </Text>
-        {typeof item.score === 'number' ? (
+      {item.isNotStarted ? (
+        // Henüz açılmamış eğitim: tarih bilgisi + kilitli görünüm. Backend exam start
+        // endpoint'i de 403 ile reddediyor (defense-in-depth).
+        <Stack direction="row" gap={2} align="center" style={{ marginTop: 14 }}>
+          <IconSymbol name="lock.fill" size={14} color={t.colors.text.tertiary} />
           <Text variant="footnote" tone="tertiary">
-            Skor:{' '}
+            {item.startDate ? `${item.startDate} tarihinde açılacak` : 'Henüz açılmadı'}
+          </Text>
+        </Stack>
+      ) : (
+        <Stack direction="row" justify="space-between" style={{ marginTop: 14 }}>
+          <Text variant="footnote" tone="tertiary">
+            Son tarih:{' '}
             <Text
               variant="footnote"
-              style={{
-                color: t.colors.text.primary,
-                fontFamily: 'InterTight_600SemiBold',
-                fontVariant: ['tabular-nums'],
-              }}
+              style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold' }}
             >
-              %{item.score}
+              {item.deadline || '—'}
             </Text>
           </Text>
-        ) : null}
-      </Stack>
+          {typeof item.daysLeft === 'number' && item.deadline ? (
+            <Text variant="footnote" tone={isOverdue ? 'danger' : 'tertiary'}>
+              {isOverdue ? 'Süresi doldu' : `${item.daysLeft} gün kaldı`}
+            </Text>
+          ) : null}
+        </Stack>
+      )}
+
+      {!item.isNotStarted ? (
+        <View style={{ marginTop: 12 }}>
+          <ProgressBar value={item.progress} height={6} />
+        </View>
+      ) : null}
+
+      {!item.isNotStarted ? (
+        <Stack direction="row" justify="space-between" style={{ marginTop: 12 }}>
+          <Text variant="footnote" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
+            Deneme: {item.attempt}/{item.maxAttempts}
+          </Text>
+          {typeof item.score === 'number' ? (
+            <Text variant="footnote" tone="tertiary">
+              Skor:{' '}
+              <Text
+                variant="footnote"
+                style={{
+                  color: t.colors.text.primary,
+                  fontFamily: 'InterTight_600SemiBold',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                %{item.score}
+              </Text>
+            </Text>
+          ) : null}
+        </Stack>
+      ) : null}
     </Pressable>
   );
 });
