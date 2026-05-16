@@ -55,13 +55,13 @@ export default function ExamResultScreen() {
           onRetry={() => void refetch()}
         />
       ) : (
-        <ResultBody data={data} />
+        <ResultBody data={data} assignmentId={assignmentId} />
       )}
     </SafeAreaView>
   );
 }
 
-function ResultBody({ data }: { data: ExamResultsResponse }) {
+function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignmentId: string }) {
   const t = useTheme();
   const passed = data.isPassed;
   const heroBg = passed ? t.colors.status.successBg : t.colors.status.dangerBg;
@@ -119,11 +119,13 @@ function ResultBody({ data }: { data: ExamResultsResponse }) {
       {!passed ? (
         <Card variant="warning" rail style={{ marginTop: 24 }}>
           <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
-            TEKRAR DENE
+            {data.attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
           </Text>
           <Text variant="body" tone="primary">
-            Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor. Doğru cevaplar
-            başarılı denemeden sonra görünür olacak.
+            Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.{' '}
+            {data.attemptsRemaining > 0
+              ? `Kalan deneme: ${data.attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
+              : 'Yeni deneme hakkın kalmadı.'}
           </Text>
         </Card>
       ) : null}
@@ -141,10 +143,27 @@ function ResultBody({ data }: { data: ExamResultsResponse }) {
         </>
       ) : null}
 
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 32, gap: 12 }}>
+        {passed ? (
+          <Button
+            label="Sertifikamı gör"
+            variant="primary"
+            size="lg"
+            onPress={() => router.replace('/(tabs)/certificates')}
+            fullWidth
+          />
+        ) : data.attemptsRemaining > 0 ? (
+          <Button
+            label={`Yeniden dene · ${data.attemptsRemaining} hak kaldı`}
+            variant="primary"
+            size="lg"
+            onPress={() => router.replace(`/trainings/${assignmentId}`)}
+            fullWidth
+          />
+        ) : null}
         <Button
           label="Eğitim listesine dön"
-          variant="primary"
+          variant={passed || data.attemptsRemaining > 0 ? 'outline' : 'primary'}
           size="lg"
           onPress={() => router.replace('/(tabs)/trainings')}
           fullWidth

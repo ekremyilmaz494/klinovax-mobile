@@ -49,8 +49,19 @@ export type ExamQuestionsResponse = {
 };
 
 export type ExamSubmitResponse =
-  | { phase: 'pre'; score: number; nextStep: 'videos' }
-  | { phase: 'post'; score: number; isPassed: boolean; passingScore: number };
+  | { phase: 'pre'; score: number; nextStep: 'videos' | 'post-exam' }
+  | {
+      phase: 'post';
+      score: number;
+      isPassed: boolean;
+      passingScore: number;
+      /** Backend submit/route.ts response'unda dönüyor; result CTA'sı için lazım. */
+      attemptsRemaining: number;
+      /** EY.FR.40 zorunlu geri bildirim akışı — true ise feedback formu gerekli. */
+      feedbackRequired: boolean;
+      /** Başarılıysa soru-bazlı detay; başarısız personele anti-cheat olarak gönderilmez. */
+      results?: ExamResultDetail[];
+    };
 
 export type ExamResultDetail = {
   questionText: string;
@@ -63,6 +74,8 @@ export type ExamResultsResponse = {
   isPassed: boolean;
   score: number;
   passingScore: number;
+  /** Backend results/route.ts'e eklendi — başarısız retry CTA için. */
+  attemptsRemaining: number;
   /** isPassed=false ise null (anti-cheat) */
   results: ExamResultDetail[] | null;
 };

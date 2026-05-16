@@ -88,3 +88,19 @@ export function saveVideoProgress(
     body: JSON.stringify(body),
   });
 }
+
+/**
+ * Sınav timer'ını sunucudan al — Redis'te canlı sayaç yoksa DB'deki
+ * phaseStartedAt'tan recover eder. Kill/reopen sonrası mobile timer'ı
+ * server-side authority'ye göre senkronlar. Süresi dolmuşsa backend
+ * attempt'i auto-complete edip `expired: true` döner.
+ */
+export function fetchExamTimer(assignmentId: string): Promise<{
+  remainingSeconds: number;
+  expiresAt?: number;
+  expired: boolean;
+}> {
+  return apiFetch(`/api/exam/${assignmentId}/timer`, {
+    method: 'POST',
+  });
+}
