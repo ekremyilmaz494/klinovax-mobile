@@ -8,7 +8,8 @@ import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
-import { fetchExamQuestions } from '@/lib/api/exam';
+import { ApiError } from '@/lib/api/client';
+import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
 import { useOnline } from '@/lib/network/use-online';
 import type { SaveAnswerVars, SubmitExamVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -128,6 +129,16 @@ function QuestionsView({
     mutationKey: MUTATION_KEYS.submitExam,
   });
 
+  // Server-side timer authority. Redis canlı sayaç yoksa backend DB'den recover
+  // eder; süresi dolmuşsa attempt auto-complete edip `expired: true` döner.
+  // staleTime: Infinity — ilk gelende fix, refetch ile sayaç sıçramasın.
+  const timerQuery = useQuery({
+    queryKey: ['exam-timer', assignmentId, phase],
+    queryFn: () => fetchExamTimer(assignmentId),
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+
   const [preDoneModal, setPreDoneModal] = useState<{ score: number } | null>(null);
 
   const handleSubmitNavigate = (res: ExamSubmitResponse) => {
@@ -147,15 +158,33 @@ function QuestionsView({
     phase,
   });
 
-  const triggerSubmit = (opts?: { silent?: boolean }) => {
-    submitMutation.mutate(buildSubmitVars(), {
-      onSuccess: (res) => handleSubmitNavigate(res),
-      onError: (err) => {
-        if (opts?.silent) return;
-        Alert.alert('Sınav gönderilemedi', err.message);
-      },
-    });
-  };
+  // useCallback gerekli: aşağıdaki expired effect dep array'inde kullanılıyor.
+  // buildSubmitVars + handleSubmitNavigate closure ile capture; deps'e koymak
+  // gereksiz (her render yeniden tanımlanıyor ama mutation idempotent).
+
+  const triggerSubmit = useCallback(
+    (opts?: { silent?: boolean }) => {
+      submitMutation.mutate(buildSubmitVars(), {
+        onSuccess: (res) => handleSubmitNavigate(res),
+        onError: (err) => {
+          if (opts?.silent) return;
+          Alert.alert('Sınav gönderilemedi', err.message);
+        },
+      });
+    },
+    [submitMutation],
+  );
+
+  // Server timer expired sinyali geldiğinde otomatik submit — kullanıcı
+  // arka planda kaldıysa veya kill/reopen sonrası backend süreyi geçtiyse.
+  // Ref guard: çoklu render'da tekrar tetiklenmesin.
+  const expiredFromServerRef = useRef(false);
+  useEffect(() => {
+    if (timerQuery.data?.expired && !expiredFromServerRef.current) {
+      expiredFromServerRef.current = true;
+      triggerSubmit({ silent: true });
+    }
+  }, [timerQuery.data?.expired, triggerSubmit]);
 
   // currentIdx normalde [0, length-1] arasında — Önceki/Sonraki butonları clamp'liyor.
   // Yine de defansif: setState batching, refetch ile soru sayısı azalması gibi rare
@@ -166,17 +195,48 @@ function QuestionsView({
   const totalQuestions = data.questions.length;
 
   const handleSelect = (q: ExamQuestion, optionUuid: string) => {
+    // Önceki seçimi sakla — 423 (kilit) durumunda local state'i geri almak için.
+    const previousAnswer = answers.get(q.questionId);
     setAnswers((prev) => {
       const next = new Map(prev);
       next.set(q.questionId, optionUuid);
       return next;
     });
-    saveMutation.mutate({
-      assignmentId,
-      questionId: q.questionId,
-      selectedOptionId: optionUuid,
-      examPhase: phase,
-    });
+    saveMutation.mutate(
+      {
+        assignmentId,
+        questionId: q.questionId,
+        selectedOptionId: optionUuid,
+        examPhase: phase,
+      },
+      {
+        onError: (error) => {
+          if (error instanceof ApiError && error.status === 423) {
+            // Backend cevabı kilitledi (post-exam 30sn grace doldu).
+            // UI'ı backend ile tutarlı kıl: önceki seçime geri al.
+            setAnswers((prev) => {
+              const next = new Map(prev);
+              if (previousAnswer !== undefined) {
+                next.set(q.questionId, previousAnswer);
+              } else {
+                next.delete(q.questionId);
+              }
+              return next;
+            });
+            Alert.alert(
+              'Cevap kilitli',
+              'Bu sorunun cevabı 30 saniye geçtiği için kilitlendi. Önceki seçimin korunuyor.',
+            );
+          } else if (error instanceof ApiError && error.status === 429) {
+            Alert.alert(
+              'Çok hızlı',
+              'Cevap kaydetme limitine ulaşıldı. Lütfen kısa bir süre bekle.',
+            );
+          }
+          // 4xx olmayan/network hataları offline-first ile paused kuyruğa gider.
+        },
+      },
+    );
   };
 
   const handleSubmit = () => {
@@ -234,7 +294,8 @@ function QuestionsView({
         </Text>
         <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
           <ExamTimer
-            totalTime={data.totalTime}
+            expiresAt={timerQuery.data?.expiresAt ?? null}
+            fallbackTotalTime={data.totalTime}
             onAutoSubmit={() => triggerSubmit({ silent: true })}
             dangerColor={t.colors.status.danger}
             defaultColor={t.colors.accent.clay}
@@ -368,20 +429,29 @@ function QuestionsView({
  * değiştirmesin diye. Aksi halde 30dk'lık sınav süresince options listesi (Pressable
  * factory'leri dahil) 1Hz re-render olur. onAutoSubmit ref pattern ile capture
  * edildiği için parent her render'da yeni callback geçse bile setInterval drift'lemez.
+ *
+ * `expiresAt` server-side authority (POST /api/exam/[id]/timer). Yoksa
+ * `fallbackTotalTime` ile client-side optimistic timer kurulur; backend submit
+ * +5dk grace'le enforce ettiği için kullanıcı extra süre kazanamaz.
  */
 function ExamTimer({
-  totalTime,
+  expiresAt,
+  fallbackTotalTime,
   onAutoSubmit,
   dangerColor,
   defaultColor,
 }: {
-  totalTime: number;
+  expiresAt: number | null;
+  fallbackTotalTime: number;
   onAutoSubmit: () => void;
   dangerColor: string;
   defaultColor: string;
 }) {
-  const endRef = useRef<number>(Date.now() + totalTime * 1000);
-  const [remaining, setRemaining] = useState<number>(totalTime);
+  // İlk render'da bitiş zamanı sabitlenir; sonradan expiresAt prop değişse bile
+  // endRef güncellenmez (UX karışıklığı — sayaç ortasında sıçramasın).
+  const endRef = useRef<number>(expiresAt ?? Date.now() + fallbackTotalTime * 1000);
+  const initialRemaining = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
+  const [remaining, setRemaining] = useState<number>(initialRemaining);
   const submittedRef = useRef(false);
   const onAutoSubmitRef = useRef(onAutoSubmit);
   onAutoSubmitRef.current = onAutoSubmit;

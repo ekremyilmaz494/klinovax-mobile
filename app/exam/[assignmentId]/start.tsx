@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
+import { ApiError } from '@/lib/api/client';
 import { startExam } from '@/lib/api/exam';
 import { useOnline } from '@/lib/network/use-online';
 
@@ -39,6 +40,22 @@ export default function ExamStartScreen() {
           router.replace(`/exam/${assignmentId}/result`);
           break;
       }
+    },
+    onError: (err) => {
+      // Backend 423 + pendingFeedback: kullanıcı başka bir eğitim için zorunlu
+      // geri bildirimi tamamlamadan yeni eğitim başlatamaz. Açıklayıcı mesaj.
+      if (err instanceof ApiError && err.status === 423) {
+        const body = err.body as { pendingFeedback?: { trainingTitle?: string } } | null;
+        const title = body?.pendingFeedback?.trainingTitle;
+        Alert.alert(
+          'Geri bildirim bekleniyor',
+          title
+            ? `"${title}" eğitimi için zorunlu geri bildirim formu doldurmalısın. Lütfen web panelinden tamamla.`
+            : 'Bir önceki eğitim için zorunlu geri bildirim formu doldurmalısın. Lütfen web panelinden tamamla.',
+        );
+        return;
+      }
+      // Diğer hatalar mevcut ScreenError component'inde gösteriliyor (error state).
     },
   });
 

@@ -305,21 +305,41 @@ function VideoBlock({
     heartbeatMutationRef.current = heartbeatMutation;
   });
 
+  // Accumulator: yalnızca play state'inde geçen gerçek wall-clock süresinin
+  // toplamı. lastPosition'dan başla; pause/scrub bu sayacı ARTIRMAZ.
+  // Backend 80% kuralı + watch rate denetimi yapıyor; mobile'ın
+  // currentTime'ı doğrudan göndermesi skip-to-end exploit'ine yol açıyordu.
+  const accumulatedRef = useRef<number>(video.lastPosition ?? 0);
+  const lastTickRef = useRef<number | null>(null);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!player.playing) return;
-      const now = Math.floor(player.currentTime);
-      if (now - lastSavedRef.current >= 10) {
-        lastSavedRef.current = now;
+      if (!player.playing) {
+        lastTickRef.current = null;
+        return;
+      }
+      const now = Date.now();
+      if (lastTickRef.current !== null) {
+        const wallDelta = (now - lastTickRef.current) / 1000;
+        // playbackRate: 1.5x oynatımda 1sn wall-clock = 1.5sn izleme.
+        accumulatedRef.current = Math.min(
+          accumulatedRef.current + wallDelta * (player.playbackRate ?? 1),
+          video.duration,
+        );
+      }
+      lastTickRef.current = now;
+      const watched = Math.floor(accumulatedRef.current);
+      if (watched - lastSavedRef.current >= 10) {
+        lastSavedRef.current = watched;
         heartbeatMutationRef.current.mutate({
           videoId: video.id,
-          position: now,
-          watchedTime: now,
+          position: Math.floor(player.currentTime),
+          watchedTime: watched,
         });
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [player, video.id]);
+  }, [player, video.id, video.duration]);
 
   const completedRef = useRef(video.completed);
   useEffect(() => {
@@ -334,20 +354,39 @@ function VideoBlock({
     completeMutationRef.current = completeMutation;
   });
 
+  // video değişiminde accumulator sıfırla. (VideoBlock zaten key={`${id}:${token}`}
+  // ile remount oluyor ama defensive — token değişip videoId aynı kalırsa korunmalı.)
+  const lastVideoIdRef = useRef(video.id);
+  useEffect(() => {
+    if (lastVideoIdRef.current !== video.id) {
+      accumulatedRef.current = video.lastPosition ?? 0;
+      lastTickRef.current = null;
+      lastSavedRef.current = 0;
+      completedRef.current = video.completed;
+      lastVideoIdRef.current = video.id;
+    }
+  }, [video.id, video.lastPosition, video.completed]);
+
   useEffect(() => {
     const id = setInterval(() => {
       if (!player.duration) return;
+      const accumulated = accumulatedRef.current;
+      // Backend 80% eşiğini uyguluyor; mobile da aynı eşikte completion'ı tetikler.
+      // Sadece currentTime >= duration-1 yetmez — kullanıcı ileri sarıp sona
+      // gelmiş olabilir (accumulator hâlâ düşük) → completion mutation tetiklenirse
+      // backend 80% altında kaldığı için reject (allVideosCompleted: false) döner,
+      // sonsuz tetikleme döngüsü doğar. accumulator >= 80% güvenli sinyal.
       if (
         !completedRef.current &&
         !completeMutationRef.current.isPending &&
-        player.currentTime >= player.duration - 1
+        accumulated >= player.duration * 0.8
       ) {
         completeMutationRef.current.mutate(
           {
             assignmentId,
             videoId: video.id,
-            position: video.duration,
-            watchedTime: video.duration,
+            position: Math.floor(player.currentTime),
+            watchedTime: Math.floor(accumulated),
           },
           {
             onSuccess: (data) => {
@@ -367,7 +406,7 @@ function VideoBlock({
       }
     }, 2000);
     return () => clearInterval(id);
-  }, [player, assignmentId, video.id, video.duration, onCompleted]);
+  }, [player, assignmentId, video.id, onCompleted]);
 
   return (
     <View

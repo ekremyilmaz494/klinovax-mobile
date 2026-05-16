@@ -69,13 +69,10 @@ export function registerMutationDefaults(client: QueryClient): void {
       saveExamAnswer(assignmentId, { questionId, selectedOptionId, examPhase }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
-    // saveAnswer cache invalidation YAPMAZ — exam-questions query'si zaten
-    // 0 staleTime/gcTime ile çalışır, tekrar girildiğinde fresh fetch olur.
-    onError: () => {
-      // Validasyon hataları (örn. soru zaten kilitli) silently swallow:
-      // backend tek source of truth, kullanıcının ekranda gördüğü cevap
-      // yerel state olarak kalır.
-    },
+    // 423 (post-exam answer locked) ve 429 (rate limit) gibi 4xx'ler
+    // component-level per-call onError'da handle edilir — kullanıcı bildirim
+    // görmeden cevabını değiştirdiğini sanmasın. Cache invalidation YAPMAZ:
+    // exam-questions query'si gcTime: 0 ile her açılışta fresh fetch.
   });
 
   // ─── submitExam ──────────────────────────────────────────────────
