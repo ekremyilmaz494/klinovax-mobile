@@ -161,7 +161,7 @@ function QuestionsView({
   // useCallback gerekli: aşağıdaki expired effect dep array'inde kullanılıyor.
   // buildSubmitVars + handleSubmitNavigate closure ile capture; deps'e koymak
   // gereksiz (her render yeniden tanımlanıyor ama mutation idempotent).
-   
+
   const triggerSubmit = useCallback(
     (opts?: { silent?: boolean }) => {
       submitMutation.mutate(buildSubmitVars(), {
