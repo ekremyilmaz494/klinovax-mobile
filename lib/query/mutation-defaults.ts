@@ -43,7 +43,7 @@ export type CompleteVideoVars = {
  * 5xx ve network (status=0) hatası geçici, TanStack varsayılan retry'ı zaten
  * hallediyor. ApiError dışı exception'lar da retry edilir (timeout vb.).
  */
-function shouldRetry(failureCount: number, error: unknown): boolean {
+export function shouldRetry(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiError) {
     if (error.status >= 400 && error.status < 500) return false;
   }
@@ -55,7 +55,7 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
  * (kullanıcı offline submit'ledi, online'a dönmeden önce başka bir cihazdan
  * submit etti vs.). 409/422 ise idempotent kabul edilir, swallow + invalidate.
  */
-function isAlreadyProcessedError(error: unknown): boolean {
+export function isAlreadyProcessedError(error: unknown): boolean {
   if (!(error instanceof ApiError)) return false;
   return error.status === 409 || error.status === 422;
 }

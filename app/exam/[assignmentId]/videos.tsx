@@ -14,6 +14,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam';
+import { buildCompletionWatchedTime, shouldCompleteVideo } from '@/lib/exam/video-completion';
 import { API_BASE_URL } from '@/lib/config';
 import type { CompleteVideoVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -375,10 +376,12 @@ function VideoBlock({
   const tryComplete = useCallback(() => {
     const accumulated = accumulatedRef.current;
     if (
-      completedRef.current ||
-      completeMutationRef.current.isPending ||
-      !video.duration ||
-      accumulated < video.duration * 0.9
+      !shouldCompleteVideo({
+        accumulated,
+        durationSeconds: video.duration,
+        alreadyCompleted: completedRef.current,
+        isPending: completeMutationRef.current.isPending,
+      })
     ) {
       return;
     }
@@ -387,9 +390,7 @@ function VideoBlock({
         assignmentId,
         videoId: video.id,
         position: Math.floor(player.currentTime),
-        // Math.floor yuvarlaması accumulated'ı eşiğin 1sn altına düşürmesin —
-        // backend reddi sessizdir (200 döner ama video tamamlanmaz).
-        watchedTime: Math.max(Math.floor(accumulated), Math.ceil(video.duration * 0.9)),
+        watchedTime: buildCompletionWatchedTime(accumulated, video.duration),
       },
       {
         onSuccess: (data) => {

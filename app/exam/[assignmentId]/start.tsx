@@ -7,6 +7,7 @@ import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { startExam } from '@/lib/api/exam';
+import { extractPendingFeedbackRoute, resolveStartRoute } from '@/lib/exam/start-routing';
 import { useOnline } from '@/lib/network/use-online';
 
 /**
@@ -26,17 +27,16 @@ export default function ExamStartScreen() {
       qc.invalidateQueries({ queryKey: ['my-trainings'] });
       qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
       qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
-      switch (data.status) {
-        case 'pre_exam':
-          router.replace(`/exam/${assignmentId}/questions?phase=pre`);
+      const route = resolveStartRoute(data.status);
+      if (!route) return;
+      switch (route.kind) {
+        case 'questions':
+          router.replace(`/exam/${assignmentId}/questions?phase=${route.phase}`);
           break;
-        case 'post_exam':
-          router.replace(`/exam/${assignmentId}/questions?phase=post`);
-          break;
-        case 'watching_videos':
+        case 'videos':
           router.replace(`/exam/${assignmentId}/videos`);
           break;
-        case 'completed':
+        case 'result':
           router.replace(`/exam/${assignmentId}/result`);
           break;
       }
@@ -44,19 +44,16 @@ export default function ExamStartScreen() {
     onError: (err) => {
       // Backend 423 + pendingFeedback: kullanıcı başka bir eğitim için zorunlu
       // geri bildirimi tamamlamadan yeni eğitim başlatamaz. Formu app içinde aç.
+      const pending = extractPendingFeedbackRoute(err);
+      if (pending) {
+        router.push({
+          pathname: '/feedback/[attemptId]',
+          params: { attemptId: pending.attemptId, title: pending.trainingTitle ?? '' },
+        });
+        return;
+      }
+      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme.
       if (err instanceof ApiError && err.status === 423) {
-        const body = err.body as {
-          pendingFeedback?: { attemptId?: string; trainingTitle?: string };
-        } | null;
-        const pending = body?.pendingFeedback;
-        if (pending?.attemptId) {
-          router.push({
-            pathname: '/feedback/[attemptId]',
-            params: { attemptId: pending.attemptId, title: pending.trainingTitle ?? '' },
-          });
-          return;
-        }
-        // attemptId payload'da yoksa fallback bilgilendirme; form yine de açılabilir olmalı.
         Alert.alert(
           'Geri bildirim bekleniyor',
           'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Form şimdi açılacak.',
