@@ -108,6 +108,19 @@ export type CertificatesResponse = {
   certificates: Certificate[];
 };
 
+/**
+ * Eğitim bazlı geri bildirim (EY.FR.40) durumu — backend my-trainings/[id]
+ * response'unda döner. `canSubmit && !submitted` ise feedback CTA gösterilir.
+ */
+export type TrainingFeedbackState = {
+  formActive: boolean;
+  mandatory: boolean;
+  submitted: boolean;
+  submittedAt: string | null;
+  canSubmit: boolean;
+  attemptId: string | null;
+};
+
 export type TrainingDetail = {
   id: string;
   assignmentId: string;
@@ -130,5 +143,37 @@ export type TrainingDetail = {
   videosCompleted: boolean;
   postExamCompleted: boolean;
   needsRetry: boolean;
+  /**
+   * Önceki deneme cron ile expire oldu AMA son tarih geçmedi ve hak var —
+   * personel BAŞTAN başlayabilir (ilerleme taşınmaz). isExpired ile karşılıklı
+   * dışlayıcıdır. Optional: eski backend sürümü alanı döndürmeyebilir.
+   */
+  isExpiredRetryable?: boolean;
+  /** Optional: eski backend sürümü döndürmeyebilir — UI `?.` ile okumalı. */
+  feedback?: TrainingFeedbackState;
   videos: TrainingVideo[];
+};
+
+/** Ek deneme hakkı talebi — `/api/staff/attempt-requests`. */
+export type AttemptRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export type AttemptRequest = {
+  id: string;
+  trainingId: string;
+  reason: string | null;
+  status: AttemptRequestStatus;
+  grantedAttempts: number | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  training: { title: string };
+};
+
+export type AttemptRequestsResponse = {
+  requests: AttemptRequest[];
+};
+
+export type CreateAttemptRequestResponse = {
+  message: string;
+  request: { id: string; status: AttemptRequestStatus; createdAt: string };
 };

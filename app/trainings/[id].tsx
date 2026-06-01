@@ -1,15 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { createAttemptRequest, fetchAttemptRequests } from '@/lib/api/attempt-requests';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth';
-import type { AssignmentStatus, TrainingDetail, TrainingVideo } from '@/types/staff';
+import type {
+  AssignmentStatus,
+  AttemptRequest,
+  AttemptRequestsResponse,
+  TrainingDetail,
+  TrainingVideo,
+} from '@/types/staff';
 
 const STATUS_TONE: Record<AssignmentStatus, 'info' | 'warning' | 'success' | 'danger'> = {
   assigned: 'info',
@@ -100,7 +107,7 @@ function Detail({ data }: { data: TrainingDetail }) {
         </Card>
       ) : null}
 
-      {data.isExpired ? (
+      {data.isExpired && !data.isExpiredRetryable ? (
         <Card variant="danger" rail style={{ marginTop: 16 }}>
           <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
             SÜRE DOLDU
@@ -111,7 +118,26 @@ function Detail({ data }: { data: TrainingDetail }) {
         </Card>
       ) : null}
 
-      {data.needsRetry && !data.isExpired ? (
+      {data.isExpiredRetryable ? (
+        <Card variant="warning" rail style={{ marginTop: 16 }}>
+          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+            ÖNCEKİ DENEME SÜRESİ DOLDU
+          </Text>
+          <Text variant="body" tone="primary">
+            Yarım kalan denemenin süresi doldu. İlerlemen{' '}
+            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+              taşınmaz
+            </Text>
+            ; eğitime baştan başlarsın. Kalan deneme:{' '}
+            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+              {Math.max(data.maxAttempts - data.currentAttempt, 0)}/{data.maxAttempts}
+            </Text>
+            .
+          </Text>
+        </Card>
+      ) : null}
+
+      {data.needsRetry && !data.isExpired && !data.isExpiredRetryable ? (
         <Card variant="warning" rail style={{ marginTop: 16 }}>
           <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
             YENİDEN DENENEBİLİR
@@ -175,6 +201,8 @@ function Detail({ data }: { data: TrainingDetail }) {
         </>
       ) : null}
 
+      {isExhausted(data) ? <AttemptRequestSection data={data} /> : null}
+
       <View style={{ marginTop: 32 }}>
         <Button
           label={action.label}
@@ -187,6 +215,168 @@ function Detail({ data }: { data: TrainingDetail }) {
       </View>
     </ScrollView>
   );
+}
+
+/**
+ * Hak bittiğinde (EXHAUSTED) yöneticiden ek deneme hakkı talep etme bölümü.
+ * Backend guard: yalnızca currentAttempt >= maxAttempts && status != passed iken
+ * kabul eder; bekleyen talep varken yenisi 409 döner.
+ */
+function AttemptRequestSection({ data }: { data: TrainingDetail }) {
+  const t = useTheme();
+  const qc = useQueryClient();
+  const [reason, setReason] = useState('');
+
+  const { data: requestsData, isLoading } = useQuery<AttemptRequestsResponse, Error>({
+    queryKey: ['attempt-requests'],
+    queryFn: fetchAttemptRequests,
+  });
+
+  // Talepler arasından bu eğitime ait en güncelini bul. data.id = trainingId
+  // (assignmentId değil — backend response'unda training kimliği `id` alanında).
+  const existing = findLatestRequest(requestsData?.requests, data.id);
+
+  const submitMutation = useMutation({
+    mutationFn: () => createAttemptRequest({ trainingId: data.id, reason: reason.trim() }),
+    onSuccess: () => {
+      setReason('');
+      void qc.invalidateQueries({ queryKey: ['attempt-requests'] });
+      Alert.alert(
+        'Talebin alındı',
+        'Ek deneme hakkı talebin yöneticine iletildi. Sonuçlandığında bildirim alacaksın.',
+      );
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        // Yarış durumu: başka cihazdan/önceki denemeden bekleyen talep var.
+        void qc.invalidateQueries({ queryKey: ['attempt-requests'] });
+        Alert.alert('Bekleyen talep var', 'Bu eğitim için zaten incelenen bir talebin var.');
+        return;
+      }
+      if (err instanceof ApiError && err.status === 429) {
+        Alert.alert('Çok sık denedin', 'Kısa bir süre bekleyip tekrar talep gönderebilirsin.');
+        return;
+      }
+      Alert.alert(
+        'Talep gönderilemedi',
+        err instanceof ApiError && err.message
+          ? err.message
+          : 'Bağlantını kontrol edip tekrar dene.',
+      );
+    },
+  });
+
+  const trimmed = reason.trim();
+  const reasonTooShort = trimmed.length < 10;
+
+  return (
+    <View style={{ marginTop: 28 }}>
+      <Text variant="title-3" style={{ marginBottom: 12 }}>
+        Ek deneme hakkı
+      </Text>
+
+      {isLoading ? (
+        <Card>
+          <ActivityIndicator color={t.colors.accent.clay} />
+        </Card>
+      ) : existing?.status === 'pending' ? (
+        <Card variant="warning" rail>
+          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+            TALEBİN İNCELENİYOR
+          </Text>
+          <Text variant="body" tone="primary">
+            Ek deneme hakkı talebin yönetici onayı bekliyor. Sonuçlandığında bildirim alacaksın.
+          </Text>
+          {existing.reason ? (
+            <Text variant="footnote" tone="tertiary" style={{ marginTop: 8 }}>
+              Gerekçen: {existing.reason}
+            </Text>
+          ) : null}
+        </Card>
+      ) : (
+        <>
+          {existing?.status === 'rejected' ? (
+            <Card variant="danger" rail style={{ marginBottom: 12 }}>
+              <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
+                ÖNCEKİ TALEBİN REDDEDİLDİ
+              </Text>
+              <Text variant="body" tone="primary">
+                {existing.reviewNote
+                  ? `Yönetici notu: ${existing.reviewNote}`
+                  : 'Yönetici talebini reddetti. Gerekçeni güncelleyip yeniden talep edebilirsin.'}
+              </Text>
+            </Card>
+          ) : null}
+
+          <Card>
+            <Text variant="body" tone="secondary" style={{ marginBottom: 12 }}>
+              Deneme hakların bitti. Yöneticinden ek hak talep edebilirsin — kısa bir gerekçe yaz
+              (en az 10 karakter).
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: t.colors.surface.canvas,
+                borderRadius: t.radius.md,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: t.colors.border.default,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 17,
+                color: t.colors.text.primary,
+                fontFamily: 'InterTight_400Regular',
+                minHeight: 96,
+                textAlignVertical: 'top',
+              }}
+              value={reason}
+              onChangeText={setReason}
+              placeholder="Örn. Sınav sırasında bağlantım koptu, yeniden denemek istiyorum."
+              placeholderTextColor={t.colors.text.tertiary}
+              multiline
+              maxLength={1000}
+              editable={!submitMutation.isPending}
+            />
+            <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
+              <Text variant="caption" tone="tertiary">
+                {reasonTooShort ? `En az 10 karakter (${trimmed.length}/10)` : ' '}
+              </Text>
+              <Text variant="caption" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
+                {trimmed.length}/1000
+              </Text>
+            </Stack>
+            <View style={{ marginTop: 12 }}>
+              <Button
+                label={submitMutation.isPending ? 'Gönderiliyor…' : 'Ek hak talep et'}
+                variant="primary"
+                size="md"
+                disabled={reasonTooShort || submitMutation.isPending}
+                onPress={() => submitMutation.mutate()}
+                fullWidth
+              />
+            </View>
+          </Card>
+        </>
+      )}
+    </View>
+  );
+}
+
+/** Aynı eğitim için birden çok talep olabilir (red → yeni talep); en günceli göster. */
+function findLatestRequest(
+  requests: AttemptRequest[] | undefined,
+  trainingId: string,
+): AttemptRequest | undefined {
+  if (!requests) return undefined;
+  return requests
+    .filter((r) => r.trainingId === trainingId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+}
+
+/**
+ * EXHAUSTED: hak bitti, geçemedi, expired-retryable da değil. Web'deki
+ * my-trainings/[id] durum makinesinin "ek hak talebi formu" koşulu.
+ */
+function isExhausted(d: TrainingDetail): boolean {
+  return d.status === 'failed' && !d.needsRetry && !(d.isExpiredRetryable ?? false);
 }
 
 function MetaCell({
@@ -299,11 +489,19 @@ function VideoRow({ index, video }: { index: number; video: TrainingVideo }) {
   );
 }
 
+/**
+ * CTA durum makinesi — web my-trainings/[id]/page.tsx ile aynı öncelik sırası.
+ * Sıra önemli: isExpiredRetryable, isExpired'dan ÖNCE kontrol edilmeli (backend'de
+ * karşılıklı dışlayıcı ama eski sürüm/edge-case'e karşı savunmacı sıralama).
+ */
 function resolveAction(d: TrainingDetail): { label: string; disabled: boolean } {
   if (d.isNotStarted) return { label: 'Henüz açılmadı', disabled: true };
+  if (d.isExpiredRetryable) return { label: 'Yeniden başla', disabled: false };
   if (d.isExpired) return { label: 'Süresi doldu', disabled: true };
   if (d.status === 'passed') return { label: 'Tamamlandı', disabled: true };
   if (d.needsRetry) return { label: 'Yeniden dene', disabled: false };
+  // Hak bitti: CTA kilitli — ek hak talebi bölümü (AttemptRequestSection) yol gösterir.
+  if (isExhausted(d)) return { label: 'Deneme hakkı bitti', disabled: true };
   if (d.examOnly) {
     return { label: d.postExamCompleted ? 'Tekrar başla' : 'Sınava başla', disabled: false };
   }
