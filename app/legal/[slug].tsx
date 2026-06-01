@@ -53,6 +53,9 @@ export default function LegalScreen() {
           onLoadEnd={() => setLoading(false)}
           onShouldStartLoadWithRequest={isAllowedRequest}
           decelerationRate="normal"
+          // Android: target=_blank linkler yeni boş pencere açmasın; tek WebView'da
+          // kalsın ki onShouldStartLoadWithRequest navigation lock devreye girsin.
+          setSupportMultipleWindows={false}
         />
         {loading ? (
           <View
