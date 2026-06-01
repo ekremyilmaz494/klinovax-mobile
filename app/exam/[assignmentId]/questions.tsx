@@ -52,7 +52,10 @@ export default function ExamQuestionsScreen() {
         edges={['bottom']}
         style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
       >
-        <ExpoStack.Screen options={{ title: 'Yükleniyor…', headerBackVisible: false }} />
+        {/* headerLeft: null — layout'taki custom back butonunu da gizle (anti-cheat) */}
+        <ExpoStack.Screen
+          options={{ title: 'Yükleniyor…', headerBackVisible: false, headerLeft: () => null }}
+        />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>

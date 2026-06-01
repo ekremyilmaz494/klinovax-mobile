@@ -16,6 +16,7 @@ import 'react-native-url-polyfill/auto';
 
 import { BiometricLockScreen } from '@/components/auth/BiometricLockScreen';
 import { OfflineBanner } from '@/components/network/OfflineBanner';
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUnreadCount } from '@/hooks/use-notifications';
@@ -262,6 +263,10 @@ function RootLayout() {
             },
             headerTintColor: t.accent.clay,
             headerBackTitle: 'Geri',
+            // iOS 26 + RNS 4.16: native back button headerShown:false ekrandan
+            // gelince tıklanamıyor (#3294) — custom headerLeft ile değiştir.
+            headerBackVisible: false,
+            headerLeft: () => <HeaderBackButton />,
             contentStyle: { backgroundColor: t.surface.canvas },
           }}
         >

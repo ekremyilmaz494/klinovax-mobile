@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { FontFamily, lightTheme, darkTheme } from '@/design-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -30,6 +31,12 @@ export default function ExamLayout() {
         },
         headerTintColor: t.accent.clay,
         headerBackTitle: 'Geri',
+        // iOS 26 + RNS 4.16 native back button bug'ı (#3294) — root layout ile
+        // aynı workaround. Ayrıca nested Stack'in ilk ekranı (start) native back
+        // alamadığı için bu buton oraya da çıkış yolu sağlar (router.back()
+        // navigator sınırlarını aşar).
+        headerBackVisible: false,
+        headerLeft: () => <HeaderBackButton />,
         contentStyle: { backgroundColor: t.surface.canvas },
       }}
     >
