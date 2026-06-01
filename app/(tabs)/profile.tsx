@@ -21,19 +21,7 @@ import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
 import { setLastUnlockAt } from '@/lib/auth/biometric-policy';
 import { useAuthStore } from '@/store/auth';
-
-type StaffProfile = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  hospital: string;
-  department: string;
-  title: string;
-  avatarUrl: string;
-  stats: { assignments: number; exams: number; certificates: number };
-  createdAt: string;
-};
+import type { StaffProfile } from '@/types/staff';
 
 const ROLE_LABEL: Record<string, string> = {
   staff: 'Personel',

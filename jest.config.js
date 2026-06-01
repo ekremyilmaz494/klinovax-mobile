@@ -12,6 +12,9 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testMatch: ['**/__tests__/**/*.test.ts?(x)'],
+  // .claude/ altında Claude Code agent worktree'leri (repo kopyaları) olabilir —
+  // jest gitignore'a bakmadığı için açıkça dışla, yoksa testler N kere koşar.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
   transformIgnorePatterns: [
     'node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|react-native-reanimated|react-native-worklets))',
     'node_modules/react-native-reanimated/plugin/',

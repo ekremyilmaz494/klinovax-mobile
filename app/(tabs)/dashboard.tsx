@@ -11,7 +11,12 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth';
-import type { DashboardResponse, RecentActivity, UpcomingTraining } from '@/types/staff';
+import type {
+  DashboardResponse,
+  RecentActivity,
+  StaffProfile,
+  UpcomingTraining,
+} from '@/types/staff';
 
 export default function DashboardScreen() {
   const t = useTheme();
@@ -24,6 +29,15 @@ export default function DashboardScreen() {
     queryFn: () => apiFetch<DashboardResponse>('/api/staff/dashboard'),
     enabled: !!user,
   });
+
+  // Selamlama için isim — profil tab'ıyla aynı queryKey, cache paylaşılır.
+  // E-posta gizlilik nedeniyle gösterilmiyor; profil yüklenmediyse sadece "Merhaba,".
+  const { data: profile } = useQuery<StaffProfile, Error>({
+    queryKey: ['staff', 'profile'],
+    enabled: !!user,
+    queryFn: () => apiFetch<StaffProfile>('/api/staff/profile'),
+  });
+  const displayName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : '';
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -66,9 +80,11 @@ export default function DashboardScreen() {
           >
             Merhaba,
           </Text>
-          <Text variant="title-3" tone="secondary" numberOfLines={1} style={{ marginTop: 4 }}>
-            {user?.email ?? '—'}
-          </Text>
+          {displayName ? (
+            <Text variant="title-3" tone="secondary" numberOfLines={1} style={{ marginTop: 4 }}>
+              {displayName}
+            </Text>
+          ) : null}
         </View>
 
         {isLoading && !data ? (
