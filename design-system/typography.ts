@@ -97,6 +97,7 @@ export const Type: Record<TypeVariant, TextStyle> = {
     fontSize: 36,
     lineHeight: 40,
     letterSpacing: -0.4,
+    // Android: fontVariant desteklenmez (sessizce yok sayılır), görsel test FAZ 2'de.
     fontVariant: ['tabular-nums'],
   },
   metricSmall: {
