@@ -203,6 +203,14 @@ function Detail({ data }: { data: TrainingDetail }) {
 
       {isExhausted(data) ? <AttemptRequestSection data={data} /> : null}
 
+      {data.feedback?.canSubmit && !data.feedback.submitted && data.feedback.attemptId ? (
+        <FeedbackPrompt
+          attemptId={data.feedback.attemptId}
+          trainingTitle={data.title}
+          mandatory={data.feedback.mandatory}
+        />
+      ) : null}
+
       <View style={{ marginTop: 32 }}>
         <Button
           label={action.label}
@@ -214,6 +222,48 @@ function Detail({ data }: { data: TrainingDetail }) {
         />
       </View>
     </ScrollView>
+  );
+}
+
+/**
+ * Tamamlanan deneme için geri bildirim CTA'sı (EY.FR.40). Zorunlu form
+ * doldurulmadan backend yeni eğitim başlatmayı 423 ile kilitler — buradan
+ * doldurmak personeli o kilide hiç sokmaz.
+ */
+function FeedbackPrompt({
+  attemptId,
+  trainingTitle,
+  mandatory,
+}: {
+  attemptId: string;
+  trainingTitle: string;
+  mandatory: boolean;
+}) {
+  return (
+    <View style={{ marginTop: 28 }}>
+      <Text variant="title-3" style={{ marginBottom: 12 }}>
+        Geri bildirim
+      </Text>
+      <Card variant={mandatory ? 'warning' : 'default'} rail={mandatory}>
+        <Text variant="body" tone="primary" style={{ marginBottom: 12 }}>
+          {mandatory
+            ? 'Bu eğitim için geri bildirim formu doldurman zorunlu. Doldurmadan yeni bir eğitim başlatamazsın.'
+            : 'Bu eğitim hakkında geri bildirim verebilirsin. Görüşlerin eğitim kalitesini artırır.'}
+        </Text>
+        <Button
+          label="Geri bildirim ver"
+          variant="primary"
+          size="md"
+          onPress={() =>
+            router.push({
+              pathname: '/feedback/[attemptId]',
+              params: { attemptId, title: trainingTitle },
+            })
+          }
+          fullWidth
+        />
+      </Card>
+    </View>
   );
 }
 

@@ -296,7 +296,12 @@ Stack: Expo Router, `expo-video`, `expo-notifications`, `expo-secure-store`, Zus
 - **Öneri:** mobil tamamlamayı web gibi **`onEnded`/`didJustFinish`** olayına bağla; eşik gerekiyorsa
   **≥ %90** yap. Heartbeat zaten `watchedTime`'ı yükselttiği için onEnded'de `completed:true` yeterli.
 
-### 11.2 🔴 Feedback (EY.FR.40) akışı yok
+### 11.2 ✅ Feedback (EY.FR.40) akışı yok — **ÇÖZÜLDÜ (feat/feedback-form + feat/feedback-entry-points)**
+
+> **Çözüm (2026-06-01):** `app/feedback/[attemptId].tsx` ekranı eklendi (`GET /api/feedback/form` +
+> `POST /api/feedback/submit`, likert_5 / yes_partial_no / text soru tipleri). Giriş noktaları:
+> start 423 → otomatik form, result `canSubmit` CTA, eğitim detayı CTA, trainings tab zorunlu banner.
+> Aşağıdaki analiz tarihsel kayıt.
 
 - Backend `start` → zorunlu feedback varsa **423 + pendingFeedback**; `submit` → `feedbackRequired:true`.
 - Mobil 423'ü yakalıyor (`start.tsx`) ama **feedback formu ekranı yok** (`feedbackRequired` tipi tanımlı,
@@ -316,16 +321,22 @@ Stack: Expo Router, `expo-video`, `expo-notifications`, `expo-secure-store`, Zus
   tabanı kısmen telafi eder ama mobil ileri-sarmayı **görsel olarak** engellemiyor.
 - **Öneri:** `expo-video` seek event'inde izin verilen son konuma geri sar (web `lastAllowedTime` portu).
 
-### 11.5 🟡 Retry / expired-retryable / ek hak talebi nüansları
+### 11.5 ✅ Retry / expired-retryable / ek hak talebi nüansları — **ÇÖZÜLDÜ (feat/training-states)**
+
+> **Çözüm (2026-06-01):** `isExpiredRetryable` tüketiliyor (sarı "ilerleme taşınmaz" banner + açık CTA),
+> EXHAUSTED durumunda `attempt-requests` GET/POST ile ek hak talebi formu (pending/rejected durumları dahil).
+> Aşağıdaki analiz tarihsel kayıt.
 
 - Web detay sayfası RETRY_PENDING (2 adım), EXPIRED_RETRYABLE ("ilerleme taşınmaz" banner), hak bitince
   **ek hak talebi formu** gösterir. Mobil `trainings/[id].tsx`'in bu durumları tam karşılayıp
   karşılamadığı **doğrulanmalı** (özellikle `attempt-requests` çağrısı mobilde yok).
 
-### 11.6 🟡 Certificate `sign`
+### 11.6 ⚪ Certificate `sign` — **TEYİT EDİLDİ: opsiyonel, çıkmaz sokak değil**
 
-- Web'de geçen sonuçta imza adımı (`/sign`) var; mobil hiç çağırmıyor. Akışta gerçekten zorunlu mu,
-  yoksa opsiyonel mi **teyit edilmeli** (zorunluysa mobil sertifikası "imzasız" kalır).
+- Web'de geçen sonuçta imza adımı (`/sign`) var; mobil hiç çağırmıyor.
+- **Teyit (2026-06-01, backend kodu):** Sertifika üretimi `submit` içinde async fire-and-forget;
+  imza adımından **bağımsız**. İmzasız sertifika da üretilir → mobilde imza ekranı zorunlu değil.
+  İleride istenirse `signatureMethod: 'acknowledge'` ile basit onay eklenebilir.
 
 ### 11.7 ⚪ Kapsam dışı (muhtemelen v1'de bilinçli) — teyit edilecek
 
@@ -334,16 +345,16 @@ K4 ekran-görüntüsü/kopya engeli yok. Bunlar v1 personel kapsamı kararıyla 
 
 ### Özet tablo
 
-| #   | Konu                                        | Web                                    | Mobil           | Durum           | Öncelik |
-| --- | ------------------------------------------- | -------------------------------------- | --------------- | --------------- | ------- |
-| 1   | Video tamamlama                             | onEnded + %90                          | playToEnd + %90 | ✅ Düzeltildi   | —       |
-| 2   | Feedback formu                              | var (423/feedbackRequired yönlendirir) | yok             | ❌ Eksik        | 🔴      |
-| 3   | Tab-switch (K3)                             | sayılır                                | sayılmaz        | ⚠️ Kısmi        | 🟡      |
-| 4   | No-seek                                     | engellenir                             | serbest         | ⚠️ Kısmi        | 🟡      |
-| 5   | Retry/ek-hak durumları                      | zengin                                 | doğrulanmalı    | ❓              | 🟡      |
-| 6   | Certificate sign                            | var                                    | yok             | ❓ zorunlu mu?  | 🟡      |
-| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | yok             | ⚪ kapsam dışı? | ⚪      |
-| —   | start/questions/timer/submit/results/videos | —                                      | ✅ çalışıyor    | ✅              | —       |
+| #   | Konu                                        | Web                                    | Mobil               | Durum                                | Öncelik |
+| --- | ------------------------------------------- | -------------------------------------- | ------------------- | ------------------------------------ | ------- |
+| 1   | Video tamamlama                             | onEnded + %90                          | playToEnd + %90     | ✅ Düzeltildi (#7)                   | —       |
+| 2   | Feedback formu                              | var (423/feedbackRequired yönlendirir) | tam form + 4 giriş  | ✅ Düzeltildi (#8 + entegrasyon)     | —       |
+| 3   | Tab-switch (K3)                             | sayılır                                | sayılmaz            | ⚠️ Kısmi (bilinçli ertelendi)        | 🟡      |
+| 4   | No-seek                                     | engellenir                             | serbest (nötralize) | ⚠️ Kısmi (accumulator telafi ediyor) | 🟡      |
+| 5   | Retry/ek-hak durumları                      | zengin                                 | tam durum makinesi  | ✅ Düzeltildi (#9)                   | —       |
+| 6   | Certificate sign                            | var (opsiyonel)                        | yok                 | ⚪ Opsiyonel teyit edildi            | —       |
+| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | yok                 | ⚪ kapsam dışı?                      | ⚪      |
+| —   | start/questions/timer/submit/results/videos | —                                      | ✅ çalışıyor        | ✅                                   | —       |
 
 ---
 
@@ -367,11 +378,11 @@ K4 ekran-görüntüsü/kopya engeli yok. Bunlar v1 personel kapsamı kararıyla 
 ## 13. Önerilen Sonraki Adımlar (kod değişikliği gerektirir — ayrı tur)
 
 1. ~~**🔴 Video tamamlama düzelt**~~ ✅ Yapıldı (`fix/video-completion-90`): `playToEnd` → `completed:true`; eşik ≥%90.
-2. **🔴 Feedback ekranı ekle** (`app/exam/[assignmentId]/feedback.tsx` + `staff/feedback/pending`).
-3. **🟡 `trainings/[id]` durum makinesini** web ile bire bir hizala + `attempt-requests` ekle.
-4. **🟡 Certificate `sign`** zorunluluğunu teyit et, gerekiyorsa imza ekranı ekle.
-5. **🟡 K3 AppState** sayımı + no-seek geri-sarma (sadakat).
-6. Her düzeltme için Vitest/Detox testi + bu dökümanı güncel tut.
+2. ~~**🔴 Feedback ekranı ekle**~~ ✅ Yapıldı (`feat/feedback-form` + `feat/feedback-entry-points`): `app/feedback/[attemptId].tsx` + 4 giriş noktası.
+3. ~~**🟡 `trainings/[id]` durum makinesini** web ile hizala~~ ✅ Yapıldı (`feat/training-states`): EXPIRED_RETRYABLE + EXHAUSTED + `attempt-requests`.
+4. ~~**🟡 Certificate `sign`** zorunluluğunu teyit et~~ ✅ Teyit edildi: opsiyonel, sertifika üretiminden bağımsız — ekran gerekmiyor.
+5. **🟡 K3 AppState** sayımı + no-seek geri-sarma (sadakat) — bilinçli ertelendi (web'de de sadece loglanıyor).
+6. Her düzeltme için jest-expo testi + bu dökümanı güncel tut → **sıkılaştırma turu** (bkz. mobil-sikiilastirma-yol-haritasi.md M1).
 
 > Bu doküman **harita + analiz**dir; kod değiştirmez. Yukarıdaki adımlar kullanıcı onayıyla
 > ayrı turlarda uygulanır.

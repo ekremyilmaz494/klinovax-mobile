@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
+import { apiFetch } from '@/lib/api/client';
 import { fetchExamResults } from '@/lib/api/exam';
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam';
+import type { TrainingDetail } from '@/types/staff';
 
 export default function ExamResultScreen() {
   const t = useTheme();
@@ -67,6 +69,19 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
   const heroBg = passed ? t.colors.status.successBg : t.colors.status.dangerBg;
   const heroBorder = passed ? t.colors.status.success : t.colors.status.danger;
   const heroAccent = passed ? t.colors.status.success : t.colors.status.danger;
+
+  // Feedback durumu eğitim detayından okunur — results endpoint'i feedback bilgisi
+  // dönmez. Query key trainings/[id].tsx ile aynı (cache paylaşımı); mount'taki
+  // invalidation sayesinde deneme sonrası taze canSubmit değeri gelir.
+  const { data: detail } = useQuery<TrainingDetail, Error>({
+    queryKey: ['training-detail', assignmentId],
+    queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${assignmentId}`),
+  });
+  const fb = detail?.feedback;
+  const feedbackCta =
+    fb?.canSubmit && !fb.submitted && fb.attemptId
+      ? { attemptId: fb.attemptId, mandatory: fb.mandatory }
+      : null;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
@@ -144,10 +159,26 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
       ) : null}
 
       <View style={{ marginTop: 32, gap: 12 }}>
+        {feedbackCta ? (
+          // Zorunlu feedback'i burada doldurtmak, personeli bir sonraki sınav
+          // başlangıcındaki 423 kilidine hiç sokmaz (çıkmaz sokak önleme).
+          <Button
+            label={feedbackCta.mandatory ? 'Geri bildirim ver (zorunlu)' : 'Geri bildirim ver'}
+            variant="primary"
+            size="lg"
+            onPress={() =>
+              router.push({
+                pathname: '/feedback/[attemptId]',
+                params: { attemptId: feedbackCta.attemptId, title: detail?.title ?? '' },
+              })
+            }
+            fullWidth
+          />
+        ) : null}
         {passed ? (
           <Button
             label="Sertifikamı gör"
-            variant="primary"
+            variant={feedbackCta ? 'outline' : 'primary'}
             size="lg"
             onPress={() => router.replace('/(tabs)/certificates')}
             fullWidth
