@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
@@ -9,10 +9,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { Card, Chip, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, apiFetch } from '@/lib/api/client';
+import { fetchPendingFeedback } from '@/lib/api/feedback';
 import { useAuthStore } from '@/store/auth';
 import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff';
+import type { PendingFeedbackItem } from '@/types/feedback';
 
 const PAGE_SIZE = 20;
 
@@ -66,6 +68,18 @@ export default function TrainingsScreen() {
     if (error instanceof ApiError && error.status === 401) void logout();
   }, [error, logout]);
 
+  // Zorunlu geri bildirim banner'ı — bu form doldurulmadan yeni eğitim başlatılamaz.
+  const { data: pendingFeedback } = useQuery({
+    queryKey: ['pending-feedback'],
+    enabled: !!user,
+    queryFn: fetchPendingFeedback,
+  });
+
+  const mandatoryFeedback = useMemo<PendingFeedbackItem | null>(() => {
+    if (!pendingFeedback?.formActive) return null;
+    return pendingFeedback.items.find((it) => it.isMandatory) ?? null;
+  }, [pendingFeedback]);
+
   const items = useMemo<MyTrainingItem[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
   const onRefresh = useCallback(async () => {
@@ -85,6 +99,33 @@ export default function TrainingsScreen() {
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
+      {mandatoryFeedback ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/feedback/[attemptId]',
+                params: {
+                  attemptId: mandatoryFeedback.attemptId,
+                  title: mandatoryFeedback.trainingTitle,
+                },
+              })
+            }
+            style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+          >
+            <Card variant="warning" rail>
+              <Text variant="overline" style={{ color: t.colors.status.warning }}>
+                ZORUNLU GERİ BİLDİRİM
+              </Text>
+              <Text variant="body" style={{ marginTop: 6 }}>
+                “{mandatoryFeedback.trainingTitle}” eğitimi için geri bildirim formunu doldurmadan
+                yeni eğitim başlatamazsın.
+              </Text>
+            </Card>
+          </Pressable>
+        </View>
+      ) : null}
+
       <Stack
         direction="row"
         gap={2}
