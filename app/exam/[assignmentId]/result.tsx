@@ -9,6 +9,7 @@ import { Button, Card, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { apiFetch } from '@/lib/api/client';
 import { fetchExamResults } from '@/lib/api/exam';
+import { resolveFeedbackCta } from '@/lib/exam/result-gating';
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam';
 import type { TrainingDetail } from '@/types/staff';
 
@@ -77,11 +78,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
     queryKey: ['training-detail', assignmentId],
     queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${assignmentId}`),
   });
-  const fb = detail?.feedback;
-  const feedbackCta =
-    fb?.canSubmit && !fb.submitted && fb.attemptId
-      ? { attemptId: fb.attemptId, mandatory: fb.mandatory }
-      : null;
+  const feedbackCta = resolveFeedbackCta(detail);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
