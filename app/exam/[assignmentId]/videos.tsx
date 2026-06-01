@@ -1,8 +1,8 @@
-import { useEvent } from 'expo';
+import { useEvent, useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -307,7 +307,7 @@ function VideoBlock({
 
   // Accumulator: yalnızca play state'inde geçen gerçek wall-clock süresinin
   // toplamı. lastPosition'dan başla; pause/scrub bu sayacı ARTIRMAZ.
-  // Backend 80% kuralı + watch rate denetimi yapıyor; mobile'ın
+  // Backend ANTI_CHEAT_WATCH_FLOOR=0.9 (%90) + watch rate denetimi yapıyor; mobile'ın
   // currentTime'ı doğrudan göndermesi skip-to-end exploit'ine yol açıyordu.
   const accumulatedRef = useRef<number>(video.lastPosition ?? 0);
   const lastTickRef = useRef<number | null>(null);
@@ -367,46 +367,56 @@ function VideoBlock({
     }
   }, [video.id, video.lastPosition, video.completed]);
 
+  // Tamamlama koşulu backend ile bire bir: `completed:true` ANCAK
+  // watchedTime >= durationSeconds * 0.9 (ANTI_CHEAT_WATCH_FLOOR, videos/route.ts) ise kabul edilir.
+  // Eşik DB duration'ı (video.duration) üzerinden hesaplanır — player.duration metadata'sı
+  // backend'in karşılaştırdığı değerden sapabilir, sapma sessiz redde yol açar.
+  // İleri sarıp sona gelmek tetiklemez: accumulator şartı her tetikleyicide aranır.
+  const tryComplete = useCallback(() => {
+    const accumulated = accumulatedRef.current;
+    if (
+      completedRef.current ||
+      completeMutationRef.current.isPending ||
+      !video.duration ||
+      accumulated < video.duration * 0.9
+    ) {
+      return;
+    }
+    completeMutationRef.current.mutate(
+      {
+        assignmentId,
+        videoId: video.id,
+        position: Math.floor(player.currentTime),
+        // Math.floor yuvarlaması accumulated'ı eşiğin 1sn altına düşürmesin —
+        // backend reddi sessizdir (200 döner ama video tamamlanmaz).
+        watchedTime: Math.max(Math.floor(accumulated), Math.ceil(video.duration * 0.9)),
+      },
+      {
+        onSuccess: (data) => {
+          completedRef.current = true;
+          onCompleted(data.allVideosCompleted);
+        },
+        onError: (err) => {
+          // Tamamlama backend'e yazılamadı — kullanıcı yeniden açmazsa
+          // bir sonraki açılışta video baştan oynar. Görünür hata göster.
+          Alert.alert(
+            'Tamamlama kaydedilemedi',
+            err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
+          );
+        },
+      },
+    );
+  }, [player, assignmentId, video.id, video.duration, onCompleted]);
+
+  // Doğal bitiş — web'in <video> onEnded sinyalinin RN karşılığı (kanonik tetikleyici).
+  useEventListener(player, 'playToEnd', tryComplete);
+
+  // Güvence tetikleyicisi: kullanıcı %90+ izleyip videoyu sonuna kadar oynatmadan
+  // ayrılırsa da tamamlama kaçmasın.
   useEffect(() => {
-    const id = setInterval(() => {
-      if (!player.duration) return;
-      const accumulated = accumulatedRef.current;
-      // Backend 80% eşiğini uyguluyor; mobile da aynı eşikte completion'ı tetikler.
-      // Sadece currentTime >= duration-1 yetmez — kullanıcı ileri sarıp sona
-      // gelmiş olabilir (accumulator hâlâ düşük) → completion mutation tetiklenirse
-      // backend 80% altında kaldığı için reject (allVideosCompleted: false) döner,
-      // sonsuz tetikleme döngüsü doğar. accumulator >= 80% güvenli sinyal.
-      if (
-        !completedRef.current &&
-        !completeMutationRef.current.isPending &&
-        accumulated >= player.duration * 0.8
-      ) {
-        completeMutationRef.current.mutate(
-          {
-            assignmentId,
-            videoId: video.id,
-            position: Math.floor(player.currentTime),
-            watchedTime: Math.floor(accumulated),
-          },
-          {
-            onSuccess: (data) => {
-              completedRef.current = true;
-              onCompleted(data.allVideosCompleted);
-            },
-            onError: (err) => {
-              // Tamamlama backend'e yazılamadı — kullanıcı yeniden açmazsa
-              // bir sonraki açılışta video baştan oynar. Görünür hata göster.
-              Alert.alert(
-                'Tamamlama kaydedilemedi',
-                err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
-              );
-            },
-          },
-        );
-      }
-    }, 2000);
+    const id = setInterval(tryComplete, 2000);
     return () => clearInterval(id);
-  }, [player, assignmentId, video.id, onCompleted]);
+  }, [tryComplete]);
 
   return (
     <View

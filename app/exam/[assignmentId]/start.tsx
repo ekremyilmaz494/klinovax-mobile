@@ -43,15 +43,23 @@ export default function ExamStartScreen() {
     },
     onError: (err) => {
       // Backend 423 + pendingFeedback: kullanıcı başka bir eğitim için zorunlu
-      // geri bildirimi tamamlamadan yeni eğitim başlatamaz. Açıklayıcı mesaj.
+      // geri bildirimi tamamlamadan yeni eğitim başlatamaz. Formu app içinde aç.
       if (err instanceof ApiError && err.status === 423) {
-        const body = err.body as { pendingFeedback?: { trainingTitle?: string } } | null;
-        const title = body?.pendingFeedback?.trainingTitle;
+        const body = err.body as {
+          pendingFeedback?: { attemptId?: string; trainingTitle?: string };
+        } | null;
+        const pending = body?.pendingFeedback;
+        if (pending?.attemptId) {
+          router.push({
+            pathname: '/feedback/[attemptId]',
+            params: { attemptId: pending.attemptId, title: pending.trainingTitle ?? '' },
+          });
+          return;
+        }
+        // attemptId payload'da yoksa fallback bilgilendirme; form yine de açılabilir olmalı.
         Alert.alert(
           'Geri bildirim bekleniyor',
-          title
-            ? `"${title}" eğitimi için zorunlu geri bildirim formu doldurmalısın. Lütfen web panelinden tamamla.`
-            : 'Bir önceki eğitim için zorunlu geri bildirim formu doldurmalısın. Lütfen web panelinden tamamla.',
+          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Form şimdi açılacak.',
         );
         return;
       }
