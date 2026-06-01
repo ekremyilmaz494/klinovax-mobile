@@ -17,18 +17,21 @@
 
 ## Stack
 
-| Katman       | Seçim                                                                                          |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| Runtime      | React Native 0.81 + Expo SDK 54 + React 19 + new architecture                                  |
-| Routing      | Expo Router 6 (file-based, typed routes)                                                       |
-| Diller       | TypeScript 5 (strict), JSX                                                                     |
-| State        | Zustand (`store/auth.ts` — tek store, sadece auth)                                             |
-| Server state | TanStack Query v5 + AsyncStorage persistence + paused mutations                                |
-| Auth         | Custom JWT (access+refresh) → `expo-secure-store`, biometrik kilit `expo-local-authentication` |
-| Push         | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz)                          |
-| Media        | `expo-video` (yeni player API), `react-native-webview` (PDF)                                   |
-| Animasyon    | `react-native-reanimated` v4 (worklets, UI thread)                                             |
-| Fontlar      | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir)      |
+| Katman        | Seçim                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| Runtime       | React Native 0.81 + Expo SDK 54 + React 19 + new architecture                                  |
+| Routing       | Expo Router 6 (file-based, typed routes)                                                       |
+| Diller        | TypeScript 5 (strict), JSX                                                                     |
+| State         | Zustand (`store/auth.ts` — tek store, sadece auth)                                             |
+| Server state  | TanStack Query v5 + AsyncStorage persistence + paused mutations                                |
+| Auth          | Custom JWT (access+refresh) → `expo-secure-store`, biometrik kilit `expo-local-authentication` |
+| Push          | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz)                          |
+| Media         | `expo-video` (yeni player API), `react-native-webview` (PDF)                                   |
+| Animasyon     | `react-native-reanimated` v4 (worklets, UI thread)                                             |
+| Fontlar       | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir)      |
+| Test          | jest-expo + `@testing-library/react-native` — `__tests__/` klasörleri, CI'da zorunlu           |
+| Hata yakalama | `RouterErrorBoundary` (kök + exam) + Sentry (`lib/sentry.ts`, DSN ile aktive olur)             |
+| Validasyon    | zod v4 (`lib/api/schemas/` — graceful: mismatch loglanır, app kırılmaz)                        |
 
 ---
 
@@ -122,12 +125,14 @@ app/
 │   ├── certificates.tsx       # letterhead kart + mono cert kodu
 │   ├── notifications.tsx      # filter (Tümü/Okunmamış) + read/unread + mark all
 │   └── profile.tsx            # avatar (initials), stats, biometric toggle, logout
-├── trainings/[id].tsx         # eğitim detay + step listesi
+├── trainings/[id].tsx         # eğitim detay + step listesi + durum makinesi (expired-retryable, exhausted, ek hak talebi)
 ├── exam/[assignmentId]/
-│   ├── start.tsx              # sınav öncesi onay + kurallar
+│   ├── _layout.tsx            # nested Stack + exam'a özel ErrorBoundary
+│   ├── start.tsx              # sınav öncesi onay + kurallar + 423 → feedback yönlendirme
 │   ├── questions.tsx          # timer + options + auto-submit (pre VE post)
-│   ├── videos.tsx             # video player + heartbeat + PDF + completion
-│   └── result.tsx             # dramatik yüzde + başarı/başarısızlık
+│   ├── videos.tsx             # video player + heartbeat + PDF + completion (%90 + playToEnd)
+│   └── result.tsx             # dramatik yüzde + başarı/başarısızlık + feedback/ek hak CTA
+├── feedback/[attemptId].tsx   # EY.FR.40 geri bildirim formu (likert/yes-partial-no/text)
 ├── certificates/[id]/preview.tsx  # PDF WebView modal
 └── legal/[slug].tsx           # gizlilik/şartlar WebView
 
@@ -135,7 +140,8 @@ components/
 ├── auth/                      # BiometricLockScreen, AuroraBackground
 ├── network/                   # OfflineBanner
 ├── notifications/             # NotificationCard, NotificationTypeIcon
-└── ui/                        # StatCard, Badge (=Tag alias), ProgressBar, EmptyState, ScreenError, IconSymbol, collapsible
+└── ui/                        # StatCard, Badge (=Tag alias), ProgressBar, EmptyState, ScreenError, IconSymbol,
+                               #   RouterErrorBoundary (kök + route boundary), ExamErrorBoundary, collapsible
 
 design-system/
 ├── tokens.ts                  # Palette, Radius, Space, Hairline, Motion
@@ -148,9 +154,17 @@ design-system/
 lib/
 ├── api/
 │   ├── client.ts              # apiFetch + apiRequest + 401 refresh + setOnAuthFailure
-│   ├── exam.ts                # exam endpoint helper'ları
+│   ├── exam.ts                # exam endpoint helper'ları (zod validate ile sarılı)
+│   ├── feedback.ts            # EY.FR.40 form/submit/pending endpoint'leri
+│   ├── attempt-requests.ts    # ek deneme hakkı talebi endpoint'leri
+│   ├── schemas/               # zod yanıt şemaları + validate() (graceful pass-through, throw etmez)
 │   ├── cert-download.ts       # sertifika PDF paylaşımı
 │   └── notifications.ts       # bildirim endpoint'leri
+├── exam/                      # SAF exam mantığı (test edilen): video-completion (%90 eşik),
+│   │                          #   timer, start-routing, answer-lock, result-gating, feedback-payload,
+│   │                          #   state-machine (web'den port — web kaynağı tek doğru kaynak)
+│   └── __tests__/             # exam mantığı test suite'i
+├── sentry.ts                  # initSentry (DSN yoksa no-op) + captureBoundaryError
 ├── auth/
 │   ├── secure-token.ts        # SecureStore session CRUD
 │   ├── biometric.ts           # LocalAuthentication wrapper
@@ -284,6 +298,11 @@ npm run lint:fix                 # auto-fix
 npm run format                   # prettier --write
 npm run format:check             # CI'da çalışan kontrol
 
+# Test (jest-expo)
+npm test                         # tüm suite (lib/exam, lib/api, lib/query, components/ui testleri)
+npm run test:watch               # değişen dosyalara göre watch mode
+npm run test:cov                 # coverage raporu
+
 # EAS builds
 npm run eas:dev:ios              # development build (push çalışır)
 npm run eas:preview:ios          # internal distribution
@@ -330,6 +349,7 @@ main (korumalı)        ← her zaman App Store/Play Store sürümü
 - `lint` — `expo lint`
 - `format-check` — `prettier --check`
 - `expo-doctor` — Expo config sağlığı
+- `test` — `npm test -- --ci` (jest; exam mantığı regresyonlarını kilitler)
 
 Bunlardan biri kırmızıysa merge butonu kilitli kalır.
 
@@ -394,12 +414,14 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 
 1. ✅ `useTheme()` her component'in başında — ondan sonra style.
 2. ✅ Yeni component → primitives'in altında dene; gerçekten yeni primitif gerekiyorsa `design-system/primitives/` altına.
-3. ✅ Test refactor: `tsc --noEmit && expo lint` her commit'ten ÖNCE.
+3. ✅ Test refactor: `tsc --noEmit && expo lint && npm test` her commit'ten ÖNCE.
 4. ✅ Light + dark görsel test: simulator'da Cmd+Shift+A.
 5. ✅ Dynamic Type test: AX1 ve AX3 layout'u kırmamalı.
 6. ✅ Reduce Motion test: animasyonlar kapalı durumda da işlevsel.
 7. ✅ Yeni endpoint → `lib/api/<domain>.ts` altında named function. `apiFetch<T>(path)` döner.
 8. ✅ Yeni mutation → `useMutation` + `mutationKey` (`MUTATION_KEYS`'te tanımlı), offline persistence için `mutation-defaults.ts`'e mutationFn register.
+9. ✅ Yeni exam/akış mantığı → ekrana inline gömme; `lib/exam/` altında SAF fonksiyon yaz + `__tests__/` altına test ekle. Ekran sadece çağırır.
+10. ✅ `lib/exam/state-machine.ts` web'in kopyası — web'de değişirse mobili de senkronla (bit-bit aynı kalmalı).
 
 ---
 

@@ -1,5 +1,3 @@
-// @ts-nocheck — jest tipleri PR-A (feat/test-infra) ile gelir; rebase sonrası bu satır kaldırılacak
-
 import { validate } from '../index';
 import {
   examQuestionsResponseSchema,
