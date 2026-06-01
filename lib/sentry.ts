@@ -64,4 +64,12 @@ export function initSentry(): void {
   });
 }
 
+/**
+ * Route-level error boundary'lerden çağrılır. `boundary` tag'i ile root/exam
+ * gibi hangi katmanın patladığı Sentry'de filtrelenebilir. DSN yoksa no-op.
+ */
+export function captureBoundaryError(error: Error, context?: string): void {
+  Sentry.captureException(error, { tags: { boundary: context ?? 'root' } });
+}
+
 export { Sentry };

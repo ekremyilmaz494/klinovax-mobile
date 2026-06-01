@@ -127,6 +127,10 @@ function AuthGate() {
   return null;
 }
 
+// Route-level error boundary: bir ekranın render'ı throw ederse Expo Router bu
+// component'i mount eder (beyaz ekran yerine kurtarma UI'ı). Sentry'de 'root' tag.
+export { RouterErrorBoundary as ErrorBoundary } from '@/components/ui/RouterErrorBoundary';
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -264,16 +268,11 @@ function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trainings/[id]" options={{ headerShown: true }} />
-          <Stack.Screen name="exam/[assignmentId]/start" options={{ headerShown: true }} />
-          <Stack.Screen
-            name="exam/[assignmentId]/questions"
-            options={{ headerShown: true, gestureEnabled: false }}
-          />
-          <Stack.Screen name="exam/[assignmentId]/videos" options={{ headerShown: true }} />
-          <Stack.Screen
-            name="exam/[assignmentId]/result"
-            options={{ headerShown: true, gestureEnabled: false }}
-          />
+          {/* Exam ekranları artık kendi grup layout'unda (app/exam/[assignmentId]/
+              _layout.tsx) — header'lar + per-screen options orada, kendi
+              ErrorBoundary'siyle. Burada sadece grubu nested navigator olarak
+              kaydet; header dış Stack'te gizli, içteki Stack sağlıyor. */}
+          <Stack.Screen name="exam/[assignmentId]" options={{ headerShown: false }} />
           <Stack.Screen
             name="certificates/[id]/preview"
             options={{ headerShown: true, presentation: 'modal' }}
