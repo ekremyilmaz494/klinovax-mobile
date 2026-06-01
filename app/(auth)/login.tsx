@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
-import { Button, Card, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, FontFamily, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, loginRequest } from '@/lib/api/client';
 import { isBiometricAvailable } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
@@ -208,7 +208,7 @@ export default function LoginScreen() {
                     <Text
                       variant="footnote"
                       style={{
-                        fontFamily: 'Menlo',
+                        fontFamily: FontFamily.mono,
                         fontWeight: '600',
                         color: t.colors.text.primary,
                       }}
