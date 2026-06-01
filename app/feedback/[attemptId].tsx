@@ -9,6 +9,7 @@ import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Chip, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchFeedbackForm, submitFeedback } from '@/lib/api/feedback';
+import { buildFeedbackPayload, isFeedbackComplete } from '@/lib/exam/feedback-payload';
 import { useAuthStore } from '@/store/auth';
 import type { FeedbackForm, FeedbackItem } from '@/types/feedback';
 
@@ -44,31 +45,14 @@ export default function FeedbackScreen() {
     setAnswers((prev) => ({ ...prev, [itemId]: { textAnswer } }));
 
   // Zorunlu maddelerin hepsi cevaplanmadan submit kapalı.
-  const allRequiredAnswered = useMemo(() => {
-    if (!form) return false;
-    const requiredItems = form.categories.flatMap((c) => c.items).filter((it) => it.isRequired);
-    return requiredItems.every((it) => {
-      const a = answers[it.id];
-      if (!a) return false;
-      if (it.questionType === 'text') return !!a.textAnswer && a.textAnswer.trim().length > 0;
-      return typeof a.score === 'number';
-    });
-  }, [form, answers]);
+  const allRequiredAnswered = useMemo(
+    () => (form ? isFeedbackComplete(form, answers) : false),
+    [form, answers],
+  );
 
   const submitMutation = useMutation({
-    mutationFn: () => {
-      // Sadece cevabı olan maddeleri yolla; opsiyonel boşlar atlanır.
-      const payload = Object.entries(answers)
-        .filter(([, a]) =>
-          typeof a.score === 'number' ? true : !!a.textAnswer && a.textAnswer.trim().length > 0,
-        )
-        .map(([itemId, a]) =>
-          typeof a.score === 'number'
-            ? { itemId, score: a.score }
-            : { itemId, textAnswer: a.textAnswer?.trim() },
-        );
-      return submitFeedback({ attemptId, includeName, answers: payload });
-    },
+    mutationFn: () =>
+      submitFeedback({ attemptId, includeName, answers: buildFeedbackPayload(answers) }),
     networkMode: 'online',
     onSuccess: () => onSubmitted(),
     onError: (err) => {

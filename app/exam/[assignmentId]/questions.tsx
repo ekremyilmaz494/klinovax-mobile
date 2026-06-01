@@ -10,6 +10,8 @@ import { Button, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
+import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
+import { computeRemainingSeconds, shouldAutoSubmitTimer } from '@/lib/exam/timer';
 import { useOnline } from '@/lib/network/use-online';
 import type { SaveAnswerVars, SubmitExamVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -211,18 +213,10 @@ function QuestionsView({
       },
       {
         onError: (error) => {
-          if (error instanceof ApiError && error.status === 423) {
+          if (isAnswerLockError(error)) {
             // Backend cevabı kilitledi (post-exam 30sn grace doldu).
             // UI'ı backend ile tutarlı kıl: önceki seçime geri al.
-            setAnswers((prev) => {
-              const next = new Map(prev);
-              if (previousAnswer !== undefined) {
-                next.set(q.questionId, previousAnswer);
-              } else {
-                next.delete(q.questionId);
-              }
-              return next;
-            });
+            setAnswers((prev) => rollbackAnswer(prev, q.questionId, previousAnswer));
             Alert.alert(
               'Cevap kilitli',
               'Bu sorunun cevabı 30 saniye geçtiği için kilitlendi. Önceki seçimin korunuyor.',
@@ -450,7 +444,7 @@ function ExamTimer({
   // İlk render'da bitiş zamanı sabitlenir; sonradan expiresAt prop değişse bile
   // endRef güncellenmez (UX karışıklığı — sayaç ortasında sıçramasın).
   const endRef = useRef<number>(expiresAt ?? Date.now() + fallbackTotalTime * 1000);
-  const initialRemaining = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
+  const initialRemaining = computeRemainingSeconds(endRef.current, Date.now());
   const [remaining, setRemaining] = useState<number>(initialRemaining);
   const submittedRef = useRef(false);
   const onAutoSubmitRef = useRef(onAutoSubmit);
@@ -458,9 +452,9 @@ function ExamTimer({
 
   useEffect(() => {
     const id = setInterval(() => {
-      const rem = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
+      const rem = computeRemainingSeconds(endRef.current, Date.now());
       setRemaining(rem);
-      if (rem === 0 && !submittedRef.current) {
+      if (shouldAutoSubmitTimer({ remaining: rem, alreadySubmitted: submittedRef.current })) {
         submittedRef.current = true;
         onAutoSubmitRef.current();
       }
