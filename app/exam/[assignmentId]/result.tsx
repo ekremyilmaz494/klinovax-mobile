@@ -125,7 +125,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.{' '}
             {data.attemptsRemaining > 0
               ? `Kalan deneme: ${data.attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
-              : 'Yeni deneme hakkın kalmadı.'}
+              : 'Yeni deneme hakkın kalmadı — eğitim sayfasından yöneticinden ek hak talep edebilirsin.'}
           </Text>
         </Card>
       ) : null}
@@ -160,7 +160,17 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             onPress={() => router.replace(`/trainings/${assignmentId}`)}
             fullWidth
           />
-        ) : null}
+        ) : (
+          // Hak bitti: çıkmaz sokak bırakma — eğitim detayındaki ek hak talebi
+          // formuna yönlendir (AttemptRequestSection).
+          <Button
+            label="Ek deneme hakkı talep et"
+            variant="primary"
+            size="lg"
+            onPress={() => router.replace(`/trainings/${assignmentId}`)}
+            fullWidth
+          />
+        )}
         <Button
           label="Eğitim listesine dön"
           variant={passed || data.attemptsRemaining > 0 ? 'outline' : 'primary'}
