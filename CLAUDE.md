@@ -389,7 +389,9 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 2. EAS env'e ekle: `eas env:create --scope project --environment production --name EXPO_PUBLIC_SENTRY_DSN --value "https://...@sentry.io/..."` (preview için ayrıca ekle).
 3. Sourcemap upload için auth token: Sentry → Settings → Auth Tokens → `project:releases` + `project:write` scope'lu token oluştur.
 4. `eas env:create --scope project --environment production --name SENTRY_AUTH_TOKEN --value "..." --visibility secret`.
-5. Test: Production build → kasten `throw new Error('sentry test')` → Sentry dashboard'da release+dist ile görünmeli.
+5. **`eas.json`'dan `SENTRY_DISABLE_AUTO_UPLOAD` env'ini kaldır** (üç profilde de var) — Sentry org/token yokken Android Gradle build'i `sentry-cli --org gerekli` hatasıyla patlamasın diye eklendi. Kaldırılmazsa sourcemap'ler sessizce yüklenmez, stack trace'ler okunamaz kalır.
+6. `app.json`'da `@sentry/react-native` plugin'ine `organization` + `project` opsiyonlarını ekle (sentry.properties bunlardan üretilir).
+7. Test: Production build → kasten `throw new Error('sentry test')` → Sentry dashboard'da release+dist ile görünmeli.
 
 ---
 
