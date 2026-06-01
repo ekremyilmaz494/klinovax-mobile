@@ -26,10 +26,14 @@ export function HeaderBackButton({ label = 'Geri' }: { label?: string }) {
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        // iOS 26 glass pill custom view'ı ortalamıyor (RNS#2990) — bar item
+        // yüksekliğini (44pt) doldurup içeriği kendimiz ortalıyoruz.
+        height: 44,
         opacity: pressed ? 0.5 : 1,
         // Native back button'un başladığı sol hizaya otur
         marginLeft: -4,
-        paddingRight: 12,
+        paddingRight: 8,
       })}
     >
       <IconSymbol name="chevron.left" size={22} color={t.colors.accent.clay} />

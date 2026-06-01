@@ -168,25 +168,36 @@ function HeaderCircleButton({
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      // Dış kutu iOS bar item alanını (44pt) doldurur — iOS 26 glass pill custom
+      // view'ı ortalamadığı için (RNS#2990) ortalamayı kendi içimizde yapıyoruz.
       style={({ pressed }) => ({
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: t.colors.surface.secondary,
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: pressed || busy ? 0.6 : disabled ? 0.4 : 1,
       })}
     >
-      {busy ? (
-        <ActivityIndicator size="small" color={t.colors.text.primary} />
-      ) : (
-        <Ionicons
-          name={icon}
-          size={18}
-          color={disabled ? t.colors.text.tertiary : t.colors.text.primary}
-        />
-      )}
+      <View
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 15,
+          backgroundColor: t.colors.surface.secondary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color={t.colors.text.primary} />
+        ) : (
+          <Ionicons
+            name={icon}
+            size={18}
+            color={disabled ? t.colors.text.tertiary : t.colors.text.primary}
+          />
+        )}
+      </View>
     </Pressable>
   );
 }

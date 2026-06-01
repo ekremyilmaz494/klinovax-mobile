@@ -51,6 +51,19 @@ export type DashboardResponse = {
   recentActivity: RecentActivity[];
 };
 
+export type StaffProfile = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  hospital: string;
+  department: string;
+  title: string;
+  avatarUrl: string;
+  stats: { assignments: number; exams: number; certificates: number };
+  createdAt: string;
+};
+
 export type MyTrainingItem = {
   id: string;
   title: string;
