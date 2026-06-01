@@ -1,4 +1,13 @@
 import { apiFetch } from './client';
+import {
+  examQuestionsResponseSchema,
+  examResultsResponseSchema,
+  examStartResponseSchema,
+  examTimerResponseSchema,
+  examVideosResponseSchema,
+  videoProgressResponseSchema,
+} from './schemas/exam';
+import { validate } from './schemas/index';
 import type {
   ExamPhase,
   ExamQuestionsResponse,
@@ -19,17 +28,21 @@ import type {
  * Mobile akışta `assignmentId` her yerde elimizde olduğu için onu kullanıyoruz.
  */
 
-export function startExam(assignmentId: string): Promise<ExamStartResponse> {
-  return apiFetch<ExamStartResponse>(`/api/exam/${assignmentId}/start`, {
+export async function startExam(assignmentId: string): Promise<ExamStartResponse> {
+  const data = await apiFetch<ExamStartResponse>(`/api/exam/${assignmentId}/start`, {
     method: 'POST',
   });
+  return validate(examStartResponseSchema, data, 'exam.start');
 }
 
-export function fetchExamQuestions(
+export async function fetchExamQuestions(
   assignmentId: string,
   phase: ExamPhase,
 ): Promise<ExamQuestionsResponse> {
-  return apiFetch<ExamQuestionsResponse>(`/api/exam/${assignmentId}/questions?phase=${phase}`);
+  const data = await apiFetch<ExamQuestionsResponse>(
+    `/api/exam/${assignmentId}/questions?phase=${phase}`,
+  );
+  return validate(examQuestionsResponseSchema, data, 'exam.questions');
 }
 
 export function saveExamAnswer(
@@ -56,16 +69,18 @@ export function submitExam(
   });
 }
 
-export function fetchExamResults(assignmentId: string): Promise<ExamResultsResponse> {
-  return apiFetch<ExamResultsResponse>(`/api/exam/${assignmentId}/results`);
+export async function fetchExamResults(assignmentId: string): Promise<ExamResultsResponse> {
+  const data = await apiFetch<ExamResultsResponse>(`/api/exam/${assignmentId}/results`);
+  return validate(examResultsResponseSchema, data, 'exam.results');
 }
 
 /**
  * Aktif denemenin video listesini çek. Backend `id` parametresini hem
  * assignmentId hem trainingId olarak kabul eder; biz assignmentId yolluyoruz.
  */
-export function fetchExamVideos(assignmentId: string): Promise<ExamVideosResponse> {
-  return apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`);
+export async function fetchExamVideos(assignmentId: string): Promise<ExamVideosResponse> {
+  const data = await apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`);
+  return validate(examVideosResponseSchema, data, 'exam.videos');
 }
 
 /**
@@ -73,7 +88,7 @@ export function fetchExamVideos(assignmentId: string): Promise<ExamVideosRespons
  * videolar bittiğinde backend attempt status'ünü `post_exam`'a geçirir ve
  * response'ta `allVideosCompleted: true` döner.
  */
-export function saveVideoProgress(
+export async function saveVideoProgress(
   assignmentId: string,
   body: {
     videoId: string;
@@ -83,10 +98,11 @@ export function saveVideoProgress(
     currentPage?: number;
   },
 ): Promise<VideoProgressResponse> {
-  return apiFetch<VideoProgressResponse>(`/api/exam/${assignmentId}/videos`, {
+  const data = await apiFetch<VideoProgressResponse>(`/api/exam/${assignmentId}/videos`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  return validate(videoProgressResponseSchema, data, 'exam.videoProgress');
 }
 
 /**
@@ -95,12 +111,17 @@ export function saveVideoProgress(
  * server-side authority'ye göre senkronlar. Süresi dolmuşsa backend
  * attempt'i auto-complete edip `expired: true` döner.
  */
-export function fetchExamTimer(assignmentId: string): Promise<{
+export async function fetchExamTimer(assignmentId: string): Promise<{
   remainingSeconds: number;
   expiresAt?: number;
   expired: boolean;
 }> {
-  return apiFetch(`/api/exam/${assignmentId}/timer`, {
+  const data = await apiFetch<{
+    remainingSeconds: number;
+    expiresAt?: number;
+    expired: boolean;
+  }>(`/api/exam/${assignmentId}/timer`, {
     method: 'POST',
   });
+  return validate(examTimerResponseSchema, data, 'exam.timer');
 }
