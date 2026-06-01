@@ -18,7 +18,8 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://klinovax.com"
+        "EXPO_PUBLIC_API_URL": "https://klinovax.com",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "preview": {
@@ -33,7 +34,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://klinovax.com"
+        "EXPO_PUBLIC_API_URL": "https://klinovax.com",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
@@ -47,7 +49,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://klinovax.com"
+        "EXPO_PUBLIC_API_URL": "https://klinovax.com",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
