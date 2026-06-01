@@ -45,3 +45,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Claude Code lokal çalışma dosyaları (worktree, lock, lokal ayarlar)
+.claude/

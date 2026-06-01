@@ -1,5 +1,3 @@
-// @ts-nocheck — jest tipleri PR-A (feat/test-infra) ile gelir; rebase sonrası bu satır kaldırılacak
-/* eslint-disable import/no-unresolved -- @testing-library/react-native PR-A ile kurulur */
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { RouterErrorBoundary } from '@/components/ui/RouterErrorBoundary';

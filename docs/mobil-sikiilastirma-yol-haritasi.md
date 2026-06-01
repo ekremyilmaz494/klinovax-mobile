@@ -25,22 +25,22 @@ kırılma **sessiz** olandır (puanlama/tamamlama bozulur ama app çökmez) — 
 
 ## 2. Mevcut Durum (ölçülmüş)
 
-| Katman                                           | Durum                            |
-| ------------------------------------------------ | -------------------------------- |
-| TypeScript `strict`                              | ✅ açık (`tsconfig.json`)        |
-| ESLint + Prettier + CI gate                      | ✅ (`expo lint`, `format:check`) |
-| Husky pre-commit + commitlint + lint-staged      | ✅ (`.husky/`)                   |
-| CI: typecheck / lint / format / expo-doctor      | ✅ (`.github/workflows/ci.yml`)  |
-| EAS build/submit pipeline                        | ✅                               |
-| Offline-first mutation replay + TanStack persist | ✅ (`lib/query/`)                |
-| Server-otorite (timer/puan/anti-cheat)           | ✅ (web ile ortak backend)       |
-| **Otomatik test**                                | ❌ **0 test, 0 altyapı** 🔴      |
-| **Global ErrorBoundary**                         | ❌ yok 🔴                        |
-| **Sentry**                                       | ⚠️ kurulu, DSN üretimde pasif    |
-| API yanıtı runtime doğrulama (zod)               | ❌ yok 🟡                        |
+| Katman                                           | Durum                                                    |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| TypeScript `strict`                              | ✅ açık (`tsconfig.json`)                                |
+| ESLint + Prettier + CI gate                      | ✅ (`expo lint`, `format:check`)                         |
+| Husky pre-commit + commitlint + lint-staged      | ✅ (`.husky/`)                                           |
+| CI: typecheck / lint / format / expo-doctor      | ✅ (`.github/workflows/ci.yml`)                          |
+| EAS build/submit pipeline                        | ✅                                                       |
+| Offline-first mutation replay + TanStack persist | ✅ (`lib/query/`)                                        |
+| Server-otorite (timer/puan/anti-cheat)           | ✅ (web ile ortak backend)                               |
+| **Otomatik test**                                | ✅ jest-expo, 13 suite / 159 test + CI test job (PR #14) |
+| **Global ErrorBoundary**                         | ✅ kök + exam boundary, Sentry'e raporlar (PR #13)       |
+| **Sentry**                                       | ⚠️ kurulu + boundary wiring hazır, DSN üretimde pasif    |
+| API yanıtı runtime doğrulama (zod)               | ✅ exam yanıtları, graceful pass-through (PR #12)        |
 
-> CI bugün tip + stil hatasını yakalar; **mantık** regresyonunu (örn. video %80↔%90) yakalayamaz —
-> çünkü o mantığı test eden hiçbir şey yok.
+> CI artık tip + stil + **mantık** regresyonunu yakalar: `lib/exam/` saf fonksiyonları (video %90 eşiği,
+> timer auto-submit, 423 rollback, start routing) test altında. Mantığı bozan PR merge edilemez.
 
 ---
 
@@ -142,13 +142,13 @@ Böylece **mantığı bozan PR merge edilemez.** (Opsiyonel: `lint-staged`'a hı
 
 ## 7. Uygulama Sırası (milestone'lar — her biri ayrı tur, sonunda onay)
 
-| Tur    | İçerik                                                                        | Çıktı                        |
-| ------ | ----------------------------------------------------------------------------- | ---------------------------- |
-| **M1** | jest-expo + RNTL kurulum, mock'lar, ilk 3 test (video/timer/423), CI test job | "Güvenlik ağı" devreye girer |
-| **M2** | Kalan exam-flow testleri (#4-#8) + (varsa) state machine portu + testi        | Akış mantığı kilitlenir      |
-| **M3** | Global ErrorBoundary + exam sınır bileşeni + Sentry DSN                       | Çökmeye dayanıklılık         |
-| **M4** | §11 riskleri kapat (video onEnded, feedback ekranı, retry durumları)          | Sadakat + doğruluk           |
-| **M5** | zod runtime guard + (ops.) E2E değerlendirmesi                                | Sınır sertleştirme           |
+| Tur    | İçerik                                                                        | Çıktı                        | Durum                                                                       |
+| ------ | ----------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| **M1** | jest-expo + RNTL kurulum, mock'lar, ilk 3 test (video/timer/423), CI test job | "Güvenlik ağı" devreye girer | ✅ PR #14                                                                   |
+| **M2** | Kalan exam-flow testleri (#4-#8) + (varsa) state machine portu + testi        | Akış mantığı kilitlenir      | ✅ PR #14 (state machine portlandı, ekrana entegre değil)                   |
+| **M3** | Global ErrorBoundary + exam sınır bileşeni + Sentry DSN                       | Çökmeye dayanıklılık         | ✅ PR #13 — **Sentry DSN aktivasyonu hâlâ bekliyor** (ops adımı, CLAUDE.md) |
+| **M4** | §11 riskleri kapat (video onEnded, feedback ekranı, retry durumları)          | Sadakat + doğruluk           | ✅ Önceki tur (PR #7-#11)                                                   |
+| **M5** | zod runtime guard + (ops.) E2E değerlendirmesi                                | Sınır sertleştirme           | ✅ PR #12 (E2E kapsam dışı bırakıldı)                                       |
 
 ---
 
