@@ -1,7 +1,7 @@
 import { useEvent, useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,14 +21,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
-import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam';
+import { fetchExamVideos } from '@/lib/api/exam';
 import {
   buildCompletionWatchedTime,
   shouldCompleteVideo,
   shouldFlushHeartbeat,
 } from '@/lib/exam/video-completion';
 import { API_BASE_URL } from '@/lib/config';
-import type { CompleteVideoVars } from '@/lib/query/mutation-defaults';
+import type { CompleteVideoVars, SaveVideoProgressVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import { useAuthStore } from '@/store/auth';
 import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam';
@@ -300,13 +300,11 @@ function VideoBlock({
   const { muted } = useEvent(player, 'mutedChange', { muted: player.muted });
 
   const lastSavedRef = useRef(0);
-  const heartbeatMutation = useMutation({
-    mutationFn: (body: {
-      videoId: string;
-      position: number;
-      watchedTime: number;
-      completed?: boolean;
-    }) => saveVideoProgress(assignmentId, body),
+  // Kayıtlı mutation (MUTATION_KEYS.saveVideoProgress): çıkış/background flush'ı
+  // offline'dayken paused kuyruğa girer ve online dönünce replay edilir — app kill
+  // olsa bile son pozisyon kaybolmaz.
+  const heartbeatMutation = useMutation<VideoProgressResponse, Error, SaveVideoProgressVars>({
+    mutationKey: MUTATION_KEYS.saveVideoProgress,
     onError: (err) => {
       // Heartbeat sessiz fail eder — kullanıcıya alert atma. Production'da bu
       // log aggregator'a gider; pek çok heartbeat fail olursa investigate.
@@ -346,9 +344,13 @@ function VideoBlock({
       lastTickRef.current = now;
       lastKnownPositionRef.current = Math.floor(player.currentTime);
       const watched = Math.floor(accumulatedRef.current);
-      if (watched - lastSavedRef.current >= 10) {
+      // Periyodik heartbeat offline'da ATILMAZ (kuyruğa da girmez): izleme sürerken
+      // her 10sn'de bir paused mutation birikir, online dönüşte replay fırtınası
+      // 60/dk rate limit'e çarpar. Offline ilerlemeyi çıkış flush'ı tek kayıtla taşır.
+      if (watched - lastSavedRef.current >= 10 && onlineManager.isOnline()) {
         lastSavedRef.current = watched;
         heartbeatMutationRef.current.mutate({
+          assignmentId,
           videoId: video.id,
           position: lastKnownPositionRef.current,
           watchedTime: watched,
@@ -356,7 +358,7 @@ function VideoBlock({
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [player, video.id, video.duration]);
+  }, [player, assignmentId, video.id, video.duration]);
 
   const completedRef = useRef(video.completed);
   useEffect(() => {
@@ -384,12 +386,15 @@ function VideoBlock({
     }
     const watched = Math.floor(accumulatedRef.current);
     lastSavedRef.current = watched;
+    // Flush offline'da da mutate edilir: kayıtlı mutation paused kuyruğa girer,
+    // online dönünce (app kill sonrası bile) replay olur.
     heartbeatMutationRef.current.mutate({
+      assignmentId,
       videoId: video.id,
       position,
       watchedTime: watched,
     });
-  }, [player, video.id]);
+  }, [player, assignmentId, video.id]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {

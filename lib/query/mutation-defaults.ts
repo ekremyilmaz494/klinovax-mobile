@@ -31,6 +31,13 @@ export type SubmitExamVars = {
   phase: ExamPhase;
 };
 
+export type SaveVideoProgressVars = {
+  assignmentId: string;
+  videoId: string;
+  position: number;
+  watchedTime: number;
+};
+
 export type CompleteVideoVars = {
   assignmentId: string;
   videoId: string;
@@ -97,6 +104,20 @@ export function registerMutationDefaults(client: QueryClient): void {
         void client.invalidateQueries({ queryKey: ['training-detail', vars.assignmentId] });
       }
     },
+  });
+
+  // ─── saveVideoProgress ───────────────────────────────────────────
+  // Heartbeat/flush ilerleme kaydı. Completion değildir; app kill/offline
+  // senaryosunda son pozisyon kaybolmasın diye paused mutation olarak replay edilir.
+  client.setMutationDefaults(MUTATION_KEYS.saveVideoProgress, {
+    mutationFn: ({ assignmentId, videoId, position, watchedTime }: SaveVideoProgressVars) =>
+      saveVideoProgress(assignmentId, {
+        videoId,
+        position,
+        watchedTime,
+      }),
+    networkMode: 'offlineFirst',
+    retry: shouldRetry,
   });
 
   // ─── completeVideo ───────────────────────────────────────────────
