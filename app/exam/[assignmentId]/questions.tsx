@@ -11,6 +11,7 @@ import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
 import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
+import { resolvePreSubmitTarget } from '@/lib/exam/start-routing';
 import {
   computeRemainingSeconds,
   resolveTimerEndMs,
@@ -97,7 +98,9 @@ export default function ExamQuestionsScreen() {
     );
   }
 
-  return <QuestionsView assignmentId={assignmentId} phase={phase} data={data} />;
+  // key={phase}: videosuz eğitimde pre→post geçişi aynı route'ta param değişimiyle
+  // olur — key olmadan pre sınavın cevap/index state'i post sınava sızar.
+  return <QuestionsView key={phase} assignmentId={assignmentId} phase={phase} data={data} />;
 }
 
 function QuestionsView({
@@ -148,11 +151,16 @@ function QuestionsView({
     gcTime: 0,
   });
 
-  const [preDoneModal, setPreDoneModal] = useState<{ score: number } | null>(null);
+  const [preDoneModal, setPreDoneModal] = useState<{
+    score: number;
+    nextStep: 'videos' | 'post-exam';
+  } | null>(null);
 
   const handleSubmitNavigate = (res: ExamSubmitResponse) => {
     if (res.phase === 'pre') {
-      setPreDoneModal({ score: res.score });
+      // Videosuz eğitimde backend video fazını atlar (nextStep: 'post-exam') —
+      // videolara yönlendirmek boş ekran çıkmazı yaratır.
+      setPreDoneModal({ score: res.score, nextStep: resolvePreSubmitTarget(res.nextStep) });
     } else {
       router.replace(`/exam/${assignmentId}/result`);
     }
@@ -432,16 +440,28 @@ function QuestionsView({
       <PhaseTransitionModal
         visible={preDoneModal !== null}
         overline="ÖN SINAV TAMAMLANDI"
-        title="Şimdi videolara geçiliyor"
-        body="Ön sınavın kaydedildi. Eğitim videolarını izledikten sonra son sınav açılacak."
-        ctaLabel="Videolara geç"
+        title={
+          preDoneModal?.nextStep === 'post-exam'
+            ? 'Şimdi son sınava geçiliyor'
+            : 'Şimdi videolara geçiliyor'
+        }
+        body={
+          preDoneModal?.nextStep === 'post-exam'
+            ? 'Ön sınavın kaydedildi. Bu eğitimde video yok — doğrudan son sınava geçilecek. Başladığında süre işlemeye başlar.'
+            : 'Ön sınavın kaydedildi. Eğitim videolarını izledikten sonra son sınav açılacak.'
+        }
+        ctaLabel={preDoneModal?.nextStep === 'post-exam' ? 'Son sınava geç' : 'Videolara geç'}
         score={preDoneModal?.score}
         icon="checkmark.seal.fill"
         tone="success"
         durationSeconds={60}
         onContinue={() => {
+          const target =
+            preDoneModal?.nextStep === 'post-exam'
+              ? (`/exam/${assignmentId}/questions?phase=post` as const)
+              : (`/exam/${assignmentId}/videos` as const);
           setPreDoneModal(null);
-          router.replace(`/exam/${assignmentId}/videos`);
+          router.replace(target);
         }}
       />
     </SafeAreaView>

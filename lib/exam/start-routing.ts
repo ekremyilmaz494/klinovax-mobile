@@ -32,6 +32,16 @@ export function resolveStartRoute(status: AttemptStatus): StartRouteTarget | nul
 }
 
 /**
+ * Ön sınav submit yanıtındaki `nextStep`'e göre hedef faz. Backend videosuz
+ * eğitimde video fazını otomatik atlayıp `nextStep: 'post-exam'` döner
+ * (submit/route.ts: `advance.advanced ? 'post-exam' : 'videos'`) — bu durumda
+ * videolara yönlendirmek kullanıcıyı boş ekranda çıkmaza sokar.
+ */
+export function resolvePreSubmitTarget(nextStep: string | undefined): 'videos' | 'post-exam' {
+  return nextStep === 'post-exam' ? 'post-exam' : 'videos';
+}
+
+/**
  * 423 (locked) hatasının body'sinden pendingFeedback yönlendirme bilgisini çıkar.
  * Backend: kullanıcı önceki eğitim için zorunlu geri bildirimi tamamlamadan yeni
  * eğitim başlatamaz. attemptId yoksa (eski backend / eksik payload) `null` döner —

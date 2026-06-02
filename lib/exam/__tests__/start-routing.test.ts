@@ -1,6 +1,10 @@
 import { ApiError } from '@/lib/api/client';
 
-import { extractPendingFeedbackRoute, resolveStartRoute } from '../start-routing';
+import {
+  extractPendingFeedbackRoute,
+  resolvePreSubmitTarget,
+  resolveStartRoute,
+} from '../start-routing';
 
 describe('resolveStartRoute', () => {
   it('pre_exam → questions phase=pre', () => {
@@ -23,6 +27,20 @@ describe('resolveStartRoute', () => {
     // Backend yeni bir durum döndürürse (örn. expired) ekran sessiz no-op yerine
     // Alert + router.back() yapar — null dönüşü bu sözleşmenin parçası.
     expect(resolveStartRoute('expired' as Parameters<typeof resolveStartRoute>[0])).toBeNull();
+  });
+});
+
+describe('resolvePreSubmitTarget', () => {
+  it("nextStep 'videos' → videolara", () => {
+    expect(resolvePreSubmitTarget('videos')).toBe('videos');
+  });
+
+  it("nextStep 'post-exam' → son sınava (videosuz eğitim: backend video fazını atladı)", () => {
+    expect(resolvePreSubmitTarget('post-exam')).toBe('post-exam');
+  });
+
+  it('nextStep eksikse (eski backend) güvenli varsayılan: videolar', () => {
+    expect(resolvePreSubmitTarget(undefined)).toBe('videos');
   });
 });
 
