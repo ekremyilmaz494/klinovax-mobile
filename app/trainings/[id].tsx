@@ -191,7 +191,13 @@ function Detail({ data }: { data: TrainingDetail }) {
           value={data.examDuration ? `${data.examDuration} dk` : '—'}
           top
         />
-        <MetaCell label="Deneme" value={`${data.currentAttempt}/${data.maxAttempts}`} side="left" />
+        {/* questionCount güncelleme öncesi persisted cache'te yok — 'undefined' yazma. */}
+        <MetaCell
+          label="Soru sayısı"
+          value={data.questionCount != null ? `${data.questionCount}` : '—'}
+          side="left"
+        />
+        <MetaCell label="Deneme" value={`${data.currentAttempt}/${data.maxAttempts}`} />
         <MetaCell label="Son tarih" value={data.deadline || '—'} />
       </View>
 

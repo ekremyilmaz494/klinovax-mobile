@@ -48,6 +48,7 @@ function makeDetail(overrides: Partial<TrainingDetail>): TrainingDetail {
     passingScore: 70,
     maxAttempts: 3,
     examDuration: 30,
+    questionCount: 10,
     status: 'assigned',
     currentAttempt: 0,
     deadline: '2026-12-31',

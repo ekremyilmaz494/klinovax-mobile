@@ -344,10 +344,11 @@ function VideoBlock({
   });
 
   // Accumulator: yalnızca play state'inde geçen gerçek wall-clock süresinin
-  // toplamı. lastPosition'dan başla; pause/scrub bu sayacı ARTIRMAZ.
-  // Backend ANTI_CHEAT_WATCH_FLOOR=0.9 (%90) + watch rate denetimi yapıyor; mobile'ın
-  // currentTime'ı doğrudan göndermesi skip-to-end exploit'ine yol açıyordu.
-  const accumulatedRef = useRef<number>(video.lastPosition ?? 0);
+  // toplamı. GERÇEKTE İZLENEN süreden (watchedSeconds) başla — oynatma KONUMUNDAN
+  // (lastPosition) DEĞİL; aksi halde kullanıcı ileri sarıp çıkıp dönünce izlemediği
+  // süreyi kredi alır (skip-to-end exploit). pause/scrub bu sayacı ARTIRMAZ.
+  // Backend ANTI_CHEAT_WATCH_FLOOR=0.9 (%90) + watch rate denetimi yapıyor.
+  const accumulatedRef = useRef<number>(video.watchedSeconds ?? 0);
   const lastTickRef = useRef<number | null>(null);
   // Son bilinen oynatma konumu — flush sırasında player release edilmiş
   // olabilir (unmount cleanup sırası), o durumda bu ref kullanılır.
@@ -447,13 +448,15 @@ function VideoBlock({
   const lastVideoIdRef = useRef(video.id);
   useEffect(() => {
     if (lastVideoIdRef.current !== video.id) {
-      accumulatedRef.current = video.lastPosition ?? 0;
+      // accumulator gerçek izleme süresinden başlar (lastPosition değil) — resume
+      // exploit'ini önler; üstteki useRef init ile tutarlı.
+      accumulatedRef.current = video.watchedSeconds ?? 0;
       lastTickRef.current = null;
       lastSavedRef.current = 0;
       completedRef.current = video.completed;
       lastVideoIdRef.current = video.id;
     }
-  }, [video.id, video.lastPosition, video.completed]);
+  }, [video.id, video.watchedSeconds, video.completed]);
 
   // Tamamlama koşulu backend ile bire bir: `completed:true` ANCAK
   // watchedTime >= durationSeconds * 0.9 (ANTI_CHEAT_WATCH_FLOOR, videos/route.ts) ise kabul edilir.

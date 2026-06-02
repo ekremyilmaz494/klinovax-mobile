@@ -112,9 +112,11 @@ export default function ExamStartScreen() {
         </Text>
 
         {detail ? (
+          // 2x2 bilgi ızgarası: 4 hücre tek satıra sığmaz (küçük ekran + Dynamic Type).
           <View
             style={{
               flexDirection: 'row',
+              flexWrap: 'wrap',
               marginTop: 20,
               backgroundColor: t.colors.surface.primary,
               borderRadius: t.radius.lg,
@@ -127,12 +129,19 @@ export default function ExamStartScreen() {
               value={detail.examDuration ? `${detail.examDuration} dk` : '—'}
               divider
             />
-            <InfoCell label="Geçme barajı" value={`%${detail.passingScore}`} divider />
+            <InfoCell label="Geçme barajı" value={`%${detail.passingScore}`} />
+            <InfoCell
+              label="Soru sayısı"
+              value={detail.questionCount != null ? `${detail.questionCount}` : '—'}
+              divider
+              borderTop
+            />
             <InfoCell
               label="Kalan deneme"
               value={
                 remainingAttempts !== null ? `${remainingAttempts}/${detail.maxAttempts}` : '—'
               }
+              borderTop
             />
           </View>
         ) : null}
@@ -222,16 +231,30 @@ export default function ExamStartScreen() {
   );
 }
 
-function InfoCell({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
+function InfoCell({
+  label,
+  value,
+  divider,
+  borderTop,
+}: {
+  label: string;
+  value: string;
+  /** Sağ kenarlık — satırdaki soldaki hücreye verilir. */
+  divider?: boolean;
+  /** Üst kenarlık — 2x2 ızgaranın alt satırındaki hücrelere verilir. */
+  borderTop?: boolean;
+}) {
   const t = useTheme();
   return (
     <View
       style={{
-        flex: 1,
+        width: '50%',
         paddingHorizontal: 14,
         paddingVertical: 14,
         borderRightWidth: divider ? t.hairline : 0,
         borderRightColor: t.colors.border.subtle,
+        borderTopWidth: borderTop ? t.hairline : 0,
+        borderTopColor: t.colors.border.subtle,
       }}
     >
       <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>

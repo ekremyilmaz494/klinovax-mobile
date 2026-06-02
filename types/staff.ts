@@ -144,6 +144,12 @@ export type TrainingDetail = {
   passingScore: number;
   maxAttempts: number;
   examDuration: number | null;
+  /**
+   * Son sınav soru sayısı — sınav-öncesi bilgilendirmede gösterilir. Liste ile tutarlı.
+   * Optional: güncelleme öncesi persisted cache (24h) alanı içermez — UI null-check
+   * ile '—' fallback göstermeli, yoksa ekranda "undefined" yazar.
+   */
+  questionCount?: number;
   status: AssignmentStatus;
   currentAttempt: number;
   deadline: string;

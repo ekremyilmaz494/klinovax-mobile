@@ -1,17 +1,24 @@
 import NetInfo, { NetInfoStateType, type NetInfoState } from '@react-native-community/netinfo';
+import { onlineManager } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 /**
- * Cihazın internet erişimini izleyen hook.
+ * Cihazın çevrim içi durumunu izleyen hook.
  *
- * `isConnected` cihaz bir networke bağlı mı (WiFi/4G), `isInternetReachable`
- * gerçekten dışarı çıkabiliyor mu (örn. captive portal hatası). İkisini AND'liyoruz —
- * "tam online" anlamı: connected + dışarıya ulaşabilir.
+ * `isOnline` TEK doğruluk kaynağından okunur: TanStack `onlineManager`. Onu iki
+ * sinyal besler:
+ *   1. NetInfo bridge (lib/query/online-bridge.ts) — yalnızca KESİN offline
+ *      (isConnected=false) durumunda offline'a çeker.
+ *   2. Gerçeklik geri bildirimi (lib/api/client.ts fetchOrThrow) — herhangi bir
+ *      HTTP yanıtı geldiğinde online'a çeker.
  *
- * `isInternetReachable` bazı eski Android'lerde `null` dönebilir (heuristic
- * henüz çalışmadı) — `null` durumunu *online sayıyoruz* (false negative riski
- * yerine "sessiz başarı" tercih ediyoruz; gerçekten offline ise zaten request
- * fail eder).
+ * Bu sayede banner ("İnternet bağlantısı yok") ile sorgu davranışı asla çelişmez:
+ * banner görünüyorsa sorgular da durmuştur, veri geliyorsa banner da yoktur.
+ * Eski tasarım NetInfo'nun isInternetReachable tahminine bakıyordu — iOS
+ * Simulator'da / bazı ağlarda yanlış-negatif verip uygulamayı kilitliyor.
+ *
+ * `isConnected` ve `type` NetInfo'dan ham bilgi olarak sunulmaya devam eder
+ * (UI'da "WiFi/hücresel" göstermek isteyen tüketiciler için).
  */
 
 export type OnlineStatus = {
@@ -21,33 +28,27 @@ export type OnlineStatus = {
 };
 
 export function useOnline(): OnlineStatus {
-  const [state, setState] = useState<OnlineStatus>({
-    isOnline: true,
+  const [state, setState] = useState<OnlineStatus>(() => ({
+    isOnline: onlineManager.isOnline(),
     isConnected: true,
     type: NetInfoStateType.unknown,
-  });
+  }));
 
   useEffect(() => {
-    const sub = NetInfo.addEventListener((s) => {
-      const connected = s.isConnected === true;
-      const reachable = s.isInternetReachable !== false; // null ya da true → online say
-      setState({
-        isOnline: connected && reachable,
-        isConnected: connected,
-        type: s.type,
-      });
+    const unsubOnline = onlineManager.subscribe((isOnline) => {
+      setState((prev) => (prev.isOnline === isOnline ? prev : { ...prev, isOnline }));
     });
-    // İlk değer için fetch
-    void NetInfo.fetch().then((s) => {
-      const connected = s.isConnected === true;
-      const reachable = s.isInternetReachable !== false;
-      setState({
-        isOnline: connected && reachable,
-        isConnected: connected,
+    const unsubNetInfo = NetInfo.addEventListener((s) => {
+      setState((prev) => ({
+        ...prev,
+        isConnected: s.isConnected === true,
         type: s.type,
-      });
+      }));
     });
-    return () => sub();
+    return () => {
+      unsubOnline();
+      unsubNetInfo();
+    };
   }, []);
 
   return state;

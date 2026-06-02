@@ -90,8 +90,15 @@ export type ExamVideoItem = {
   contentType: 'video' | 'pdf' | string;
   pageCount?: number | null;
   completed: boolean;
-  /** Saniye (video) veya sayfa numarası (pdf). */
+  /** Oynatma çubuğu KONUMU — saniye (video) veya sayfa numarası (pdf). Resume seek için. */
   lastPosition: number;
+  /**
+   * Gerçekte izlenen toplam süre (saniye). Resume'da izleme sayacı bundan başlar
+   * — konumdan (lastPosition) DEĞİL; aksi halde ileri sarıp dönen kullanıcı
+   * izlemediği süreyi kredi alır ve %90 anti-cheat eşiği hileyle geçilebilir.
+   * Eski backend sürümü döndürmeyebilir → schema default 0.
+   */
+  watchedSeconds: number;
   documentUrl?: string;
 };
 

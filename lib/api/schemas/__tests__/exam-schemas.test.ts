@@ -61,6 +61,52 @@ describe('validate (graceful pass-through)', () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('videos yanıtı watchedSeconds ile temiz geçer (mismatch yok)', () => {
+    // Yeni backend her video için watchedSeconds döner — resume sayacı bundan başlar.
+    const data = {
+      trainingTitle: 'Hijyen',
+      attemptStatus: 'watching_videos',
+      videos: [
+        {
+          id: 'v1',
+          title: 'Bölüm 1',
+          url: '/api/stream/v1',
+          duration: 300,
+          contentType: 'video',
+          completed: false,
+          lastPosition: 240,
+          watchedSeconds: 150,
+        },
+      ],
+    };
+    const out = validate(examVideosResponseSchema, data, 'exam.videos');
+    expect(out).toBe(data);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('videos yanıtında watchedSeconds eksikse mismatch SAYILMAZ (default 0, geriye dönük uyum)', () => {
+    // Eski backend sürümü watchedSeconds döndürmeyebilir; schema .default(0) ile
+    // tolere eder — sahte "şema uyuşmuyor" telemetrisi üretmesin.
+    const data = {
+      trainingTitle: 'Hijyen',
+      attemptStatus: 'watching_videos',
+      videos: [
+        {
+          id: 'v1',
+          title: 'Bölüm 1',
+          url: '/api/stream/v1',
+          duration: 300,
+          contentType: 'video',
+          completed: false,
+          lastPosition: 0,
+        },
+      ],
+    };
+    const out = validate(examVideosResponseSchema, data, 'exam.videos');
+    expect(out).toBe(data);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('eksik zorunlu alan mismatch sayılır ama veri korunur', () => {
     // allVideosCompleted eksik → kritik alan, mismatch
     const data = { progress: true };
