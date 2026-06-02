@@ -1,4 +1,6 @@
 // Sabit base URL — config'in expo-constants zincirine girmesin.
+import { onlineManager } from '@tanstack/react-query';
+
 import { clearSession } from '@/lib/auth/secure-token';
 import { ApiError, apiRequest, setOnAuthFailure } from '../client';
 
@@ -58,6 +60,45 @@ describe('apiRequest — Bearer header', () => {
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     const headers = init.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer access-1');
+  });
+});
+
+describe('apiRequest — gerçeklik geri bildirimi (onlineManager)', () => {
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it("onlineManager offline iken HTTP yanıtı gelirse online'a çekilir", async () => {
+    // iOS Simulator stuck-reachability senaryosu: NetInfo yanlışlıkla offline dedi
+    // ama gerçek istekler çalışıyor — başarılı yanıt heuristik tahmini ezer.
+    onlineManager.setOnline(false);
+    global.fetch = jest.fn(async () => makeResponse(200)) as unknown as typeof fetch;
+
+    await apiRequest('/api/x');
+
+    expect(onlineManager.isOnline()).toBe(true);
+  });
+
+  it("hata status'lü (500) yanıt bile online sinyalidir — ağ çalışıyor demektir", async () => {
+    onlineManager.setOnline(false);
+    global.fetch = jest.fn(async () =>
+      makeResponse(500, { error: 'boom' }),
+    ) as unknown as typeof fetch;
+
+    await apiRequest('/api/x').catch(() => {});
+
+    expect(onlineManager.isOnline()).toBe(true);
+  });
+
+  it('fetch network hatasıyla reject ederse online durumu değişmez', async () => {
+    onlineManager.setOnline(false);
+    global.fetch = jest.fn(async () => {
+      throw new TypeError('Network request failed');
+    }) as unknown as typeof fetch;
+
+    await apiRequest('/api/x').catch(() => {});
+
+    expect(onlineManager.isOnline()).toBe(false);
   });
 });
 

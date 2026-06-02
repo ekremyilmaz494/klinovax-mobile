@@ -1,3 +1,5 @@
+import { onlineManager } from '@tanstack/react-query';
+
 import { API_BASE_URL } from '../config';
 import { loadSession, updateAccessToken, clearSession } from '../auth/secure-token';
 
@@ -12,7 +14,14 @@ import { loadSession, updateAccessToken, clearSession } from '../auth/secure-tok
  */
 async function fetchOrThrow(url: string, init?: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init);
+    const res = await fetch(url, init);
+    // GERÇEKLİK GERİ BİLDİRİMİ: HTTP yanıtı geldiyse (status ne olursa olsun) ağ
+    // ÇALIŞIYOR demektir. NetInfo/iOS Simulator yanlışlıkla "offline" raporlasa bile
+    // (bilinen stuck-reachability bug'ı) onlineManager'ı düzelt — aksi halde TanStack
+    // sorguları duraklı kalır ve ekranlar sonsuza dek boş görünür. Gerçek istek
+    // sonucu her zaman heuristik tahminden üstündür.
+    if (!onlineManager.isOnline()) onlineManager.setOnline(true);
+    return res;
   } catch {
     throw new ApiError(0, {
       error: __DEV__
