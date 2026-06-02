@@ -4,14 +4,20 @@ import { loadSession, updateAccessToken, clearSession } from '../auth/secure-tok
 /**
  * fetch wrapper'ı — fetch promise'i network hatasıyla reject ederse anlamlı bir
  * ApiError fırlat. Default `TypeError: Network request failed` mesajı kullanıcıya
- * "Bağlantı hatası" gibi belirsiz görünüyor; bunun yerine somut sebep söyleriz.
+ * "Bağlantı hatası" gibi belirsiz görünüyor.
+ *
+ * Mesaj ayrımı: dev'de API URL + teknik sebep (geliştirici hangi adrese
+ * bağlanamadığını anında görsün), prod'da personel dostu Türkçe metin —
+ * hastane personeline "backend kapalı olabilir" / URL gösterilmez.
  */
 async function fetchOrThrow(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch {
     throw new ApiError(0, {
-      error: `Sunucuya ulaşılamadı (${API_BASE_URL}). Backend kapalı olabilir veya cihazınız bu adrese erişemiyor.`,
+      error: __DEV__
+        ? `Sunucuya ulaşılamadı (${API_BASE_URL}). Backend kapalı olabilir veya cihazınız bu adrese erişemiyor.`
+        : 'Sunucuya bağlanılamadı. İnternet bağlantını kontrol edip tekrar dene.',
     });
   }
 }
