@@ -304,6 +304,7 @@ function QuestionsView({
           {timerQuery.isFetched ? (
             <ExamTimer
               expiresAt={timerQuery.data?.expiresAt ?? null}
+              remainingSeconds={timerQuery.data?.remainingSeconds ?? null}
               fallbackTotalTime={data.totalTime}
               onAutoSubmit={() => triggerSubmit({ silent: true })}
               dangerColor={t.colors.status.danger}
@@ -464,12 +465,15 @@ function QuestionsView({
  */
 function ExamTimer({
   expiresAt,
+  remainingSeconds,
   fallbackTotalTime,
   onAutoSubmit,
   dangerColor,
   defaultColor,
 }: {
   expiresAt: number | null;
+  /** Redis canlı sayaç path'i expiresAt dönmez — kalan süre buradan gelir. */
+  remainingSeconds: number | null;
   fallbackTotalTime: number;
   onAutoSubmit: () => void;
   dangerColor: string;
@@ -478,6 +482,7 @@ function ExamTimer({
   const endRef = useRef<number>(
     resolveTimerEndMs({
       expiresAt,
+      remainingSeconds,
       fallbackTotalTimeSeconds: fallbackTotalTime,
       nowMs: Date.now(),
     }),

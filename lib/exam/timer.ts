@@ -27,22 +27,30 @@ export function computeRemainingSeconds(endMs: number, nowMs: number): number {
 }
 
 /**
- * Timer'ın bitiş zaman damgası (ms). Sunucu `expiresAt` değeri varsa HER ZAMAN
- * o kullanılır — kill/reopen sonrası kalan gerçek süre budur; geçmişte kalmışsa
- * bile fallback'e düşülmez (kalan 0 → auto-submit tetiklenir). Sunucu değeri
- * yoksa (Redis düşmüş / eski backend) client-side iyimser fallback kurulur;
- * backend submit'i +5dk grace ile zaten enforce ettiği için kullanıcı bu yolla
- * ekstra süre kazanamaz.
+ * Timer'ın bitiş zaman damgası (ms). Öncelik sırası:
+ *
+ *   1. `expiresAt` — sunucu mutlak bitiş zamanı (Redis miss → DB recovery path'i döner).
+ *   2. `remainingSeconds` — Redis canlı sayaç path'i `expiresAt` DÖNMEZ, sadece kalan
+ *      saniyeyi döner (timer/route.ts). Resume'daki gerçek kalan süre budur; bu
+ *      olmadan fallback'e düşmek kill/reopen sonrası sayacı tam süreye sıfırlar.
+ *   3. `fallbackTotalTimeSeconds` — ikisi de yoksa (eski backend) iyimser client
+ *      fallback; backend submit'i +5dk grace ile enforce ettiği için kullanıcı bu
+ *      yolla ekstra süre kazanamaz.
+ *
+ * Sunucu değerleri geçmişte kalmış olsa bile kullanılır (kalan 0 → auto-submit).
  */
 export function resolveTimerEndMs({
   expiresAt,
+  remainingSeconds,
   fallbackTotalTimeSeconds,
   nowMs,
 }: {
   expiresAt: number | null | undefined;
+  remainingSeconds: number | null | undefined;
   fallbackTotalTimeSeconds: number;
   nowMs: number;
 }): number {
   if (typeof expiresAt === 'number') return expiresAt;
+  if (typeof remainingSeconds === 'number') return nowMs + remainingSeconds * 1000;
   return nowMs + fallbackTotalTimeSeconds * 1000;
 }

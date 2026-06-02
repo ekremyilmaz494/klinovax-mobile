@@ -39,30 +39,74 @@ describe('computeRemainingSeconds', () => {
 describe('resolveTimerEndMs', () => {
   const now = 1_000_000;
 
-  it('sunucu expiresAt varsa onu kullanır (resume: kalan gerçek süre)', () => {
+  it('sunucu expiresAt varsa onu kullanır (DB recovery path)', () => {
     // 30dk'lık sınavın 25dk'sı geçmiş — sunucu 5dk kaldı diyor
     const serverEnd = now + 5 * 60_000;
     expect(
-      resolveTimerEndMs({ expiresAt: serverEnd, fallbackTotalTimeSeconds: 1800, nowMs: now }),
+      resolveTimerEndMs({
+        expiresAt: serverEnd,
+        remainingSeconds: 300,
+        fallbackTotalTimeSeconds: 1800,
+        nowMs: now,
+      }),
     ).toBe(serverEnd);
   });
 
-  it('sunucu expiresAt geçmişte kalmışsa bile fallback yerine onu döner (kalan 0 → auto-submit)', () => {
+  it('expiresAt yoksa remainingSeconds kullanılır (Redis canlı sayaç path — expiresAt dönmez)', () => {
+    // KRİTİK resume senaryosu: backend { remainingSeconds: 300, expired: false } döner.
+    // Fallback'e (tam süre) düşmek sayacı sıfırlar — kalan süre korunmalı.
+    expect(
+      resolveTimerEndMs({
+        expiresAt: undefined,
+        remainingSeconds: 300,
+        fallbackTotalTimeSeconds: 1800,
+        nowMs: now,
+      }),
+    ).toBe(now + 300 * 1000);
+  });
+
+  it('sunucu expiresAt geçmişte kalmışsa bile onu döner (kalan 0 → auto-submit)', () => {
     const pastEnd = now - 60_000;
     expect(
-      resolveTimerEndMs({ expiresAt: pastEnd, fallbackTotalTimeSeconds: 1800, nowMs: now }),
+      resolveTimerEndMs({
+        expiresAt: pastEnd,
+        remainingSeconds: 0,
+        fallbackTotalTimeSeconds: 1800,
+        nowMs: now,
+      }),
     ).toBe(pastEnd);
   });
 
-  it('sunucu değeri yoksa (null) fallback: şimdi + toplam süre', () => {
-    expect(resolveTimerEndMs({ expiresAt: null, fallbackTotalTimeSeconds: 1800, nowMs: now })).toBe(
-      now + 1800 * 1000,
-    );
+  it('remainingSeconds 0 ise fallback yerine 0 kalan kurulur (auto-submit tetiklenir)', () => {
+    expect(
+      resolveTimerEndMs({
+        expiresAt: undefined,
+        remainingSeconds: 0,
+        fallbackTotalTimeSeconds: 1800,
+        nowMs: now,
+      }),
+    ).toBe(now);
   });
 
-  it('sunucu değeri yoksa (undefined — eski backend) fallback kurulur', () => {
+  it('iki sunucu değeri de yoksa fallback: şimdi + toplam süre', () => {
     expect(
-      resolveTimerEndMs({ expiresAt: undefined, fallbackTotalTimeSeconds: 600, nowMs: now }),
+      resolveTimerEndMs({
+        expiresAt: null,
+        remainingSeconds: null,
+        fallbackTotalTimeSeconds: 1800,
+        nowMs: now,
+      }),
+    ).toBe(now + 1800 * 1000);
+  });
+
+  it('iki sunucu değeri de undefined ise (eski backend) fallback kurulur', () => {
+    expect(
+      resolveTimerEndMs({
+        expiresAt: undefined,
+        remainingSeconds: undefined,
+        fallbackTotalTimeSeconds: 600,
+        nowMs: now,
+      }),
     ).toBe(now + 600 * 1000);
   });
 });
