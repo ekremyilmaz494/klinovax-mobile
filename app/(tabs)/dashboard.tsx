@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,7 @@ import type {
   RecentActivity,
   StaffProfile,
   UpcomingTraining,
+  UrgentTraining,
 } from '@/types/staff';
 
 export default function DashboardScreen() {
@@ -102,19 +104,7 @@ export default function DashboardScreen() {
 
         {data ? (
           <>
-            {data.urgentTraining ? (
-              <Card variant="accent" rail style={{ marginBottom: 16 }}>
-                <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 6 }}>
-                  ACİL EĞİTİM
-                </Text>
-                <Text variant="title-3" numberOfLines={2}>
-                  {data.urgentTraining.title}
-                </Text>
-                <Stack direction="row" align="center" gap={2} style={{ marginTop: 8 }}>
-                  <Badge label={`${data.urgentTraining.daysLeft} gün kaldı`} tone="danger" />
-                </Stack>
-              </Card>
-            ) : null}
+            {data.urgentTraining ? <UrgentCard item={data.urgentTraining} /> : null}
 
             <View
               style={{
@@ -210,18 +200,54 @@ export default function DashboardScreen() {
   );
 }
 
+function UrgentCard({ item }: { item: UrgentTraining }) {
+  const t = useTheme();
+  return (
+    // Kart tıklanabilir: kullanıcı "acil eğitim" uyarısından doğrudan eğitim
+    // detayına gidip başlayabilmeli — daha önce düz Card'dı, dokunulduğunda
+    // hiçbir şey olmuyordu.
+    <Pressable
+      onPress={() => router.push(`/trainings/${item.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Acil eğitim: ${item.title}`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1, marginBottom: 16 })}
+    >
+      <Card variant="accent" rail>
+        <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 6 }}>
+          ACİL EĞİTİM
+        </Text>
+        <Text variant="title-3" numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 8 }}>
+          <Badge label={`${item.daysLeft} gün kaldı`} tone="danger" />
+          <Text variant="subhead" style={{ color: t.colors.accent.clay }}>
+            Eğitime git →
+          </Text>
+        </Stack>
+      </Card>
+    </Pressable>
+  );
+}
+
 function UpcomingItem({ item }: { item: UpcomingTraining }) {
   const t = useTheme();
   const daysTone = item.daysLeft <= 7 ? 'danger' : item.daysLeft <= 14 ? 'warning' : 'neutral';
   return (
-    <View
-      style={{
+    // Tıklanabilir: kart eğitim detayına götürür — daha önce düz View'dı ve
+    // kullanıcılar dokunup "buton çalışmıyor" sanıyordu.
+    <Pressable
+      onPress={() => router.push(`/trainings/${item.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Eğitim: ${item.title}`}
+      style={({ pressed }) => ({
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.lg,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
         padding: 16,
-      }}
+        opacity: pressed ? 0.92 : 1,
+      })}
     >
       <Text variant="bodyEmph" numberOfLines={2}>
         {item.title}
@@ -235,7 +261,7 @@ function UpcomingItem({ item }: { item: UpcomingTraining }) {
       <View style={{ marginTop: 12 }}>
         <ProgressBar value={item.progress} height={6} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
