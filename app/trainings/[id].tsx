@@ -72,7 +72,13 @@ function Detail({ data }: { data: TrainingDetail }) {
   const action = resolveAction(data);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+    // keyboardShouldPersistTaps: AttemptRequestSection'daki TextInput açıkken
+    // "Ek hak talep et" butonuna ilk dokunuş klavyeyi kapatmakla kalmasın,
+    // butonu da bassın (feedback ekranıyla aynı pattern).
+    <ScrollView
+      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+      keyboardShouldPersistTaps="handled"
+    >
       {data.category ? (
         <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
           {data.category}
