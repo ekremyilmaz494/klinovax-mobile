@@ -28,7 +28,17 @@ export default function ExamStartScreen() {
       qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
       qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
       const route = resolveStartRoute(data.status);
-      if (!route) return;
+      if (!route) {
+        // Bilinmeyen attempt status (örn. yeni backend sürümü farklı durum döndürdü) —
+        // sessiz no-op kullanıcıyı "Başlatılıyor…" sonrası boşlukta bırakıyordu.
+        console.warn('[exam-start] bilinmeyen attempt status', data.status);
+        Alert.alert(
+          'Sınav durumu alınamadı',
+          'Eğitim sayfasına dönülüyor. Sorun devam ederse uygulamayı güncelleyin veya kurum yöneticinizle iletişime geçin.',
+          [{ text: 'Tamam', onPress: () => router.back() }],
+        );
+        return;
+      }
       switch (route.kind) {
         case 'questions':
           router.replace(`/exam/${assignmentId}/questions?phase=${route.phase}`);
