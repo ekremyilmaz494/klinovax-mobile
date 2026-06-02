@@ -63,11 +63,20 @@ export default function ExamStartScreen() {
         });
         return;
       }
-      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme.
+      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme. Form otomatik
+      // AÇILAMAZ (hangi attempt'e ait olduğu bilinmiyor) — kullanıcıyı formun
+      // bulunduğu yere yönlendir, "form açılacak" deme.
       if (err instanceof ApiError && err.status === 423) {
         Alert.alert(
           'Geri bildirim bekleniyor',
-          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Form şimdi açılacak.',
+          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Formu Eğitimlerim sekmesindeki uyarı kartından açabilirsin.',
+          [
+            { text: 'Kapat', style: 'cancel' },
+            {
+              text: 'Eğitimlerime git',
+              onPress: () => router.replace('/(tabs)/trainings'),
+            },
+          ],
         );
         return;
       }
