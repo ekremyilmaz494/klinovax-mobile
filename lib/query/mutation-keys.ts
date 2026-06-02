@@ -12,12 +12,14 @@
 export const MUTATION_KEYS = {
   saveAnswer: ['exam', 'save-answer'] as const,
   submitExam: ['exam', 'submit'] as const,
+  saveVideoProgress: ['exam', 'video-progress'] as const,
   completeVideo: ['exam', 'video-complete'] as const,
 } as const;
 
 export type MutationKey =
   | typeof MUTATION_KEYS.saveAnswer
   | typeof MUTATION_KEYS.submitExam
+  | typeof MUTATION_KEYS.saveVideoProgress
   | typeof MUTATION_KEYS.completeVideo;
 
 /**
@@ -28,6 +30,7 @@ export type MutationKey =
 export const PERSISTED_MUTATION_KEYS: ReadonlySet<string> = new Set([
   MUTATION_KEYS.saveAnswer.join('/'),
   MUTATION_KEYS.submitExam.join('/'),
+  MUTATION_KEYS.saveVideoProgress.join('/'),
   MUTATION_KEYS.completeVideo.join('/'),
 ]);
 

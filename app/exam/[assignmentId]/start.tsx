@@ -50,6 +50,9 @@ export default function ExamStartScreen() {
         case 'result':
           router.replace(`/exam/${assignmentId}/result`);
           break;
+        case 'detail':
+          router.replace(`/trainings/${assignmentId}`);
+          break;
       }
     },
     onError: (err) => {
@@ -63,11 +66,20 @@ export default function ExamStartScreen() {
         });
         return;
       }
-      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme.
+      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme. Form otomatik
+      // AÇILAMAZ (hangi attempt'e ait olduğu bilinmiyor) — kullanıcıyı formun
+      // bulunduğu yere yönlendir, "form açılacak" deme.
       if (err instanceof ApiError && err.status === 423) {
         Alert.alert(
           'Geri bildirim bekleniyor',
-          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Form şimdi açılacak.',
+          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Formu Eğitimlerim sekmesindeki uyarı kartından açabilirsin.',
+          [
+            { text: 'Kapat', style: 'cancel' },
+            {
+              text: 'Eğitimlerime git',
+              onPress: () => router.replace('/(tabs)/trainings'),
+            },
+          ],
         );
         return;
       }
@@ -158,6 +170,14 @@ export default function ExamStartScreen() {
           <Rule
             n={5}
             text="Son sınavda bir sorunun cevabı 30 saniye içinde değiştirilebilir, sonra kilitlenir."
+          />
+          <Rule
+            n={6}
+            text="Eğitim videolarının en az %90'ını izlemeden son sınav açılmaz; izleme ilerlemen otomatik kaydedilir."
+          />
+          <Rule
+            n={7}
+            text="Son sınavı geçtiğinde sertifikan otomatik oluşturulur ve Sertifikalarım sekmesinde görünür."
           />
         </View>
 

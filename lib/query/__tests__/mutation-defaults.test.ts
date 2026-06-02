@@ -50,16 +50,17 @@ describe('isAlreadyProcessedError', () => {
 });
 
 describe('registerMutationDefaults', () => {
-  it('3 persist edilen mutation key için default kaydeder', () => {
+  it('4 persist edilen mutation key için default kaydeder', () => {
     const setMutationDefaults = jest.fn();
     const client = { setMutationDefaults } as never;
 
     registerMutationDefaults(client);
 
-    expect(setMutationDefaults).toHaveBeenCalledTimes(3);
+    expect(setMutationDefaults).toHaveBeenCalledTimes(4);
     const registeredKeys = setMutationDefaults.mock.calls.map((c) => c[0]);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.saveAnswer);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.submitExam);
+    expect(registeredKeys).toContainEqual(MUTATION_KEYS.saveVideoProgress);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.completeVideo);
   });
 });

@@ -16,9 +16,11 @@ import { isPersistedMutationKey } from './mutation-keys';
  *
  * Hem **read** query'leri hem **kritik mutation'lar** persist edilir:
  *   - Query: success state olanlar (error/pending tutulmaz)
- *   - Mutation: `MUTATION_KEYS` whitelist'inde olanlar (heartbeat hariç). Paused
- *     mutation'lar app restart sonrası rehydrate olunca `mutation-defaults.ts`
- *     registry'sinden mutationFn'i bulur ve online'a dönünce auto-replay olur.
+ *   - Mutation: `MUTATION_KEYS` whitelist'inde olanlar. Paused mutation'lar app
+ *     restart sonrası rehydrate olunca `mutation-defaults.ts` registry'sinden
+ *     mutationFn'i bulur ve online'a dönünce auto-replay olur. Periyodik video
+ *     heartbeat'i offline'da hiç mutate edilmez (videos.tsx onlineManager guard) —
+ *     kuyruğa yalnızca tekil çıkış/background flush kaydı girer.
  */
 
 const persister = createAsyncStoragePersister({
@@ -40,8 +42,7 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
     /**
      * Paused (offline) veya pending mutation'lar persist edilir; idle/success/error
      * tutulmaz — başarılı bir mutation'ı tekrar oynatmanın anlamı yok. Sadece
-     * whitelist'teki key'ler kabul edilir; heartbeat gibi geçici mutation'lar
-     * offline'da drop edilsin.
+     * whitelist'teki key'ler kabul edilir.
      */
     shouldDehydrateMutation: (mutation) => {
       if (!isPersistedMutationKey(mutation.options.mutationKey)) return false;

@@ -11,6 +11,7 @@ import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
 import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
+import { resolvePreSubmitTarget } from '@/lib/exam/start-routing';
 import {
   computeRemainingSeconds,
   resolveTimerEndMs,
@@ -97,7 +98,9 @@ export default function ExamQuestionsScreen() {
     );
   }
 
-  return <QuestionsView assignmentId={assignmentId} phase={phase} data={data} />;
+  // key={phase}: videosuz eğitimde pre→post geçişi aynı route'ta param değişimiyle
+  // olur — key olmadan pre sınavın cevap/index state'i post sınava sızar.
+  return <QuestionsView key={phase} assignmentId={assignmentId} phase={phase} data={data} />;
 }
 
 function QuestionsView({
@@ -148,11 +151,16 @@ function QuestionsView({
     gcTime: 0,
   });
 
-  const [preDoneModal, setPreDoneModal] = useState<{ score: number } | null>(null);
+  const [preDoneModal, setPreDoneModal] = useState<{
+    score: number;
+    nextStep: 'videos' | 'post-exam';
+  } | null>(null);
 
   const handleSubmitNavigate = (res: ExamSubmitResponse) => {
     if (res.phase === 'pre') {
-      setPreDoneModal({ score: res.score });
+      // Videosuz eğitimde backend video fazını atlar (nextStep: 'post-exam') —
+      // videolara yönlendirmek boş ekran çıkmazı yaratır.
+      setPreDoneModal({ score: res.score, nextStep: resolvePreSubmitTarget(res.nextStep) });
     } else {
       router.replace(`/exam/${assignmentId}/result`);
     }
@@ -171,20 +179,42 @@ function QuestionsView({
   // buildSubmitVars + handleSubmitNavigate closure ile capture; deps'e koymak
   // gereksiz (her render yeniden tanımlanıyor ama mutation idempotent).
 
+  // Senkron çift-submit kilidi: isPending React state'i render gecikmeli günceller;
+  // timer auto-submit ile manuel "Bitir" aynı tick'te tetiklenirse ikisi de
+  // isPending=false görür. Ref senkron set edildiği için ikinci çağrı anında düşer.
+  const submittingRef = useRef(false);
+
   const triggerSubmit = useCallback(
     (opts?: { silent?: boolean }) => {
-      // Çift submit guard: timer auto-submit ile manuel "Bitir" aynı anda
-      // tetiklenebilir (süre dolduğu saniyede onay dialogu açıksa).
-      if (submitMutation.isPending) return;
+      if (submittingRef.current || submitMutation.isPending) return;
+      submittingRef.current = true;
       submitMutation.mutate(buildSubmitVars(), {
+        onSettled: () => {
+          submittingRef.current = false;
+        },
         onSuccess: (res) => handleSubmitNavigate(res),
         onError: (err) => {
-          if (opts?.silent) return;
+          if (opts?.silent) {
+            // Otomatik gönderim reddedildi (örn. backend 403 'süre çoktan dolmuş' —
+            // attempt henüz auto-complete edilmemişken +5dk aşıldı). Sessizce yutmak
+            // kullanıcıyı 00:00'da soru ekranında kilitli bırakıyordu.
+            Alert.alert(
+              'Sınav süresi doldu',
+              'Süre aşıldığı için cevapların gönderilemedi. Eğitim sayfasına dönülüyor; durumunu oradan kontrol edebilirsin.',
+              [
+                {
+                  text: 'Tamam',
+                  onPress: () => router.replace(`/trainings/${assignmentId}`),
+                },
+              ],
+            );
+            return;
+          }
           Alert.alert('Sınav gönderilemedi', err.message);
         },
       });
     },
-    [submitMutation],
+    [submitMutation, assignmentId],
   );
 
   // Server timer expired sinyali geldiğinde otomatik submit — kullanıcı
@@ -304,6 +334,7 @@ function QuestionsView({
           {timerQuery.isFetched ? (
             <ExamTimer
               expiresAt={timerQuery.data?.expiresAt ?? null}
+              remainingSeconds={timerQuery.data?.remainingSeconds ?? null}
               fallbackTotalTime={data.totalTime}
               onAutoSubmit={() => triggerSubmit({ silent: true })}
               dangerColor={t.colors.status.danger}
@@ -431,16 +462,28 @@ function QuestionsView({
       <PhaseTransitionModal
         visible={preDoneModal !== null}
         overline="ÖN SINAV TAMAMLANDI"
-        title="Şimdi videolara geçiliyor"
-        body="Ön sınavın kaydedildi. Eğitim videolarını izledikten sonra son sınav açılacak."
-        ctaLabel="Videolara geç"
+        title={
+          preDoneModal?.nextStep === 'post-exam'
+            ? 'Şimdi son sınava geçiliyor'
+            : 'Şimdi videolara geçiliyor'
+        }
+        body={
+          preDoneModal?.nextStep === 'post-exam'
+            ? 'Ön sınavın kaydedildi. Bu eğitimde video yok — doğrudan son sınava geçilecek. Başladığında süre işlemeye başlar.'
+            : 'Ön sınavın kaydedildi. Eğitim videolarını izledikten sonra son sınav açılacak.'
+        }
+        ctaLabel={preDoneModal?.nextStep === 'post-exam' ? 'Son sınava geç' : 'Videolara geç'}
         score={preDoneModal?.score}
         icon="checkmark.seal.fill"
         tone="success"
         durationSeconds={60}
         onContinue={() => {
+          const target =
+            preDoneModal?.nextStep === 'post-exam'
+              ? (`/exam/${assignmentId}/questions?phase=post` as const)
+              : (`/exam/${assignmentId}/videos` as const);
           setPreDoneModal(null);
-          router.replace(`/exam/${assignmentId}/videos`);
+          router.replace(target);
         }}
       />
     </SafeAreaView>
@@ -464,12 +507,15 @@ function QuestionsView({
  */
 function ExamTimer({
   expiresAt,
+  remainingSeconds,
   fallbackTotalTime,
   onAutoSubmit,
   dangerColor,
   defaultColor,
 }: {
   expiresAt: number | null;
+  /** Redis canlı sayaç path'i expiresAt dönmez — kalan süre buradan gelir. */
+  remainingSeconds: number | null;
   fallbackTotalTime: number;
   onAutoSubmit: () => void;
   dangerColor: string;
@@ -478,6 +524,7 @@ function ExamTimer({
   const endRef = useRef<number>(
     resolveTimerEndMs({
       expiresAt,
+      remainingSeconds,
       fallbackTotalTimeSeconds: fallbackTotalTime,
       nowMs: Date.now(),
     }),

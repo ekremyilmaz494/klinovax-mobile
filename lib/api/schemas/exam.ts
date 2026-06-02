@@ -12,7 +12,13 @@ import { z } from 'zod';
  * gürültü üretir.
  */
 
-const attemptStatusSchema = z.enum(['pre_exam', 'watching_videos', 'post_exam', 'completed']);
+const attemptStatusSchema = z.enum([
+  'pre_exam',
+  'watching_videos',
+  'post_exam',
+  'completed',
+  'expired',
+]);
 
 export const examStartResponseSchema = z.looseObject({
   id: z.string(),
