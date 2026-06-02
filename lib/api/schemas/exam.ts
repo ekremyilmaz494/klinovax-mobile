@@ -65,6 +65,9 @@ const examVideoItemSchema = z.looseObject({
   pageCount: z.number().nullable().optional(),
   completed: z.boolean(),
   lastPosition: z.number(),
+  // Gerçekte izlenen süre — resume sayacı bundan başlar. Eski backend sürümü
+  // alanı döndürmeyebilir → default 0 (parse patlamasın, additive).
+  watchedSeconds: z.number().default(0),
   documentUrl: z.string().optional(),
 });
 
