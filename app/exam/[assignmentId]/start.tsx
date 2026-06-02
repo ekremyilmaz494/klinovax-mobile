@@ -171,6 +171,14 @@ export default function ExamStartScreen() {
             n={5}
             text="Son sınavda bir sorunun cevabı 30 saniye içinde değiştirilebilir, sonra kilitlenir."
           />
+          <Rule
+            n={6}
+            text="Eğitim videolarının en az %90'ını izlemeden son sınav açılmaz; izleme ilerlemen otomatik kaydedilir."
+          />
+          <Rule
+            n={7}
+            text="Son sınavı geçtiğinde sertifikan otomatik oluşturulur ve Sertifikalarım sekmesinde görünür."
+          />
         </View>
 
         {error ? (

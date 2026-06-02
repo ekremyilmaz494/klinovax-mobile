@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { createAttemptRequest, fetchAttemptRequests } from '@/lib/api/attempt-requests';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth';
@@ -198,12 +198,27 @@ function Detail({ data }: { data: TrainingDetail }) {
         İlerleme
       </Text>
       <View style={{ gap: 10 }}>
-        {!data.examOnly && <Step n={1} label="Ön sınav" done={data.preExamCompleted} />}
-        {!data.examOnly && <Step n={2} label="Videolar" done={data.videosCompleted} />}
+        {!data.examOnly && (
+          <Step
+            n={1}
+            label="Ön sınav"
+            done={data.preExamCompleted}
+            current={resolveCurrentStep(data) === 'pre'}
+          />
+        )}
+        {!data.examOnly && (
+          <Step
+            n={2}
+            label="Videolar"
+            done={data.videosCompleted}
+            current={resolveCurrentStep(data) === 'videos'}
+          />
+        )}
         <Step
           n={data.examOnly ? 1 : 3}
           label="Son sınav"
           done={data.postExamCompleted}
+          current={resolveCurrentStep(data) === 'post'}
           score={data.lastAttemptScore}
         />
       </View>
@@ -483,15 +498,32 @@ function MetaCell({
   );
 }
 
+/**
+ * Sıradaki adım: eğitim aktifken (terminal/kilitli/başlamamış değil) tamamlanmamış
+ * ilk adım. Kullanıcının nereden devam edeceği step listesinde vurgulanır.
+ */
+function resolveCurrentStep(d: TrainingDetail): 'pre' | 'videos' | 'post' | null {
+  const inactive = d.status === 'passed' || d.status === 'locked' || d.isExpired || d.isNotStarted;
+  if (inactive) return null;
+  if (d.examOnly) return d.postExamCompleted ? null : 'post';
+  if (!d.preExamCompleted) return 'pre';
+  if (!d.videosCompleted) return 'videos';
+  if (!d.postExamCompleted) return 'post';
+  return null;
+}
+
 function Step({
   n,
   label,
   done,
+  current,
   score,
 }: {
   n: number;
   label: string;
   done: boolean;
+  /** Sıradaki adım — clay vurgu + "Sıradaki" etiketi. */
+  current?: boolean;
   score?: number;
 }) {
   const t = useTheme();
@@ -503,12 +535,16 @@ function Step({
         gap: 14,
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.lg,
-        borderWidth: t.hairline,
-        borderColor: t.colors.border.subtle,
+        borderWidth: current ? 1.5 : t.hairline,
+        borderColor: current ? t.colors.accent.clay : t.colors.border.subtle,
         padding: 14,
       }}
     >
-      <IconDot variant={done ? 'success' : 'neutral'} size={28} numeral={done ? undefined : n} />
+      <IconDot
+        variant={done ? 'success' : current ? 'accent' : 'neutral'}
+        size={28}
+        numeral={done ? undefined : n}
+      />
       <View style={{ flex: 1 }}>
         <Text variant="bodyEmph" tone={done ? 'success' : 'primary'}>
           {label}
@@ -523,6 +559,7 @@ function Step({
           </Text>
         ) : null}
       </View>
+      {current ? <Tag label="Sıradaki" tone="primary" /> : null}
     </View>
   );
 }
