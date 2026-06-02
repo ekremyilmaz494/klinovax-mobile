@@ -4,7 +4,8 @@
  * taşınacak (Faz 2). Şimdilik backend route'larıyla manuel senkron tutuluyor.
  */
 
-export type AssignmentStatus = 'assigned' | 'in_progress' | 'passed' | 'failed';
+/** `locked`: eğitim kurum tarafından arşivlendi/kaldırıldı (web state machine: TRAINING_LOCKED). */
+export type AssignmentStatus = 'assigned' | 'in_progress' | 'passed' | 'failed' | 'locked';
 
 export type DashboardStats = {
   assigned: number;
