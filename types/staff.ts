@@ -144,6 +144,8 @@ export type TrainingDetail = {
   passingScore: number;
   maxAttempts: number;
   examDuration: number | null;
+  /** Son sınav soru sayısı — sınav-öncesi bilgilendirmede gösterilir. Liste ile tutarlı. */
+  questionCount: number;
   status: AssignmentStatus;
   currentAttempt: number;
   deadline: string;
