@@ -1,4 +1,4 @@
-import { computeRemainingSeconds, shouldAutoSubmitTimer } from '../timer';
+import { computeRemainingSeconds, resolveTimerEndMs, shouldAutoSubmitTimer } from '../timer';
 
 describe('shouldAutoSubmitTimer', () => {
   it('remaining 0 + henüz submit edilmemiş → true', () => {
@@ -33,5 +33,36 @@ describe('computeRemainingSeconds', () => {
     const now = 1_000_000;
     // 500ms kalmış → 1sn göster (son saniye 0'da bitsin)
     expect(computeRemainingSeconds(now + 500, now)).toBe(1);
+  });
+});
+
+describe('resolveTimerEndMs', () => {
+  const now = 1_000_000;
+
+  it('sunucu expiresAt varsa onu kullanır (resume: kalan gerçek süre)', () => {
+    // 30dk'lık sınavın 25dk'sı geçmiş — sunucu 5dk kaldı diyor
+    const serverEnd = now + 5 * 60_000;
+    expect(
+      resolveTimerEndMs({ expiresAt: serverEnd, fallbackTotalTimeSeconds: 1800, nowMs: now }),
+    ).toBe(serverEnd);
+  });
+
+  it('sunucu expiresAt geçmişte kalmışsa bile fallback yerine onu döner (kalan 0 → auto-submit)', () => {
+    const pastEnd = now - 60_000;
+    expect(
+      resolveTimerEndMs({ expiresAt: pastEnd, fallbackTotalTimeSeconds: 1800, nowMs: now }),
+    ).toBe(pastEnd);
+  });
+
+  it('sunucu değeri yoksa (null) fallback: şimdi + toplam süre', () => {
+    expect(
+      resolveTimerEndMs({ expiresAt: null, fallbackTotalTimeSeconds: 1800, nowMs: now }),
+    ).toBe(now + 1800 * 1000);
+  });
+
+  it('sunucu değeri yoksa (undefined — eski backend) fallback kurulur', () => {
+    expect(
+      resolveTimerEndMs({ expiresAt: undefined, fallbackTotalTimeSeconds: 600, nowMs: now }),
+    ).toBe(now + 600 * 1000);
   });
 });

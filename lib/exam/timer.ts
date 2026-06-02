@@ -25,3 +25,24 @@ export function shouldAutoSubmitTimer({
 export function computeRemainingSeconds(endMs: number, nowMs: number): number {
   return Math.max(0, Math.ceil((endMs - nowMs) / 1000));
 }
+
+/**
+ * Timer'ın bitiş zaman damgası (ms). Sunucu `expiresAt` değeri varsa HER ZAMAN
+ * o kullanılır — kill/reopen sonrası kalan gerçek süre budur; geçmişte kalmışsa
+ * bile fallback'e düşülmez (kalan 0 → auto-submit tetiklenir). Sunucu değeri
+ * yoksa (Redis düşmüş / eski backend) client-side iyimser fallback kurulur;
+ * backend submit'i +5dk grace ile zaten enforce ettiği için kullanıcı bu yolla
+ * ekstra süre kazanamaz.
+ */
+export function resolveTimerEndMs({
+  expiresAt,
+  fallbackTotalTimeSeconds,
+  nowMs,
+}: {
+  expiresAt: number | null | undefined;
+  fallbackTotalTimeSeconds: number;
+  nowMs: number;
+}): number {
+  if (typeof expiresAt === 'number') return expiresAt;
+  return nowMs + fallbackTotalTimeSeconds * 1000;
+}
