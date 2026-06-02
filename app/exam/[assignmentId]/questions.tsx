@@ -179,20 +179,42 @@ function QuestionsView({
   // buildSubmitVars + handleSubmitNavigate closure ile capture; deps'e koymak
   // gereksiz (her render yeniden tanımlanıyor ama mutation idempotent).
 
+  // Senkron çift-submit kilidi: isPending React state'i render gecikmeli günceller;
+  // timer auto-submit ile manuel "Bitir" aynı tick'te tetiklenirse ikisi de
+  // isPending=false görür. Ref senkron set edildiği için ikinci çağrı anında düşer.
+  const submittingRef = useRef(false);
+
   const triggerSubmit = useCallback(
     (opts?: { silent?: boolean }) => {
-      // Çift submit guard: timer auto-submit ile manuel "Bitir" aynı anda
-      // tetiklenebilir (süre dolduğu saniyede onay dialogu açıksa).
-      if (submitMutation.isPending) return;
+      if (submittingRef.current || submitMutation.isPending) return;
+      submittingRef.current = true;
       submitMutation.mutate(buildSubmitVars(), {
+        onSettled: () => {
+          submittingRef.current = false;
+        },
         onSuccess: (res) => handleSubmitNavigate(res),
         onError: (err) => {
-          if (opts?.silent) return;
+          if (opts?.silent) {
+            // Otomatik gönderim reddedildi (örn. backend 403 'süre çoktan dolmuş' —
+            // attempt henüz auto-complete edilmemişken +5dk aşıldı). Sessizce yutmak
+            // kullanıcıyı 00:00'da soru ekranında kilitli bırakıyordu.
+            Alert.alert(
+              'Sınav süresi doldu',
+              'Süre aşıldığı için cevapların gönderilemedi. Eğitim sayfasına dönülüyor; durumunu oradan kontrol edebilirsin.',
+              [
+                {
+                  text: 'Tamam',
+                  onPress: () => router.replace(`/trainings/${assignmentId}`),
+                },
+              ],
+            );
+            return;
+          }
           Alert.alert('Sınav gönderilemedi', err.message);
         },
       });
     },
-    [submitMutation],
+    [submitMutation, assignmentId],
   );
 
   // Server timer expired sinyali geldiğinde otomatik submit — kullanıcı
