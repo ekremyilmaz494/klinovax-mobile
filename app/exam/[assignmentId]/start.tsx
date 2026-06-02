@@ -118,7 +118,9 @@ export default function ExamStartScreen() {
             <InfoCell label="Geçme barajı" value={`%${detail.passingScore}`} divider />
             <InfoCell
               label="Kalan deneme"
-              value={remainingAttempts !== null ? `${remainingAttempts}/${detail.maxAttempts}` : '—'}
+              value={
+                remainingAttempts !== null ? `${remainingAttempts}/${detail.maxAttempts}` : '—'
+              }
             />
           </View>
         ) : null}

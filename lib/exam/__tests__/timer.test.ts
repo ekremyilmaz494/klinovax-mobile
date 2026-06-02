@@ -55,9 +55,9 @@ describe('resolveTimerEndMs', () => {
   });
 
   it('sunucu değeri yoksa (null) fallback: şimdi + toplam süre', () => {
-    expect(
-      resolveTimerEndMs({ expiresAt: null, fallbackTotalTimeSeconds: 1800, nowMs: now }),
-    ).toBe(now + 1800 * 1000);
+    expect(resolveTimerEndMs({ expiresAt: null, fallbackTotalTimeSeconds: 1800, nowMs: now })).toBe(
+      now + 1800 * 1000,
+    );
   });
 
   it('sunucu değeri yoksa (undefined — eski backend) fallback kurulur', () => {

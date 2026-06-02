@@ -105,9 +105,9 @@ describe('buildCompletionWatchedTime — floor regresyon kilidi', () => {
 
 describe('shouldFlushHeartbeat — çıkış/arka plan flush kararı', () => {
   it('son kayıttan beri yeni izleme varsa true (eşik beklenmez)', () => {
-    expect(shouldFlushHeartbeat({ accumulated: 13.7, lastSaved: 10, alreadyCompleted: false })).toBe(
-      true,
-    );
+    expect(
+      shouldFlushHeartbeat({ accumulated: 13.7, lastSaved: 10, alreadyCompleted: false }),
+    ).toBe(true);
   });
 
   it('1 saniyelik bile ilerleme flush edilir (normal heartbeat 10sn eşiğinin aksine)', () => {
@@ -117,9 +117,9 @@ describe('shouldFlushHeartbeat — çıkış/arka plan flush kararı', () => {
   });
 
   it('yeni izleme yoksa false (gereksiz POST atılmaz)', () => {
-    expect(shouldFlushHeartbeat({ accumulated: 10.4, lastSaved: 10, alreadyCompleted: false })).toBe(
-      false,
-    );
+    expect(
+      shouldFlushHeartbeat({ accumulated: 10.4, lastSaved: 10, alreadyCompleted: false }),
+    ).toBe(false);
   });
 
   it('hiç izleme yoksa (ekran açılıp kapandı) false', () => {
