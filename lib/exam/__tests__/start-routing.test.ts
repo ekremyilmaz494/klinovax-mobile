@@ -18,6 +18,12 @@ describe('resolveStartRoute', () => {
   it('completed → result', () => {
     expect(resolveStartRoute('completed')).toEqual({ kind: 'result' });
   });
+
+  it('bilinmeyen status → null (çağıran kullanıcıyı bilgilendirip geri yönlendirir)', () => {
+    // Backend yeni bir durum döndürürse (örn. expired) ekran sessiz no-op yerine
+    // Alert + router.back() yapar — null dönüşü bu sözleşmenin parçası.
+    expect(resolveStartRoute('expired' as Parameters<typeof resolveStartRoute>[0])).toBeNull();
+  });
 });
 
 describe('extractPendingFeedbackRoute', () => {

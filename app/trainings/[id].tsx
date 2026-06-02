@@ -23,12 +23,14 @@ const STATUS_TONE: Record<AssignmentStatus, 'info' | 'warning' | 'success' | 'da
   in_progress: 'warning',
   passed: 'success',
   failed: 'danger',
+  locked: 'danger',
 };
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
   assigned: 'Atandı',
   in_progress: 'Devam',
   passed: 'Geçti',
   failed: 'Kaldı',
+  locked: 'Kilitli',
 };
 
 export default function TrainingDetailScreen() {
@@ -72,7 +74,13 @@ function Detail({ data }: { data: TrainingDetail }) {
   const action = resolveAction(data);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+    // keyboardShouldPersistTaps: AttemptRequestSection'daki TextInput açıkken
+    // "Ek hak talep et" butonuna ilk dokunuş klavyeyi kapatmakla kalmasın,
+    // butonu da bassın (feedback ekranıyla aynı pattern).
+    <ScrollView
+      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+      keyboardShouldPersistTaps="handled"
+    >
       {data.category ? (
         <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
           {data.category}
@@ -103,6 +111,18 @@ function Detail({ data }: { data: TrainingDetail }) {
               {data.startDate ?? '—'}
             </Text>{' '}
             tarihinde açılacak.{data.deadline ? ` Tamamlanma süresi: ${data.deadline}.` : ''}
+          </Text>
+        </Card>
+      ) : null}
+
+      {data.status === 'locked' ? (
+        <Card variant="danger" rail style={{ marginTop: 16 }}>
+          <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
+            EĞİTİM KİLİTLENDİ
+          </Text>
+          <Text variant="body" tone="primary">
+            Bu eğitim kurum tarafından arşivlendi veya kaldırıldı. Sorularınız için kurum
+            yöneticinizle iletişime geçin.
           </Text>
         </Card>
       ) : null}
@@ -545,6 +565,8 @@ function VideoRow({ index, video }: { index: number; video: TrainingVideo }) {
  * karşılıklı dışlayıcı ama eski sürüm/edge-case'e karşı savunmacı sıralama).
  */
 function resolveAction(d: TrainingDetail): { label: string; disabled: boolean } {
+  // locked: eğitim arşivlendi — hiçbir CTA anlamlı değil (web: TRAINING_LOCKED terminal).
+  if (d.status === 'locked') return { label: 'Eğitim kilitli', disabled: true };
   if (d.isNotStarted) return { label: 'Henüz açılmadı', disabled: true };
   if (d.isExpiredRetryable) return { label: 'Yeniden başla', disabled: false };
   if (d.isExpired) return { label: 'Süresi doldu', disabled: true };

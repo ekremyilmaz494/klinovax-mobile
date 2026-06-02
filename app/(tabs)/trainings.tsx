@@ -33,6 +33,7 @@ const STATUS_TONE: Record<AssignmentStatus, 'info' | 'warning' | 'success' | 'da
   in_progress: 'warning',
   passed: 'success',
   failed: 'danger',
+  locked: 'danger',
 };
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
@@ -40,6 +41,7 @@ const STATUS_LABEL: Record<AssignmentStatus, string> = {
   in_progress: 'Devam',
   passed: 'Geçti',
   failed: 'Kaldı',
+  locked: 'Kilitli',
 };
 
 export default function TrainingsScreen() {

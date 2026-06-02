@@ -3,8 +3,10 @@ import {
   examQuestionsResponseSchema,
   examResultsResponseSchema,
   examStartResponseSchema,
+  examSubmitResponseSchema,
   examTimerResponseSchema,
   examVideosResponseSchema,
+  saveAnswerResponseSchema,
   videoProgressResponseSchema,
 } from './schemas/exam';
 import { validate } from './schemas/index';
@@ -45,17 +47,18 @@ export async function fetchExamQuestions(
   return validate(examQuestionsResponseSchema, data, 'exam.questions');
 }
 
-export function saveExamAnswer(
+export async function saveExamAnswer(
   assignmentId: string,
   body: { questionId: string; selectedOptionId: string; examPhase: ExamPhase },
 ): Promise<{ saved: true }> {
-  return apiFetch<{ saved: true }>(`/api/exam/${assignmentId}/save-answer`, {
+  const data = await apiFetch<{ saved: true }>(`/api/exam/${assignmentId}/save-answer`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  return validate(saveAnswerResponseSchema, data, 'exam.saveAnswer');
 }
 
-export function submitExam(
+export async function submitExam(
   assignmentId: string,
   body: {
     answers: { questionId: string; selectedOptionId: string }[];
@@ -63,10 +66,13 @@ export function submitExam(
     tabSwitchCount?: number;
   },
 ): Promise<ExamSubmitResponse> {
-  return apiFetch<ExamSubmitResponse>(`/api/exam/${assignmentId}/submit`, {
+  const data = await apiFetch<ExamSubmitResponse>(`/api/exam/${assignmentId}/submit`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  // phase/isPassed/feedbackRequired yanıttan eksilirse result yönlendirmesi sessizce
+  // yanlış dala sapar — mismatch'i tek noktada Sentry'ye raporla.
+  return validate(examSubmitResponseSchema, data, 'exam.submit');
 }
 
 export async function fetchExamResults(assignmentId: string): Promise<ExamResultsResponse> {

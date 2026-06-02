@@ -56,6 +56,11 @@ export function PhaseTransitionModal({
   const reducedMotion = useReducedMotion();
   const [remaining, setRemaining] = useState(durationSeconds);
   const firedRef = useRef(false);
+  // onContinue ref ile capture edilir: çağıranlar inline arrow geçiyor (her render
+  // yeni kimlik). Effect dep'inde olsaydı parent'ın her re-render'ı (örn. video
+  // tamamlanınca cache invalidation → refetch) geri sayımı baştan başlatırdı.
+  const onContinueRef = useRef(onContinue);
+  onContinueRef.current = onContinue;
 
   const accent =
     tone === 'success'
@@ -86,13 +91,13 @@ export function PhaseTransitionModal({
       setRemaining(left);
       if (left === 0 && !firedRef.current) {
         firedRef.current = true;
-        onContinue();
+        onContinueRef.current();
       }
     };
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [visible, durationSeconds, onContinue]);
+  }, [visible, durationSeconds]);
 
   // İkon halka pulse — clay aksent, reduce motion'da kapalı.
   const pulse = useSharedValue(1);

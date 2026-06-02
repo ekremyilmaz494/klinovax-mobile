@@ -1,14 +1,15 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Stack, Text, useTheme } from '@/design-system';
-import { ApiError } from '@/lib/api/client';
+import { Button, Card, Stack, Text, useTheme } from '@/design-system';
+import { ApiError, apiFetch } from '@/lib/api/client';
 import { startExam } from '@/lib/api/exam';
 import { extractPendingFeedbackRoute, resolveStartRoute } from '@/lib/exam/start-routing';
 import { useOnline } from '@/lib/network/use-online';
+import type { TrainingDetail } from '@/types/staff';
 
 /**
  * Sınav öncesi kurallar ekranı. "Başla" butonu /exam/[id]/start çağırır
@@ -28,7 +29,17 @@ export default function ExamStartScreen() {
       qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
       qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
       const route = resolveStartRoute(data.status);
-      if (!route) return;
+      if (!route) {
+        // Bilinmeyen attempt status (örn. yeni backend sürümü farklı durum döndürdü) —
+        // sessiz no-op kullanıcıyı "Başlatılıyor…" sonrası boşlukta bırakıyordu.
+        console.warn('[exam-start] bilinmeyen attempt status', data.status);
+        Alert.alert(
+          'Sınav durumu alınamadı',
+          'Eğitim sayfasına dönülüyor. Sorun devam ederse uygulamayı güncelleyin veya kurum yöneticinizle iletişime geçin.',
+          [{ text: 'Tamam', onPress: () => router.back() }],
+        );
+        return;
+      }
       switch (route.kind) {
         case 'questions':
           router.replace(`/exam/${assignmentId}/questions?phase=${route.phase}`);
@@ -64,6 +75,15 @@ export default function ExamStartScreen() {
     },
   });
 
+  // Sınav meta bilgisi — trainings/[id].tsx ile aynı query key (cache paylaşımı):
+  // kullanıcı eğitim detayından geldiği için veri çoğunlukla zaten cache'te,
+  // ekstra bekleme yaratmaz. Yoksa arka planda çekilir, gelince gösterilir.
+  const { data: detail } = useQuery<TrainingDetail, Error>({
+    queryKey: ['training-detail', assignmentId],
+    queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${assignmentId}`),
+  });
+  const remainingAttempts = detail ? Math.max(detail.maxAttempts - detail.currentAttempt, 0) : null;
+
   const error = startMutation.error as Error | null;
 
   return (
@@ -78,6 +98,44 @@ export default function ExamStartScreen() {
         <Text variant="body" tone="tertiary" style={{ marginTop: 8 }}>
           Sınava başlamadan önce aşağıdaki kuralları okuyun.
         </Text>
+
+        {detail ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              marginTop: 20,
+              backgroundColor: t.colors.surface.primary,
+              borderRadius: t.radius.lg,
+              borderWidth: t.hairline,
+              borderColor: t.colors.border.subtle,
+            }}
+          >
+            <InfoCell
+              label="Sınav süresi"
+              value={detail.examDuration ? `${detail.examDuration} dk` : '—'}
+              divider
+            />
+            <InfoCell label="Geçme barajı" value={`%${detail.passingScore}`} divider />
+            <InfoCell
+              label="Kalan deneme"
+              value={
+                remainingAttempts !== null ? `${remainingAttempts}/${detail.maxAttempts}` : '—'
+              }
+            />
+          </View>
+        ) : null}
+
+        {remainingAttempts === 1 ? (
+          <Card variant="warning" rail style={{ marginTop: 12 }}>
+            <Text variant="body" tone="primary">
+              Bu{' '}
+              <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+                son deneme hakkın
+              </Text>
+              . Başarısız olursan yöneticinden ek deneme hakkı talep etmen gerekir.
+            </Text>
+          </Card>
+        ) : null}
 
         <View
           style={{
@@ -141,6 +199,28 @@ export default function ExamStartScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function InfoCell({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        flex: 1,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        borderRightWidth: divider ? t.hairline : 0,
+        borderRightColor: t.colors.border.subtle,
+      }}
+    >
+      <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+        {label}
+      </Text>
+      <Text variant="bodyEmph" tone="primary" style={{ fontVariant: ['tabular-nums'] }}>
+        {value}
+      </Text>
+    </View>
   );
 }
 

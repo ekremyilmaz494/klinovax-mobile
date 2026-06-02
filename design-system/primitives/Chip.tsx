@@ -27,6 +27,9 @@ export function Chip({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      // Görsel yükseklik ~34px — 44pt minimum dokunma hedefi için hitSlop şart
+      // (filtre chip'leri ve feedback likert chip'lerinde "basmıyor" hissi).
+      hitSlop={8}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={accessibilityLabel ?? label}

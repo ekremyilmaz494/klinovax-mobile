@@ -3,8 +3,10 @@ import {
   examQuestionsResponseSchema,
   examResultsResponseSchema,
   examStartResponseSchema,
+  examSubmitResponseSchema,
   examTimerResponseSchema,
   examVideosResponseSchema,
+  saveAnswerResponseSchema,
   videoProgressResponseSchema,
 } from '../exam';
 
@@ -111,6 +113,63 @@ describe('validate (graceful pass-through)', () => {
       ],
     };
     const out = validate(examQuestionsResponseSchema, data, 'exam.questions');
+    expect(out).toBe(data);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('geçerli pre-exam submit yanıtı temiz geçer', () => {
+    const data = { phase: 'pre', score: 60, nextStep: 'videos' };
+    const out = validate(examSubmitResponseSchema, data, 'exam.submit');
+    expect(out).toBe(data);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('geçerli post-exam submit yanıtı temiz geçer (results dahil)', () => {
+    const data = {
+      phase: 'post',
+      score: 85,
+      isPassed: true,
+      passingScore: 70,
+      attemptsRemaining: 2,
+      feedbackRequired: false,
+      results: [
+        {
+          questionText: 'Soru?',
+          selectedOptionText: 'Cevap',
+          correctOptionText: 'Cevap',
+          isCorrect: true,
+        },
+      ],
+    };
+    const out = validate(examSubmitResponseSchema, data, 'exam.submit');
+    expect(out).toBe(data);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('submit yanıtında feedbackRequired eksikse mismatch loglanır ama veri döner', () => {
+    const data = {
+      phase: 'post',
+      score: 40,
+      isPassed: false,
+      passingScore: 70,
+      attemptsRemaining: 1,
+      // feedbackRequired eksik — result yönlendirmesi için kritik alan
+    };
+    const out = validate(examSubmitResponseSchema, data, 'exam.submit');
+    expect(out).toBe(data);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('submit yanıtında phase eksikse mismatch loglanır (akış dalı seçilemez)', () => {
+    const data = { score: 60, nextStep: 'videos' };
+    const out = validate(examSubmitResponseSchema, data, 'exam.submit');
+    expect(out).toBe(data);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('geçerli save-answer yanıtı temiz geçer', () => {
+    const data = { saved: true };
+    const out = validate(saveAnswerResponseSchema, data, 'exam.saveAnswer');
     expect(out).toBe(data);
     expect(warnSpy).not.toHaveBeenCalled();
   });

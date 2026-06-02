@@ -11,7 +11,11 @@ import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
 import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
-import { computeRemainingSeconds, shouldAutoSubmitTimer } from '@/lib/exam/timer';
+import {
+  computeRemainingSeconds,
+  resolveTimerEndMs,
+  shouldAutoSubmitTimer,
+} from '@/lib/exam/timer';
 import { useOnline } from '@/lib/network/use-online';
 import type { SaveAnswerVars, SubmitExamVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -169,6 +173,9 @@ function QuestionsView({
 
   const triggerSubmit = useCallback(
     (opts?: { silent?: boolean }) => {
+      // Çift submit guard: timer auto-submit ile manuel "Bitir" aynı anda
+      // tetiklenebilir (süre dolduğu saniyede onay dialogu açıksa).
+      if (submitMutation.isPending) return;
       submitMutation.mutate(buildSubmitVars(), {
         onSuccess: (res) => handleSubmitNavigate(res),
         onError: (err) => {
@@ -290,13 +297,32 @@ function QuestionsView({
           {data.trainingTitle}
         </Text>
         <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
-          <ExamTimer
-            expiresAt={timerQuery.data?.expiresAt ?? null}
-            fallbackTotalTime={data.totalTime}
-            onAutoSubmit={() => triggerSubmit({ silent: true })}
-            dangerColor={t.colors.status.danger}
-            defaultColor={t.colors.accent.clay}
-          />
+          {/* Timer query settle olmadan ExamTimer mount edilmez: ExamTimer bitiş
+              zamanını ilk render'da sabitler; sunucu expiresAt'i gelmeden mount
+              edersek fallback (tam süre) kalıcı olur ve kill/reopen sonrası
+              kullanıcı yanlış (uzun) süre görür. */}
+          {timerQuery.isFetched ? (
+            <ExamTimer
+              expiresAt={timerQuery.data?.expiresAt ?? null}
+              fallbackTotalTime={data.totalTime}
+              onAutoSubmit={() => triggerSubmit({ silent: true })}
+              dangerColor={t.colors.status.danger}
+              defaultColor={t.colors.accent.clay}
+            />
+          ) : (
+            <Text
+              maxFontSizeMultiplier={1.6}
+              style={{
+                fontFamily: 'Fraunces_700Bold',
+                fontSize: 22,
+                lineHeight: 26,
+                color: t.colors.text.tertiary,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              --:--
+            </Text>
+          )}
           <Text variant="subhead" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
             Soru {currentIdx + 1} / {totalQuestions}
           </Text>
@@ -430,6 +456,11 @@ function QuestionsView({
  * `expiresAt` server-side authority (POST /api/exam/[id]/timer). Yoksa
  * `fallbackTotalTime` ile client-side optimistic timer kurulur; backend submit
  * +5dk grace'le enforce ettiği için kullanıcı extra süre kazanamaz.
+ *
+ * ÖNEMLİ: Parent bu component'i timer query settle OLDUKTAN sonra mount eder
+ * (questions.tsx'teki isFetched gate). Bitiş zamanı ilk render'da sabitlenir;
+ * sonradan prop değişse bile güncellenmez (sayaç ortasında sıçramasın) — bu
+ * yüzden ilk render'daki expiresAt'in sunucu değeri olması kritik.
  */
 function ExamTimer({
   expiresAt,
@@ -444,9 +475,13 @@ function ExamTimer({
   dangerColor: string;
   defaultColor: string;
 }) {
-  // İlk render'da bitiş zamanı sabitlenir; sonradan expiresAt prop değişse bile
-  // endRef güncellenmez (UX karışıklığı — sayaç ortasında sıçramasın).
-  const endRef = useRef<number>(expiresAt ?? Date.now() + fallbackTotalTime * 1000);
+  const endRef = useRef<number>(
+    resolveTimerEndMs({
+      expiresAt,
+      fallbackTotalTimeSeconds: fallbackTotalTime,
+      nowMs: Date.now(),
+    }),
+  );
   const initialRemaining = computeRemainingSeconds(endRef.current, Date.now());
   const [remaining, setRemaining] = useState<number>(initialRemaining);
   const submittedRef = useRef(false);
