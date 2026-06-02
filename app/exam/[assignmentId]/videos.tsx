@@ -3,7 +3,15 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
@@ -14,7 +22,11 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { fetchExamVideos, saveVideoProgress } from '@/lib/api/exam';
-import { buildCompletionWatchedTime, shouldCompleteVideo } from '@/lib/exam/video-completion';
+import {
+  buildCompletionWatchedTime,
+  shouldCompleteVideo,
+  shouldFlushHeartbeat,
+} from '@/lib/exam/video-completion';
 import { API_BASE_URL } from '@/lib/config';
 import type { CompleteVideoVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -312,6 +324,9 @@ function VideoBlock({
   // currentTime'ı doğrudan göndermesi skip-to-end exploit'ine yol açıyordu.
   const accumulatedRef = useRef<number>(video.lastPosition ?? 0);
   const lastTickRef = useRef<number | null>(null);
+  // Son bilinen oynatma konumu — flush sırasında player release edilmiş
+  // olabilir (unmount cleanup sırası), o durumda bu ref kullanılır.
+  const lastKnownPositionRef = useRef<number>(Math.floor(video.lastPosition ?? 0));
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -329,12 +344,13 @@ function VideoBlock({
         );
       }
       lastTickRef.current = now;
+      lastKnownPositionRef.current = Math.floor(player.currentTime);
       const watched = Math.floor(accumulatedRef.current);
       if (watched - lastSavedRef.current >= 10) {
         lastSavedRef.current = watched;
         heartbeatMutationRef.current.mutate({
           videoId: video.id,
-          position: Math.floor(player.currentTime),
+          position: lastKnownPositionRef.current,
           watchedTime: watched,
         });
       }
@@ -346,6 +362,45 @@ function VideoBlock({
   useEffect(() => {
     completedRef.current = video.completed;
   }, [video.completed]);
+
+  // Çıkış / arka plan flush'ı (web sendBeacon karşılığı): normal heartbeat 10sn
+  // birikim eşiğini bekler; kullanıcı ekrandan ayrılır veya app background'a
+  // geçerse aradaki izleme + son pozisyon kaybolmasın diye eşiksiz kayıt atılır.
+  const flushProgress = useCallback(() => {
+    if (
+      !shouldFlushHeartbeat({
+        accumulated: accumulatedRef.current,
+        lastSaved: lastSavedRef.current,
+        alreadyCompleted: completedRef.current,
+      })
+    ) {
+      return;
+    }
+    let position = lastKnownPositionRef.current;
+    try {
+      position = Math.floor(player.currentTime);
+    } catch {
+      // Player release edilmiş (unmount) — interval'de güncellenen ref'e düş.
+    }
+    const watched = Math.floor(accumulatedRef.current);
+    lastSavedRef.current = watched;
+    heartbeatMutationRef.current.mutate({
+      videoId: video.id,
+      position,
+      watchedTime: watched,
+    });
+  }, [player, video.id]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') flushProgress();
+    });
+    return () => {
+      sub.remove();
+      // Unmount: video değişimi veya ekrandan çıkış — son ilerlemeyi yaz.
+      flushProgress();
+    };
+  }, [flushProgress]);
 
   const completeMutation = useMutation<VideoProgressResponse, Error, CompleteVideoVars>({
     mutationKey: MUTATION_KEYS.completeVideo,

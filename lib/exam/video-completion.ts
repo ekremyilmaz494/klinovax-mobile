@@ -39,3 +39,23 @@ export function shouldCompleteVideo({
 export function buildCompletionWatchedTime(accumulated: number, durationSeconds: number): number {
   return Math.max(Math.floor(accumulated), Math.ceil(durationSeconds * ANTI_CHEAT_WATCH_FLOOR));
 }
+
+/**
+ * Ekrandan çıkış / arka plana geçişte son ilerlemenin backend'e yazılması
+ * gerekip gerekmediği (web'in sendBeacon flush'ının karşılığı). Normal
+ * heartbeat 10sn birikim eşiğiyle çalışır; flush bu eşiği BEKLEMEZ ama
+ * son kayıttan beri hiç yeni izleme yoksa veya video zaten tamamlandıysa
+ * gereksiz POST atmaz.
+ */
+export function shouldFlushHeartbeat({
+  accumulated,
+  lastSaved,
+  alreadyCompleted,
+}: {
+  accumulated: number;
+  lastSaved: number;
+  alreadyCompleted: boolean;
+}): boolean {
+  if (alreadyCompleted) return false;
+  return Math.floor(accumulated) > lastSaved;
+}

@@ -2,6 +2,7 @@ import {
   ANTI_CHEAT_WATCH_FLOOR,
   buildCompletionWatchedTime,
   shouldCompleteVideo,
+  shouldFlushHeartbeat,
 } from '../video-completion';
 
 describe('shouldCompleteVideo — %90 eşiği', () => {
@@ -99,5 +100,37 @@ describe('buildCompletionWatchedTime — floor regresyon kilidi', () => {
       const watched = buildCompletionWatchedTime(accumulated, duration);
       expect(watched).toBeGreaterThanOrEqual(Math.ceil(duration * ANTI_CHEAT_WATCH_FLOOR));
     }
+  });
+});
+
+describe('shouldFlushHeartbeat — çıkış/arka plan flush kararı', () => {
+  it('son kayıttan beri yeni izleme varsa true (eşik beklenmez)', () => {
+    expect(shouldFlushHeartbeat({ accumulated: 13.7, lastSaved: 10, alreadyCompleted: false })).toBe(
+      true,
+    );
+  });
+
+  it('1 saniyelik bile ilerleme flush edilir (normal heartbeat 10sn eşiğinin aksine)', () => {
+    expect(shouldFlushHeartbeat({ accumulated: 11, lastSaved: 10, alreadyCompleted: false })).toBe(
+      true,
+    );
+  });
+
+  it('yeni izleme yoksa false (gereksiz POST atılmaz)', () => {
+    expect(shouldFlushHeartbeat({ accumulated: 10.4, lastSaved: 10, alreadyCompleted: false })).toBe(
+      false,
+    );
+  });
+
+  it('hiç izleme yoksa (ekran açılıp kapandı) false', () => {
+    expect(shouldFlushHeartbeat({ accumulated: 0, lastSaved: 0, alreadyCompleted: false })).toBe(
+      false,
+    );
+  });
+
+  it('video tamamlandıysa false (completion POST zaten son durumu yazdı)', () => {
+    expect(shouldFlushHeartbeat({ accumulated: 95, lastSaved: 80, alreadyCompleted: true })).toBe(
+      false,
+    );
   });
 });
