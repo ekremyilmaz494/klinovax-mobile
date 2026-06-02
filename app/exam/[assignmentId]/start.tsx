@@ -50,6 +50,9 @@ export default function ExamStartScreen() {
         case 'result':
           router.replace(`/exam/${assignmentId}/result`);
           break;
+        case 'detail':
+          router.replace(`/trainings/${assignmentId}`);
+          break;
       }
     },
     onError: (err) => {

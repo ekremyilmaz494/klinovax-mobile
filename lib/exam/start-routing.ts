@@ -10,11 +10,13 @@ import type { AttemptStatus } from '@/types/exam';
 export type StartRouteTarget =
   | { kind: 'questions'; phase: 'pre' | 'post' }
   | { kind: 'videos' }
-  | { kind: 'result' };
+  | { kind: 'result' }
+  /** Eğitim detayına dön — expired gibi sınav ekranı anlamsız durumlarda. */
+  | { kind: 'detail' };
 
 /**
  * Backend start response status'üne göre hangi ekrana gidilmeli.
- * `null` → bilinmeyen status (switch'te case yok); çağıran no-op yapar.
+ * `null` → bilinmeyen status; çağıran kullanıcıyı bilgilendirip geri yönlendirir.
  */
 export function resolveStartRoute(status: AttemptStatus): StartRouteTarget | null {
   switch (status) {
@@ -26,6 +28,10 @@ export function resolveStartRoute(status: AttemptStatus): StartRouteTarget | nul
       return { kind: 'videos' };
     case 'completed':
       return { kind: 'result' };
+    case 'expired':
+      // Web paritesi: expired attempt için sınav/sonuç ekranı yok, detaya dönülür
+      // (orada EXPIRED_RETRYABLE banner'ı + doğru CTA gösterilir).
+      return { kind: 'detail' };
     default:
       return null;
   }

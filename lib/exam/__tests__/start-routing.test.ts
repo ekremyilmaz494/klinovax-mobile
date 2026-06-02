@@ -23,10 +23,14 @@ describe('resolveStartRoute', () => {
     expect(resolveStartRoute('completed')).toEqual({ kind: 'result' });
   });
 
+  it('expired → eğitim detayı (web paritesi: sınav ekranı anlamsız, banner detayda)', () => {
+    expect(resolveStartRoute('expired')).toEqual({ kind: 'detail' });
+  });
+
   it('bilinmeyen status → null (çağıran kullanıcıyı bilgilendirip geri yönlendirir)', () => {
-    // Backend yeni bir durum döndürürse (örn. expired) ekran sessiz no-op yerine
+    // Backend yeni bir durum döndürürse ekran sessiz no-op yerine
     // Alert + router.back() yapar — null dönüşü bu sözleşmenin parçası.
-    expect(resolveStartRoute('expired' as Parameters<typeof resolveStartRoute>[0])).toBeNull();
+    expect(resolveStartRoute('paused' as Parameters<typeof resolveStartRoute>[0])).toBeNull();
   });
 });
 

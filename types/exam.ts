@@ -11,7 +11,8 @@
 
 export type ExamPhase = 'pre' | 'post';
 
-export type AttemptStatus = 'pre_exam' | 'watching_videos' | 'post_exam' | 'completed';
+/** `expired`: deneme 24h+ stale kaldı / cron veya admin expire etti (terminal). */
+export type AttemptStatus = 'pre_exam' | 'watching_videos' | 'post_exam' | 'completed' | 'expired';
 
 export type ExamStartResponse = {
   id: string;
