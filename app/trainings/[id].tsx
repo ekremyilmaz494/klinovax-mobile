@@ -9,6 +9,7 @@ import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { createAttemptRequest, fetchAttemptRequests } from '@/lib/api/attempt-requests';
 import { ApiError, apiFetch } from '@/lib/api/client';
+import { resolveTrainingDetailRoute } from '@/lib/exam/route-guard';
 import { useAuthStore } from '@/store/auth';
 import type {
   AssignmentStatus,
@@ -252,12 +253,39 @@ function Detail({ data }: { data: TrainingDetail }) {
           variant="primary"
           size="lg"
           disabled={action.disabled}
-          onPress={() => router.push(`/exam/${data.assignmentId}/start`)}
+          onPress={() => navigateToExamTarget(data)}
           fullWidth
         />
       </View>
     </ScrollView>
   );
+}
+
+/**
+ * CTA hedefi route guard'dan gelir: devam eden attempt'te start ekranı atlanıp
+ * doğrudan kalınan faza gidilir (bir dokunuş tasarrufu). Yeni attempt gereken
+ * durumlar (fresh/retry/expired-retryable) start'a gider — POST /start orada
+ * attempt yaratır ve zorunlu feedback 423 gate'inden geçirir.
+ */
+function navigateToExamTarget(data: TrainingDetail): void {
+  const target = resolveTrainingDetailRoute(data);
+  switch (target.kind) {
+    case 'start':
+      router.push(`/exam/${data.assignmentId}/start`);
+      break;
+    case 'questions':
+      router.push(`/exam/${data.assignmentId}/questions?phase=${target.phase}`);
+      break;
+    case 'videos':
+      router.push(`/exam/${data.assignmentId}/videos`);
+      break;
+    case 'result':
+      router.push(`/exam/${data.assignmentId}/result`);
+      break;
+    case 'training-detail':
+      // Zaten detaydayız — bu durumlarda CTA disabled, pratikte tetiklenmez.
+      break;
+  }
 }
 
 /**

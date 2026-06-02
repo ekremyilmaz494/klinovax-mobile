@@ -22,6 +22,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { fetchExamVideos } from '@/lib/api/exam';
+import { resolveAttemptStatusRoute, shouldRedirectExamRoute } from '@/lib/exam/route-guard';
 import {
   buildCompletionWatchedTime,
   shouldCompleteVideo,
@@ -51,6 +52,32 @@ export default function VideosScreen() {
     queryKey: ['exam-videos', assignmentId],
     queryFn: () => fetchExamVideos(assignmentId),
   });
+
+  // Route guard: GET /videos yanıtındaki attemptStatus bu ekranla uyuşmuyorsa
+  // (örn. tüm videolar bitmiş, attempt post_exam'a geçmiş) kullanıcıyı doğru faza
+  // yönlendir. PhaseTransitionModal açıkken devreye girmez — modal aynı geçişi
+  // geri sayımla zaten yapıyor; ikisi birden tetiklenirse modal yarıda kesilir.
+  const redirectedRef = useRef(false);
+  useEffect(() => {
+    if (!data || postExamModal || redirectedRef.current) return;
+    const expected = resolveAttemptStatusRoute(data.attemptStatus);
+    if (!shouldRedirectExamRoute({ kind: 'videos' }, expected)) return;
+    redirectedRef.current = true;
+    switch (expected.kind) {
+      case 'questions':
+        router.replace(`/exam/${assignmentId}/questions?phase=${expected.phase}`);
+        break;
+      case 'result':
+        router.replace(`/exam/${assignmentId}/result`);
+        break;
+      case 'training-detail':
+        router.replace(`/trainings/${assignmentId}`);
+        break;
+      case 'start':
+        router.replace(`/exam/${assignmentId}/start`);
+        break;
+    }
+  }, [data, postExamModal, assignmentId]);
 
   useEffect(() => {
     if (!data || activeVideoId) return;
