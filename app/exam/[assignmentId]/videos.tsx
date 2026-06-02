@@ -1,8 +1,16 @@
 import { useEvent, useEventListener } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { onlineManager, useMutation, useQuery } from '@tanstack/react-query';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +36,7 @@ import {
   shouldCompleteVideo,
   shouldFlushHeartbeat,
 } from '@/lib/exam/video-completion';
+import { clampSeekTarget } from '@/lib/exam/video-seek';
 import { API_BASE_URL } from '@/lib/config';
 import type { CompleteVideoVars, SaveVideoProgressVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
@@ -317,7 +326,9 @@ function VideoBlock({
   );
 
   const player = useVideoPlayer(source, (p) => {
-    p.timeUpdateEventInterval = 5;
+    // 1 sn: özel kontrol çubuğundaki ilerleme göstergesi timeUpdate event'inden beslenir.
+    p.timeUpdateEventInterval = 1;
+    // Resume seek: kullanıcının daha önce ULAŞTIĞI konuma dönmek ileri sarma sayılmaz.
     if (video.lastPosition && video.lastPosition < video.duration - 5) {
       p.currentTime = video.lastPosition;
     }
@@ -509,6 +520,28 @@ function VideoBlock({
     return () => clearInterval(id);
   }, [tryComplete]);
 
+  // ── Özel oynatıcı kontrolleri ─────────────────────────────────────────
+  // Native kontroller (nativeControls) BİLEREK kapalı: kaydırma çubuğu, 10sn İLERİ
+  // sarma, AirPlay ve fullscreen butonları ileri sarmaya izin veriyordu — personelin
+  // videoyu gerçekten izlemesi zorunlu (anti-cheat, Ekrem'in ürün kuralı 2026-06-02).
+  // Geri sarma + duraklat/devam serbest; ileri sarma UI'da fiziksel olarak imkânsız.
+
+  const togglePlay = () => {
+    if (player.playing) player.pause();
+    else player.play();
+  };
+
+  const seekBackward = () => {
+    // clampSeekTarget ileri sarmayı engeller (invariant tek noktada).
+    player.currentTime = clampSeekTarget(player.currentTime, player.currentTime - 10);
+  };
+
+  const toggleMute = () => {
+    const next = !player.muted;
+    player.muted = next;
+    player.volume = next ? 0 : 1;
+  };
+
   return (
     <View
       style={{
@@ -522,18 +555,56 @@ function VideoBlock({
       <VideoView
         style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }}
         player={player}
-        nativeControls
-        allowsFullscreen
+        nativeControls={false}
+        allowsFullscreen={false}
         allowsPictureInPicture={false}
         contentFit="contain"
       />
+
+      {/* Kontrol çubuğu: oynat/duraklat · 10sn geri · ilerleme · ses */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          backgroundColor: t.colors.surface.secondary,
+        }}
+      >
+        <ControlButton
+          icon={isPlaying ? 'pause.fill' : 'play.fill'}
+          label={isPlaying ? 'Duraklat' : 'Oynat'}
+          onPress={togglePlay}
+          primary
+          t={t}
+        />
+        <ControlButton
+          icon="gobackward.10"
+          label="10 saniye geri sar"
+          onPress={seekBackward}
+          t={t}
+        />
+        <PlaybackProgress player={player} durationSeconds={video.duration} t={t} />
+        <ControlButton
+          icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
+          label={muted ? 'Sesi aç' : 'Sesi kapat'}
+          onPress={toggleMute}
+          t={t}
+        />
+      </View>
+
+      {/* Başlık satırı */}
       <Stack
         direction="row"
         align="center"
         gap={3}
         style={{
           padding: 14,
+          paddingTop: 10,
           backgroundColor: t.colors.surface.secondary,
+          borderTopWidth: t.hairline,
+          borderTopColor: t.colors.border.subtle,
         }}
       >
         <View style={{ flex: 1 }}>
@@ -551,34 +622,85 @@ function VideoBlock({
             </Text>
           </Stack>
         </View>
-        <Pressable
-          onPress={() => {
-            const next = !player.muted;
-            player.muted = next;
-            player.volume = next ? 0 : 1;
-          }}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: t.colors.surface.primary,
-            borderWidth: t.hairline,
-            borderColor: t.colors.border.subtle,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.7 : 1,
-          })}
-          accessibilityRole="button"
-          accessibilityLabel={muted ? 'Sesi aç' : 'Sesi kapat'}
-        >
-          <IconSymbol
-            name={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
-            size={20}
-            color={t.colors.text.primary}
-          />
-        </Pressable>
       </Stack>
+    </View>
+  );
+}
+
+/** Kontrol çubuğu butonu — 44pt dokunma hedefi; birincil (oynat) clay, diğerleri nötr. */
+function ControlButton({
+  icon,
+  label,
+  onPress,
+  primary,
+  t,
+}: {
+  icon: ComponentProps<typeof IconSymbol>['name'];
+  label: string;
+  onPress: () => void;
+  primary?: boolean;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: primary ? t.colors.accent.clay : t.colors.surface.primary,
+        borderWidth: primary ? 0 : t.hairline,
+        borderColor: t.colors.border.subtle,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <IconSymbol
+        name={icon}
+        size={20}
+        color={primary ? t.colors.accent.clayOnAccent : t.colors.text.primary}
+      />
+    </Pressable>
+  );
+}
+
+/**
+ * İlerleme göstergesi — SADECE görsel, dokunulamaz (ileri sarma engeli kuralının
+ * parçası). Kendi component'inde izole: 1Hz timeUpdate re-render'ı player'ı ve
+ * kontrol butonlarını yeniden çizdirmesin.
+ */
+function PlaybackProgress({
+  player,
+  durationSeconds,
+  t,
+}: {
+  player: VideoPlayer;
+  durationSeconds: number;
+  t: ReturnType<typeof useTheme>;
+}) {
+  const timeUpdate = useEvent(player, 'timeUpdate', {
+    currentTime: player.currentTime,
+    currentLiveTimestamp: null,
+    currentOffsetFromLive: null,
+    bufferedPosition: 0,
+  });
+  const current = Math.min(Math.floor(timeUpdate?.currentTime ?? 0), durationSeconds);
+  const pct = durationSeconds > 0 ? Math.min((current / durationSeconds) * 100, 100) : 0;
+  return (
+    <View style={{ flex: 1, gap: 4 }}>
+      <ProgressBar value={pct} height={4} />
+      <Text
+        variant="caption"
+        tone="tertiary"
+        maxFontSizeMultiplier={1.6}
+        style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}
+      >
+        {formatDuration(current)} / {formatDuration(durationSeconds)}
+      </Text>
     </View>
   );
 }
