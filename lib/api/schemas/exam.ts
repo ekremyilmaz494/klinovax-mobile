@@ -76,6 +76,32 @@ const examResultDetailSchema = z.looseObject({
   isCorrect: z.boolean(),
 });
 
+export const saveAnswerResponseSchema = z.looseObject({
+  saved: z.literal(true),
+});
+
+/**
+ * Submit yanıtı `phase` ile ayrışır: pre → videolara geçiş, post → sonuç.
+ * `feedbackRequired` ve `isPassed` result yönlendirmesini belirler — eksikse
+ * akış sessizce yanlış dala sapar, o yüzden runtime guard kritik.
+ */
+export const examSubmitResponseSchema = z.discriminatedUnion('phase', [
+  z.looseObject({
+    phase: z.literal('pre'),
+    score: z.number(),
+    nextStep: z.string(),
+  }),
+  z.looseObject({
+    phase: z.literal('post'),
+    score: z.number(),
+    isPassed: z.boolean(),
+    passingScore: z.number(),
+    attemptsRemaining: z.number(),
+    feedbackRequired: z.boolean(),
+    results: z.array(examResultDetailSchema).optional(),
+  }),
+]);
+
 export const examResultsResponseSchema = z.looseObject({
   isPassed: z.boolean(),
   score: z.number(),
