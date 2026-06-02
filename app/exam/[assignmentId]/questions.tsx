@@ -173,6 +173,9 @@ function QuestionsView({
 
   const triggerSubmit = useCallback(
     (opts?: { silent?: boolean }) => {
+      // Çift submit guard: timer auto-submit ile manuel "Bitir" aynı anda
+      // tetiklenebilir (süre dolduğu saniyede onay dialogu açıksa).
+      if (submitMutation.isPending) return;
       submitMutation.mutate(buildSubmitVars(), {
         onSuccess: (res) => handleSubmitNavigate(res),
         onError: (err) => {
