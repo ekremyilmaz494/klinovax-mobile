@@ -11,6 +11,11 @@ import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
 import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
+import {
+  extractPhaseRedirect,
+  phaseRedirectCopy,
+  phaseRedirectRoute,
+} from '@/lib/exam/phase-redirect';
 import { resolvePreSubmitTarget } from '@/lib/exam/start-routing';
 import {
   computeRemainingSeconds,
@@ -63,6 +68,42 @@ export default function ExamQuestionsScreen() {
         />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Backend "yanlış faz" 403'ü (örn. attempt watching_videos'tayken post sorularını
+  // istemek): çıkmaz hata + ham JSON yerine kullanıcıyı doğru ekrana yönlendiren
+  // temiz bir mesaj göster. Aksi halde kullanıcı "girilemiyor/atıldım" hisseder.
+  const phaseRedirect = extractPhaseRedirect(error);
+  if (phaseRedirect) {
+    const copy = phaseRedirectCopy(phaseRedirect.redirect);
+    const target = phaseRedirectRoute(phaseRedirect.redirect);
+    const go = () => {
+      if (target.kind === 'videos') router.replace(`/exam/${assignmentId}/videos`);
+      else if (target.kind === 'questions')
+        router.replace(`/exam/${assignmentId}/questions?phase=${target.phase}`);
+      else router.replace(`/trainings/${assignmentId}`);
+    };
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
+        <ExpoStack.Screen
+          options={{ title: 'Sınav', headerBackVisible: false, headerLeft: () => null }}
+        />
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center' }}>
+          <Text variant="title-2" align="center">
+            {copy.title}
+          </Text>
+          <Text variant="body" tone="secondary" align="center" style={{ marginTop: 10 }}>
+            {copy.body}
+          </Text>
+          <View style={{ marginTop: 28 }}>
+            <Button label={copy.cta} variant="primary" size="lg" onPress={go} fullWidth />
+          </View>
         </View>
       </SafeAreaView>
     );
