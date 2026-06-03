@@ -10,7 +10,8 @@
 > - Mobil: `/Users/ekremyilmaz/code/klinovax-mobile` (Expo Router)
 > - **Ortak backend:** mobil, web ile **aynı** `/api/*` endpoint'lerini çağırır.
 >
-> Doküman tarihi: 2026-05-31. Web ref'leri `apps/web/src/...`, mobil ref'leri `klinovax-mobile/...`.
+> Doküman tarihi: 2026-05-31 · **Yeniden doğrulandı: 2026-06-02** (4 agent güncel kodla; web PR #175,
+> mobil PR #12-14 sonrası). Web ref'leri `apps/web/src/...`, mobil ref'leri `klinovax-mobile/...`.
 
 ---
 
@@ -131,12 +132,22 @@ my-trainings/[id]  ──"Başla / Devam / Tekrar Dene"──►  /exam/[id]
   `documentKey()`, ses `audioKey()`.
 - **İmzalı URL geçicidir + kullanıcıya özeldir** → mobil bu URL'i **cache'lememeli**; gerekirse
   `GET /videos/stream?videoId=` ile tazeler.
-- **Heartbeat:** `POST /videos` ile `{ videoId, watchedTime, position }` periyodik gönderilir.
+- **Heartbeat:** `POST /videos` ile `{ videoId, watchedTime, position }` periyodik gönderilir
+  (web ~15sn; mobil 5sn tick / 10sn birikince).
 - **Tamamlama (DOĞRULANDI — bkz. §11.1):** video ancak `<video> onEnded` → `completed:true`
   **VE** sunucudaki `ANTI_CHEAT_WATCH_FLOOR = 0.9` (izlenen ≥ %90) sağlanınca tamamlanır.
   Üründe karar: izleme yüzdesi tek başına geçemez; kanonik sinyal **doğal bitiş (onEnded)**.
-  Kaynak: `apps/web/src/app/api/exam/[id]/videos/route.ts:337-364`.
-- **No-seek:** web `lastAllowedTime` ref'i ile ileri sarmayı geri sarar.
+  Kaynak: `apps/web/src/app/api/exam/[id]/videos/route.ts` (≈l.357-387, PR #175 sonrası).
+  **Mobil parite (2026-06-01):** `lib/exam/video-completion.ts` → aynı %90 + `playToEnd` (onEnded paritesi)
+  - 2sn polling fallback; `buildCompletionWatchedTime` floating-point düşmesini engeller.
+- **⚠️ İki endpoint farklı eşik (web tutarsızlığı):** `POST /videos` → %90 + `onEnded` zorunlu;
+  `POST /videos/progress` → %95 **sadece-yüzde** (onEnded yok). Mobil `POST /videos`'u kullanmalı.
+- **Resume (kaldığı yerden devam):** `VideoProgress.lastPositionSeconds`'ten döner. **Web PR #175:**
+  `useFetch(..., { noStore: true })` — bayat modül-cache `lastPosition:0` döndürüp resume'u bozuyordu
+  (`apps/web/src/app/exam/[id]/videos/page.tsx` + `apps/web/src/hooks/use-fetch.ts`). Mobil resume
+  `video.lastPosition`'dan çalışıyor (TanStack Query, ayrı cache modeli — bu bug mobile özgü değil).
+- **No-seek:** web tarafı izlemeyi `watchedTime` (currentTime değil) üzerinden ölçer; ileri-sarma
+  sunucu-tarafı uyum kontrolü + K1 ile nötralize edilir. Mobilde görsel seek engeli yok (bkz. §11.4).
 - **PDF:** opsiyonel; tamamlamayı bloklamaz, "tüm videolar bitti" sayımına girmez.
 - **Audio:** ayrı `audio-player.tsx`; `onProgressRef` ile re-render'dan bağımsız heartbeat
   (commit `a7b05b28`). K1 fallback: `preExamCompletedAt` null ise `createdAt`.
@@ -254,26 +265,33 @@ Stack: Expo Router, `expo-video`, `expo-notifications`, `expo-secure-store`, Zus
 (AsyncStorage persist, 24h), `@supabase/supabase-js`, `@sentry/react-native`, biyometrik kilit.
 
 **Route envanteri (var olanlar):**
-`(auth)/login` · `(tabs)/{dashboard,trainings,certificates,notifications,profile}` ·
-`trainings/[id]` · `exam/[assignmentId]/{start,questions,videos,result}` ·
+`(auth)/{login,lock}` · `(tabs)/{dashboard,trainings,certificates,notifications,profile}` ·
+`trainings/[id]` · `exam/[assignmentId]/{start,questions,videos,result}` · `feedback/[attemptId]` ·
 `certificates/[id]/preview` · `legal/[slug]`.
 
 **Sınav akışı (mobil):**
 
-- `start.tsx` — kural ekranı + `POST start` + durum-route'lama, **423 pendingFeedback yakalanıyor**.
+- `start.tsx` — kural ekranı + `POST start` + durum-route'lama, **423 pendingFeedback** →
+  `extractPendingFeedbackRoute()` → `/feedback/[attemptId]`.
 - `questions.tsx` — `GET questions` + `POST timer` (server-otorite, `staleTime:Infinity`),
-  auto-save, süre dolunca **oto-submit**, iOS swipe-back kapalı + Android back-guard, faz geçiş modalı.
-  Hem pre hem post aynı ekran (phase param'ı farklı).
-- `videos.tsx` — `expo-video`, 5sn tick heartbeat (10sn birikince POST), accumulator ile skip-to-end
-  koruması, PDF (WebView), mute.
-- `result.tsx` — `GET results`, skor + (sadece geçtiyse) soru detayı, retry/sertifika CTA, cache invalidation.
+  auto-save, süre dolunca **oto-submit**, iOS swipe-back kapalı + Android back-guard, faz geçiş modalı,
+  423 (post-exam 30sn kilidi) → yerel state rollback. Hem pre hem post aynı ekran.
+- `videos.tsx` — `expo-video`, 5sn tick heartbeat, **tamamlama %90 + `playToEnd` + 2sn polling**
+  (`lib/exam/video-completion.ts`, backend ile senkron), `lastPosition`'dan resume, PDF (WebView), mute.
+- `result.tsx` — `GET results`, skor + (sadece geçtiyse) soru detayı, retry/sertifika + feedback CTA
+  (`resolveFeedbackCta`), cache invalidation.
+- `feedback/[attemptId].tsx` — EY.FR.40 formu (likert_5 / yes_partial_no / text); 4 giriş noktası.
+
+**Sağlamlık (PR #12-14):** 195 test dosyası + `jest-expo` + CI test job; `RouterErrorBoundary` +
+`ExamErrorBoundary`; tüm exam yanıtlarında zod guard; `lib/exam/state-machine.ts` bit-bit web portu
+(test var, ekranlar hâlâ endpoint `status`'undan infer ediyor — explicit makine çağrısı yok).
 
 **API kapsama (mobil çağırıyor):** `start, questions, save-answer, submit, timer, results, videos(GET/POST)`,
-`staff/{dashboard,my-trainings,my-trainings/[id],certificates,profile,notifications,push/expo/*}`,
-`auth/{login,refresh}`.
+`feedback(form/submit)`, `staff/{dashboard,my-trainings,my-trainings/[id],certificates,profile,
+notifications,attempt-requests,push/expo/*}`, `auth/{login,refresh}`.
 
-**Mobilin ÇAĞIRMADIĞI:** `sign`, `videos/stream`, `videos/progress`, feedback endpoint'leri,
-`evaluations/competency/calendar/smg/feedback/pending`, `attempt-requests`.
+**Mobilin HÂLÂ ÇAĞIRMADIĞI:** `sign` (opsiyonel — §11.6), `videos/stream`, `videos/progress`,
+`evaluations`, `competency`, `calendar`, `smg`, `feedback/pending` (liste menüsü).
 
 ---
 
