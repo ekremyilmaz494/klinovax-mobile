@@ -33,6 +33,7 @@ const MAPPING = {
   'doc.fill': 'picture-as-pdf',
   'play.fill': 'play-arrow',
   'pause.fill': 'pause',
+  'gobackward.10': 'replay-10',
   'speaker.slash.fill': 'volume-off',
   'speaker.wave.2.fill': 'volume-up',
   'lock.fill': 'lock',
