@@ -167,7 +167,7 @@ function Detail({ data }: { data: TrainingDetail }) {
             Son denemede %{data.lastAttemptScore ?? 0} aldınız. Geçme barajı %{data.passingScore}.
             Kalan deneme:{' '}
             <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
-              {data.maxAttempts - data.currentAttempt}/{data.maxAttempts}
+              {Math.max(data.maxAttempts - data.currentAttempt, 0)}/{data.maxAttempts}
             </Text>
             .
           </Text>

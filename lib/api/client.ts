@@ -130,9 +130,27 @@ export async function apiRequest(path: string, init: RequestInit = {}): Promise<
 
   if (res.status === 401) {
     if (!refreshInflight) {
-      refreshInflight = performRefresh(session.refreshToken).finally(() => {
-        refreshInflight = null;
-      });
+      // Auth-fail temizliği (clearSession + onAuthFailure) refresh promise'inin
+      // İÇİNDE yapılır: eş zamanlı N istek aynı inflight'i await ettiğinde yan
+      // etki tek instance üzerinde TEK KEZ koşar — aksi halde her awaiter logout'u
+      // tekrar tetikler (unregisterPushToken boşa gider, logout iki kez çalışır).
+      refreshInflight = performRefresh(session.refreshToken)
+        .then(async (result) => {
+          if (!result.ok && result.reason === 'auth') {
+            await clearSession();
+            if (onAuthFailure) {
+              try {
+                await onAuthFailure();
+              } catch (e) {
+                console.warn('[apiRequest] onAuthFailure threw', e);
+              }
+            }
+          }
+          return result;
+        })
+        .finally(() => {
+          refreshInflight = null;
+        });
     }
     const result = await refreshInflight;
     if (!result.ok) {
@@ -143,15 +161,7 @@ export async function apiRequest(path: string, init: RequestInit = {}): Promise<
           error: `Sunucuya ulaşılamadı (${API_BASE_URL}). Backend kapalı olabilir veya cihazınız bu adrese erişemiyor.`,
         });
       }
-      // Auth hatası: session temizle + onAuthFailure (Zustand logout) tetikle
-      await clearSession();
-      if (onAuthFailure) {
-        try {
-          await onAuthFailure();
-        } catch (e) {
-          console.warn('[apiRequest] onAuthFailure threw', e);
-        }
-      }
+      // Auth hatası: temizlik yukarıda (inflight içinde) tek kez yapıldı.
       throw new ApiError(401, { error: 'Oturum süreniz doldu' });
     }
     res = await doFetch(result.token);
