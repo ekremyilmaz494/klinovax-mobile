@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
 import { apiFetch } from '@/lib/api/client';
+import { openLegal } from '@/lib/legal/open-legal';
 import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
 import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
@@ -34,7 +35,6 @@ export default function ProfileScreen() {
   const t = useTheme();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const router = useRouter();
 
   const { data: profile, isLoading: profileLoading } = useQuery<StaffProfile, Error>({
     queryKey: ['staff', 'profile'],
@@ -124,6 +124,8 @@ export default function ProfileScreen() {
 
   const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : '—';
   const appVersion = Constants.expoConfig?.version ?? Constants.expoConfig?.runtimeVersion ?? '—';
+  // In-app tarayıcının renkleri tema ile uyumlu olsun (toolbar canvas, kontroller clay).
+  const legalColors = { toolbar: t.colors.surface.canvas, controls: t.colors.accent.clay };
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -242,9 +244,22 @@ export default function ProfileScreen() {
 
         <SectionTitle>Yasal</SectionTitle>
         <Card>
-          <LinkRow label="KVKK Aydınlatma Metni" onPress={() => router.push('/legal/kvkk')} />
-          <LinkRow label="Kullanım Koşulları" onPress={() => router.push('/legal/terms')} />
-          <LinkRow label="Gizlilik Politikası" onPress={() => router.push('/legal/privacy')} last />
+          {/* Yasal metinler sistemin in-app tarayıcısında açılır (Chrome Custom Tabs /
+              SafariViewController) — gömülü WebView Android'de render süreci ölünce
+              uygulamayı çökertiyordu. Custom Tabs kendi kapatma butonuyla güvenli. */}
+          <LinkRow
+            label="KVKK Aydınlatma Metni"
+            onPress={() => void openLegal('kvkk', legalColors)}
+          />
+          <LinkRow
+            label="Kullanım Koşulları"
+            onPress={() => void openLegal('terms', legalColors)}
+          />
+          <LinkRow
+            label="Gizlilik Politikası"
+            onPress={() => void openLegal('privacy', legalColors)}
+            last
+          />
         </Card>
 
         <SectionTitle>Hakkında</SectionTitle>
