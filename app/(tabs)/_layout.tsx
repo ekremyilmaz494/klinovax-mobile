@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { darkTheme, FontFamily, lightTheme } from '@/design-system';
@@ -13,6 +14,11 @@ export default function TabLayout() {
   const unreadCount = useUnreadCount();
   const scheme = useColorScheme();
   const t = scheme === 'dark' ? darkTheme : lightTheme;
+  // app.json edgeToEdgeEnabled:true → uygulama sistem nav çubuğunun ardına çiziliyor.
+  // tabBarStyle.height'a sabit değer vermek React-Navigation'ın otomatik güvenli-alan
+  // eklemesini kapatıyordu; alttaki inset'i hem yüksekliğe (görünür alan korunsun)
+  // hem paddingBottom'a (etiketler sistem tuşlarının üstüne çıksın) elle ekliyoruz.
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -24,8 +30,9 @@ export default function TabLayout() {
           backgroundColor: t.surface.primary,
           borderTopColor: t.border.subtle,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: 84,
-          paddingTop: 6,
+          height: 64 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: insets.bottom,
         },
         tabBarLabelStyle: {
           fontFamily: FontFamily.bodyMedium,
