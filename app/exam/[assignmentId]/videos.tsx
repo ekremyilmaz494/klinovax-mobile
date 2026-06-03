@@ -469,12 +469,20 @@ function VideoBlock({
     }
   }, [video.id, video.watchedSeconds, video.completed]);
 
+  // Senkron çift-tetik kilidi: tryComplete hem playToEnd event'inden hem 2sn
+  // interval'den çağrılıyor. mutation.isPending React state'i render gecikmeli
+  // güncellenir (ref bir effect'te set ediliyor); ikisi aynı tick'te tetiklenirse
+  // her ikisi de isPending=false görüp çift POST atabilir. Ref senkron set
+  // edildiği için ikinci çağrı anında düşer (questions.tsx submittingRef ile aynı pattern).
+  const completionInProgressRef = useRef(false);
+
   // Tamamlama koşulu backend ile bire bir: `completed:true` ANCAK
   // watchedTime >= durationSeconds * 0.9 (ANTI_CHEAT_WATCH_FLOOR, videos/route.ts) ise kabul edilir.
   // Eşik DB duration'ı (video.duration) üzerinden hesaplanır — player.duration metadata'sı
   // backend'in karşılaştırdığı değerden sapabilir, sapma sessiz redde yol açar.
   // İleri sarıp sona gelmek tetiklemez: accumulator şartı her tetikleyicide aranır.
   const tryComplete = useCallback(() => {
+    if (completionInProgressRef.current) return;
     const accumulated = accumulatedRef.current;
     if (
       !shouldCompleteVideo({
@@ -486,6 +494,7 @@ function VideoBlock({
     ) {
       return;
     }
+    completionInProgressRef.current = true;
     completeMutationRef.current.mutate(
       {
         assignmentId,
@@ -505,6 +514,9 @@ function VideoBlock({
             'Tamamlama kaydedilemedi',
             err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
           );
+        },
+        onSettled: () => {
+          completionInProgressRef.current = false;
         },
       },
     );

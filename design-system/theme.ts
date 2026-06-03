@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Hairline, Motion, Palette, Radius, Shadow, Space } from './tokens';
 
@@ -142,13 +144,19 @@ export interface Theme {
 export function useTheme(): Theme {
   const scheme = useColorScheme();
   const mode: ThemeMode = scheme === 'dark' ? 'dark' : 'light';
-  return {
-    mode,
-    colors: mode === 'dark' ? darkTheme : lightTheme,
-    radius: Radius,
-    space: Space,
-    shadow: Shadow,
-    motion: Motion,
-    hairline: Hairline,
-  };
+  // mode'a bağlı memo: dönüş identity'si tema değişmedikçe sabit kalsın. `t` bir
+  // prop olarak memo'lu child'lara geçiyor (örn. VideoListItem) — her render'da
+  // yeni nesne dönmek o memoization'ı boşa çıkarıyordu.
+  return useMemo(
+    () => ({
+      mode,
+      colors: mode === 'dark' ? darkTheme : lightTheme,
+      radius: Radius,
+      space: Space,
+      shadow: Shadow,
+      motion: Motion,
+      hairline: Hairline,
+    }),
+    [mode],
+  );
 }
