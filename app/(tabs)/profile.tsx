@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Button, Stack, Text, useTheme } from '@/design-system';
+import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
 import { apiFetch } from '@/lib/api/client';
+import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
 import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
 import { setLastUnlockAt } from '@/lib/auth/biometric-policy';
@@ -226,6 +227,19 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
+        <SectionTitle>Görünüm</SectionTitle>
+        <Card>
+          <View style={{ paddingVertical: 14, gap: 12 }}>
+            <View>
+              <Text variant="bodyEmph">Tema</Text>
+              <Text variant="footnote" tone="tertiary" style={{ marginTop: 2 }}>
+                Aydınlık, karanlık ya da cihaz ayarını takip et.
+              </Text>
+            </View>
+            <ThemeSelector />
+          </View>
+        </Card>
+
         <SectionTitle>Yasal</SectionTitle>
         <Card>
           <LinkRow label="KVKK Aydınlatma Metni" onPress={() => router.push('/legal/kvkk')} />
@@ -250,6 +264,29 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'Sistem' },
+  { value: 'light', label: 'Aydınlık' },
+  { value: 'dark', label: 'Karanlık' },
+];
+
+function ThemeSelector() {
+  const { preference, setPreference } = useThemePreference();
+  return (
+    <Stack direction="row" gap={2}>
+      {THEME_OPTIONS.map((opt) => (
+        <Chip
+          key={opt.value}
+          label={opt.label}
+          selected={preference === opt.value}
+          onPress={() => setPreference(opt.value)}
+          accessibilityLabel={`Tema: ${opt.label}`}
+        />
+      ))}
+    </Stack>
   );
 }
 

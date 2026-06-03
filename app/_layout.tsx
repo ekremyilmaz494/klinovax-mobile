@@ -28,6 +28,7 @@ import { registerMutationDefaults } from '@/lib/query/mutation-defaults';
 import { setupOnlineBridge } from '@/lib/query/online-bridge';
 import { clearPersistedQueryCache, persistOptions } from '@/lib/query/persister';
 import { initSentry, Sentry } from '@/lib/sentry';
+import { ThemePreferenceProvider } from '@/lib/theme/use-theme-preference';
 import { useAuthStore } from '@/store/auth';
 
 // Crash reporting'i her şeyden önce başlat — splash gizlenmeden, font yüklenmeden.
@@ -292,6 +293,17 @@ function RootLayout() {
   );
 }
 
+// ThemePreferenceProvider RootLayout'u sarar: RootLayout'un kendisi (navTheme) ve
+// altındaki tüm ekranlar useColorScheme → tema tercihini okuyabilsin. Provider'ın
+// dışında olamaz; içindeki useColorScheme çağrıları context'e muhtaç.
+function RootLayoutWithProviders() {
+  return (
+    <ThemePreferenceProvider>
+      <RootLayout />
+    </ThemePreferenceProvider>
+  );
+}
+
 // Sentry.wrap: error boundary + touch event breadcrumbs ekler. Init no-op olduysa
 // passthrough HOC olarak çalışır, davranışı değiştirmez.
-export default Sentry.wrap(RootLayout);
+export default Sentry.wrap(RootLayoutWithProviders);
