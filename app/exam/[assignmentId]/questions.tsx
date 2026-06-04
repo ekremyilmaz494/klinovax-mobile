@@ -16,13 +16,14 @@ import {
   phaseRedirectCopy,
   phaseRedirectRoute,
 } from '@/lib/exam/phase-redirect';
-import { resolvePreSubmitTarget } from '@/lib/exam/start-routing';
+import { resolveDuplicateSubmitRoute, resolvePreSubmitTarget } from '@/lib/exam/start-routing';
 import {
   computeRemainingSeconds,
   resolveTimerEndMs,
   shouldAutoSubmitTimer,
 } from '@/lib/exam/timer';
 import { useOnline } from '@/lib/network/use-online';
+import { isAlreadyProcessedError } from '@/lib/query/mutation-defaults';
 import type { SaveAnswerVars, SubmitExamVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import type {
@@ -47,16 +48,26 @@ export default function ExamQuestionsScreen() {
     assignmentId: string;
     phase: ExamPhase;
   }>();
+  const phaseValid = phaseParam === 'pre' || phaseParam === 'post';
   const phase: ExamPhase = phaseParam === 'post' ? 'post' : 'pre';
+
+  // Faz parametresi yoksa/bozuksa sessizce 'pre' varsaymak yerine doğru fazı
+  // backend'den çözdür: start ekranı resolveStartRoute ile attempt status'üne göre
+  // yönlendirir. Normal navigasyonda phase her zaman verilir — bu yalnızca bozuk
+  // deep-link / eksik param için savunma (yanlış faz cevabı önlenir).
+  useEffect(() => {
+    if (!phaseValid) router.replace(`/exam/${assignmentId}/start`);
+  }, [phaseValid, assignmentId]);
 
   const { data, error, isLoading, refetch } = useQuery<ExamQuestionsResponse, Error>({
     queryKey: ['exam-questions', assignmentId, phase],
     queryFn: () => fetchExamQuestions(assignmentId, phase),
+    enabled: phaseValid,
     gcTime: 0,
     staleTime: 0,
   });
 
-  if (isLoading) {
+  if (!phaseValid || isLoading) {
     return (
       <SafeAreaView
         edges={['bottom']}
@@ -235,6 +246,19 @@ function QuestionsView({
         },
         onSuccess: (res) => handleSubmitNavigate(res),
         onError: (err) => {
+          // Backend "zaten işlendi" (409/422): istek ulaşmış ama yanıtı kaybolmuş
+          // (flaky network → retry) veya paused mutation tekrar oynatılmış. Bu bir
+          // HATA değil; sınav teslim edilmiştir. Kullanıcıyı soru ekranında kilitleyip
+          // "gönderilemedi" demek yerine doğru sonraki ekrana taşı (silent dalından önce).
+          if (isAlreadyProcessedError(err)) {
+            const target = resolveDuplicateSubmitRoute(phase);
+            router.replace(
+              target.kind === 'result'
+                ? `/exam/${assignmentId}/result`
+                : `/trainings/${assignmentId}`,
+            );
+            return;
+          }
           if (opts?.silent) {
             // Otomatik gönderim reddedildi (örn. backend 403 'süre çoktan dolmuş' —
             // attempt henüz auto-complete edilmemişken +5dk aşıldı). Sessizce yutmak
@@ -255,7 +279,7 @@ function QuestionsView({
         },
       });
     },
-    [submitMutation, assignmentId],
+    [submitMutation, assignmentId, phase],
   );
 
   // Server timer expired sinyali geldiğinde otomatik submit — kullanıcı

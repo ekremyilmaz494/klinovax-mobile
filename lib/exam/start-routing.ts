@@ -1,5 +1,5 @@
 import { ApiError } from '@/lib/api/client';
-import type { AttemptStatus } from '@/types/exam';
+import type { AttemptStatus, ExamPhase } from '@/types/exam';
 
 /**
  * Sınav başlatma routing saf mantığı — `app/exam/[assignmentId]/start.tsx`'in
@@ -45,6 +45,20 @@ export function resolveStartRoute(status: AttemptStatus): StartRouteTarget | nul
  */
 export function resolvePreSubmitTarget(nextStep: string | undefined): 'videos' | 'post-exam' {
   return nextStep === 'post-exam' ? 'post-exam' : 'videos';
+}
+
+/**
+ * Submit/complete sırasında backend "zaten işlendi" (409/422 — bkz.
+ * `isAlreadyProcessedError`) dönerse kullanıcı bir HATA değil, ileri taşınmalı:
+ * istek backend'e ulaşmış ama yanıtı kaybolmuş (flaky network retry) ya da
+ * paused mutation tekrar oynatılmıştır. Son sınav → sonuç ekranı; ön sınav →
+ * eğitim detayı (detay `resolveTrainingDetailRoute` ile doğru sonraki adımı
+ * yeniden çözer, çünkü 409 yanıtında `nextStep` yoktur).
+ */
+export function resolveDuplicateSubmitRoute(
+  phase: ExamPhase,
+): { kind: 'result' } | { kind: 'detail' } {
+  return phase === 'post' ? { kind: 'result' } : { kind: 'detail' };
 }
 
 /**

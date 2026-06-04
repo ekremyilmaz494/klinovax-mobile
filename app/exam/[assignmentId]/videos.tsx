@@ -37,7 +37,14 @@ import {
   shouldFlushHeartbeat,
 } from '@/lib/exam/video-completion';
 import { clampSeekTarget } from '@/lib/exam/video-seek';
+import {
+  clearVideoProgress,
+  mergeWatchedSeconds,
+  readVideoProgress,
+  writeVideoProgress,
+} from '@/lib/exam/video-progress-cache';
 import { API_BASE_URL } from '@/lib/config';
+import { isAlreadyProcessedError } from '@/lib/query/mutation-defaults';
 import type { CompleteVideoVars, SaveVideoProgressVars } from '@/lib/query/mutation-defaults';
 import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import { useAuthStore } from '@/store/auth';
@@ -364,6 +371,44 @@ function VideoBlock({
   // Son bilinen oynatma konumu — flush sırasında player release edilmiş
   // olabilir (unmount cleanup sırası), o durumda bu ref kullanılır.
   const lastKnownPositionRef = useRef<number>(Math.floor(video.lastPosition ?? 0));
+  // Yerel önbelleğe en son yazılan izleme süresi (sn) — tekrar yazımları seyreltir.
+  const lastCachedRef = useRef(0);
+
+  // Mount'ta yerel önbelleği oku: force-kill / crash sonrası backend'in henüz
+  // bilmediği çevrimdışı birikim varsa accumulator'ı ondan başlat (yüksek olanı al).
+  //
+  // ANTI-CHEAT KORUMASI: önbellek `assignmentId:videoId` ile anahtarlı (attemptId
+  // yanıtta yok). Backend bu video için watchedSeconds=0 ve completed=false
+  // bildiriyorsa deneme TAZE'dir — olası ÖNCEKİ deneme önbelleğini güvenme, temizle
+  // (yeniden denemede eski izleme kredisi sızmasın). Önbellek yalnızca backend zaten
+  // bu denemede ilerleme bildirdiğinde (watchedSeconds>0) çevrimdışı fazlalığı kurtarır.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if ((video.watchedSeconds ?? 0) <= 0 && !video.completed) {
+        await clearVideoProgress(assignmentId, video.id);
+        return;
+      }
+      const cached = await readVideoProgress(assignmentId, video.id);
+      if (cancelled || !cached) return;
+      accumulatedRef.current = mergeWatchedSeconds(accumulatedRef.current, cached.watchedSeconds);
+      if (cached.position > lastKnownPositionRef.current) {
+        lastKnownPositionRef.current = cached.position;
+        // Önbellekteki konuma daha önce ULAŞILMIŞTI (ileri sarma exploit'i değil).
+        // Son 5sn'e değme (player init'iyle tutarlı); release edilmişse sessizce geç.
+        if (cached.position < video.duration - 5) {
+          try {
+            player.currentTime = cached.position;
+          } catch {
+            /* player release edildi */
+          }
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId, video.id, video.duration, video.watchedSeconds, video.completed, player]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -383,6 +428,16 @@ function VideoBlock({
       lastTickRef.current = now;
       lastKnownPositionRef.current = Math.floor(player.currentTime);
       const watched = Math.floor(accumulatedRef.current);
+      // Yerel önbelleğe yaz (online/offline fark etmez): uygulama zorla kapansa bile
+      // çevrimdışı birikim diskte kalır, reopen'da mount effect'i buradan kurtarır.
+      // 5sn eşiği AsyncStorage I/O'sunu seyreltir. Backend'e GİTMEZ — flood yaratmaz.
+      if (watched - lastCachedRef.current >= 5) {
+        lastCachedRef.current = watched;
+        void writeVideoProgress(assignmentId, video.id, {
+          watchedSeconds: watched,
+          position: lastKnownPositionRef.current,
+        });
+      }
       // Periyodik heartbeat offline'da ATILMAZ (kuyruğa da girmez): izleme sürerken
       // her 10sn'de bir paused mutation birikir, online dönüşte replay fırtınası
       // 60/dk rate limit'e çarpar. Offline ilerlemeyi çıkış flush'ı tek kayıtla taşır.
@@ -464,6 +519,7 @@ function VideoBlock({
       accumulatedRef.current = video.watchedSeconds ?? 0;
       lastTickRef.current = null;
       lastSavedRef.current = 0;
+      lastCachedRef.current = 0;
       completedRef.current = video.completed;
       lastVideoIdRef.current = video.id;
     }
@@ -505,11 +561,16 @@ function VideoBlock({
       {
         onSuccess: (data) => {
           completedRef.current = true;
+          // Tamamlama backend'e yazıldı — yerel önbellek artık gereksiz, temizle.
+          void clearVideoProgress(assignmentId, video.id);
           onCompleted(data.allVideosCompleted);
         },
         onError: (err) => {
-          // Tamamlama backend'e yazılamadı — kullanıcı yeniden açmazsa
-          // bir sonraki açılışta video baştan oynar. Görünür hata göster.
+          // Backend "zaten tamamlanmış" (409/422): paused mutation replay'i ya da
+          // flaky network retry'ı. Hata değil — defaults exam-videos cache'ini
+          // invalidate etti, sessizce geç (spurious "kaydedilemedi" alert'i atma).
+          if (isAlreadyProcessedError(err)) return;
+          // Gerçek hata: kullanıcı yeniden açmazsa video baştan oynar — görünür uyar.
           Alert.alert(
             'Tamamlama kaydedilemedi',
             err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
