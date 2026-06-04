@@ -1,113 +1,92 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView, type WebViewNavigation } from 'react-native-webview';
 
-import { Button, Stack as UIStack, Text, useTheme } from '@/design-system';
-import { isAllowedLegalUrl, LEGAL_TITLES, legalUrl } from '@/lib/legal/legal-url';
-import { openLegal } from '@/lib/legal/open-legal';
+import { Hero, Stack, Text, useTheme } from '@/design-system';
+import { LEGAL_CONTENT, type LegalSlug } from '@/lib/legal/content';
 
-const ALLOWED_SLUGS = new Set(Object.keys(LEGAL_TITLES));
+const SLUGS = new Set<LegalSlug>(['kvkk', 'terms', 'privacy']);
+
+function resolveSlug(slug: string | undefined): LegalSlug {
+  return slug && SLUGS.has(slug as LegalSlug) ? (slug as LegalSlug) : 'kvkk';
+}
 
 /**
- * Yasal metin fallback ekranı (deep-link ile gelinirse). Profil'deki linkler artık
- * doğrudan in-app tarayıcıyı açıyor (lib/legal/open-legal.ts) — bu ekran yalnızca
- * `klinovax://legal/<slug>` deep-link'i için durur.
- *
- * **Çökme sertleştirmesi**: WebView Android'de render süreci ölünce
- * (`onRenderProcessGone`) handler yoksa uygulamayı KOMPLE çökertir
- * ("Klinovax sürekli olarak duruyor"). Burada onRenderProcessGone/onError/onHttpError
- * yakalanıp WebView kaldırılır ve çıkış yolu (tarayıcı/geri) sunulur — asla çökme/dead-end.
+ * Yasal metin ekranı — içerik artık uygulamada NATIVE render edilir (lib/legal/content.ts).
+ * Eski WebView/in-app tarayıcı yönlendirmesi kaldırıldı: site açılmaz, metin Warm
+ * Editorial tipografisiyle gösterilir. Hem profil linkleri hem `klinovax://legal/<slug>`
+ * deep-link'i buraya gelir. WebView olmadığı için Android render-process çökmesi de yok.
  */
 export default function LegalScreen() {
   const t = useTheme();
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const safeSlug = ALLOWED_SLUGS.has(slug) ? slug : 'kvkk';
-  const title = LEGAL_TITLES[safeSlug] ?? 'Yasal';
-  const baseUrl = legalUrl(safeSlug);
-  const initialUrl = `${baseUrl}?bare=1`;
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const bg = t.colors.surface.canvas;
-
-  if (failed) {
-    return (
-      <>
-        <Stack.Screen options={{ title, headerBackTitle: 'Geri' }} />
-        <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: bg }}>
-          <View style={{ flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' }}>
-            <Text variant="title-3" align="center">
-              Sayfa uygulama içinde açılamadı
-            </Text>
-            <Text variant="body" tone="secondary" align="center" style={{ marginTop: 8 }}>
-              {title} metnini tarayıcıda açabilir ya da geri dönebilirsin.
-            </Text>
-            <UIStack direction="column" gap={3} style={{ marginTop: 24, alignSelf: 'stretch' }}>
-              <Button
-                label="Tarayıcıda aç"
-                variant="primary"
-                size="lg"
-                onPress={() =>
-                  void openLegal(safeSlug, {
-                    toolbar: t.colors.surface.canvas,
-                    controls: t.colors.accent.clay,
-                  })
-                }
-                fullWidth
-              />
-              <Button
-                label="Geri dön"
-                variant="outline"
-                size="lg"
-                onPress={() => router.back()}
-                fullWidth
-              />
-            </UIStack>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  const isAllowedRequest = (req: WebViewNavigation | { url: string }): boolean =>
-    isAllowedLegalUrl(baseUrl, req.url);
+  const doc = LEGAL_CONTENT[resolveSlug(slug)];
 
   return (
     <>
-      <Stack.Screen options={{ title, headerBackTitle: 'Geri' }} />
-      <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: bg }}>
-        <WebView
-          source={{ uri: initialUrl }}
-          style={{ flex: 1, backgroundColor: bg }}
-          onLoadStart={() => setLoading(true)}
-          onLoadEnd={() => setLoading(false)}
-          onShouldStartLoadWithRequest={isAllowedRequest}
-          // Ağ/SSL hatası → boş ekran yerine fallback.
-          onError={() => setFailed(true)}
-          onHttpError={(e) => {
-            if (e.nativeEvent.statusCode >= 500) setFailed(true);
-          }}
-          // KRİTİK (Android): render süreci ölürse uygulamayı çökertme — WebView'ı
-          // kaldırıp fallback göster. true döndürmek "ben hallettim" sinyali.
-          onRenderProcessGone={() => {
-            setFailed(true);
-            return true;
-          }}
-          decelerationRate="normal"
-          setSupportMultipleWindows={false}
-        />
-        {loading ? (
-          <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              { alignItems: 'center', justifyContent: 'center', backgroundColor: bg },
-            ]}
-            pointerEvents="none"
-          >
-            <ActivityIndicator size="large" color={t.colors.accent.clay} />
-          </View>
-        ) : null}
+      <ExpoStack.Screen options={{ title: doc.title, headerBackTitle: 'Geri' }} />
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
+      >
+        <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+          <Hero
+            overline={doc.updatedAt ? `Son güncelleme · ${doc.updatedAt}` : undefined}
+            title={doc.title}
+          />
+
+          {doc.intro?.map((p, i) => (
+            <Text
+              key={`intro-${i}`}
+              variant="body"
+              tone="secondary"
+              style={{ marginBottom: t.space[3], lineHeight: 22 }}
+            >
+              {p}
+            </Text>
+          ))}
+
+          {doc.sections.map((section, i) => (
+            <View key={`section-${i}`} style={{ marginTop: t.space[5] }}>
+              <Text variant="title-3" style={{ marginBottom: t.space[2] }}>
+                {section.heading}
+              </Text>
+
+              {section.body?.map((p, j) => (
+                <Text
+                  key={`body-${j}`}
+                  variant="body"
+                  tone="secondary"
+                  style={{ marginBottom: t.space[2], lineHeight: 22 }}
+                >
+                  {p}
+                </Text>
+              ))}
+
+              {section.items ? (
+                <View style={{ gap: t.space[2], marginTop: t.space[1] }}>
+                  {section.items.map((item, k) => (
+                    <Stack key={`item-${k}`} direction="row" gap={3} align="flex-start">
+                      {/* Madde işareti — emoji/`•` değil küçük clay nokta (kural #2). */}
+                      <View
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: 2.5,
+                          backgroundColor: t.colors.accent.clay,
+                          marginTop: 8,
+                        }}
+                      />
+                      <Text variant="body" tone="secondary" style={{ flex: 1, lineHeight: 22 }}>
+                        {item}
+                      </Text>
+                    </Stack>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </ScrollView>
       </SafeAreaView>
     </>
   );
