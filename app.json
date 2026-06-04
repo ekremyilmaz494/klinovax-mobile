@@ -73,7 +73,13 @@
         }
       ],
       "@sentry/react-native",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

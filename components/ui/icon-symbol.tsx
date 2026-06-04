@@ -36,6 +36,8 @@ const MAPPING = {
   'gobackward.10': 'replay-10',
   'speaker.slash.fill': 'volume-off',
   'speaker.wave.2.fill': 'volume-up',
+  'arrow.up.left.and.arrow.down.right': 'fullscreen',
+  'arrow.down.right.and.arrow.up.left': 'fullscreen-exit',
   'lock.fill': 'lock',
   faceid: 'face',
   touchid: 'fingerprint',
