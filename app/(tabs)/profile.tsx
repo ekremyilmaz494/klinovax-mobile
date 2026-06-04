@@ -18,7 +18,6 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
 import { apiFetch } from '@/lib/api/client';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
-import { openLegal } from '@/lib/legal/open-legal';
 import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
 import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
@@ -125,8 +124,6 @@ export default function ProfileScreen() {
 
   const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : '—';
   const appVersion = Constants.expoConfig?.version ?? Constants.expoConfig?.runtimeVersion ?? '—';
-  // In-app tarayıcının renkleri tema ile uyumlu olsun (toolbar canvas, kontroller clay).
-  const legalColors = { toolbar: t.colors.surface.canvas, controls: t.colors.accent.clay };
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -253,22 +250,11 @@ export default function ProfileScreen() {
           {/* KVKK hak talepleri ekranı — aydınlatma metninden (bilgilendirme) farklı:
               kullanıcı buradan veri sahibi haklarına dair talep oluşturur. */}
           <LinkRow label="KVKK Veri Haklarım" onPress={() => router.push('/kvkk')} />
-          {/* Yasal metinler sistemin in-app tarayıcısında açılır (Chrome Custom Tabs /
-              SafariViewController) — gömülü WebView Android'de render süreci ölünce
-              uygulamayı çökertiyordu. Custom Tabs kendi kapatma butonuyla güvenli. */}
-          <LinkRow
-            label="KVKK Aydınlatma Metni"
-            onPress={() => void openLegal('kvkk', legalColors)}
-          />
-          <LinkRow
-            label="Kullanım Koşulları"
-            onPress={() => void openLegal('terms', legalColors)}
-          />
-          <LinkRow
-            label="Gizlilik Politikası"
-            onPress={() => void openLegal('privacy', legalColors)}
-            last
-          />
+          {/* Yasal metinler artık uygulama içinde NATIVE açılır (app/legal/[slug].tsx) —
+              tarayıcıya/siteye yönlendirme yok. İçerik lib/legal/content.ts'te. */}
+          <LinkRow label="KVKK Aydınlatma Metni" onPress={() => router.push('/legal/kvkk')} />
+          <LinkRow label="Kullanım Koşulları" onPress={() => router.push('/legal/terms')} />
+          <LinkRow label="Gizlilik Politikası" onPress={() => router.push('/legal/privacy')} last />
         </Card>
 
         <SectionTitle>Hakkında</SectionTitle>
