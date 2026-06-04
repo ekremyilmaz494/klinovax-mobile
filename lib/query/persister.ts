@@ -38,7 +38,16 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   maxAge: 24 * 60 * 60 * 1000,
   buster: 'v1.0.0', // app.json version ile manuel sync — bump'lanırsa eski cache atılır
   dehydrateOptions: {
-    shouldDehydrateQuery: (query) => query.state.status === 'success',
+    shouldDehydrateQuery: (query) => {
+      if (query.state.status !== 'success') return false;
+      // Exam akışı sorguları (exam-videos/results/...) ATTEMPT'e özgü + sunucu-otoriter.
+      // Persist edilirlerse yeni denemede ESKİ deneme durumu hidrate olur; özellikle
+      // exam-videos'ta route-guard kullanıcıyı izlemeden son sınava atabiliyor. Bu
+      // sorgular her mount'ta taze çekilmeli — asla diske yazma.
+      const k = query.queryKey;
+      if (Array.isArray(k) && typeof k[0] === 'string' && k[0].startsWith('exam-')) return false;
+      return true;
+    },
     /**
      * Paused (offline) veya pending mutation'lar persist edilir; idle/success/error
      * tutulmaz — başarılı bir mutation'ı tekrar oynatmanın anlamı yok. Sadece

@@ -67,6 +67,14 @@ export default function VideosScreen() {
   const { data, error, isLoading, refetch } = useQuery<ExamVideosResponse, Error>({
     queryKey: ['exam-videos', assignmentId],
     queryFn: () => fetchExamVideos(assignmentId),
+    // gcTime:0 + staleTime:0 — KRİTİK: queryKey assignmentId ile denemeler arası
+    // AYNI. Persist/in-memory cache ÖNCEKİ denemenin durumunu (attemptStatus
+    // 'post_exam' + videolar completed) yeni denemeye taşırsa, aşağıdaki route-guard
+    // taze veri gelmeden tetiklenip kullanıcıyı VİDEOYU İZLEMEDEN son sınava atıyordu
+    // (2.+ denemede görülen bug). Her mount'ta taze sunucu durumu zorunlu —
+    // exam-questions/exam-timer ile aynı desen.
+    gcTime: 0,
+    staleTime: 0,
   });
 
   // Route guard: GET /videos yanıtındaki attemptStatus bu ekranla uyuşmuyorsa
