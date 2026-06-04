@@ -1,5 +1,5 @@
-import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { router, Tabs } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -61,6 +61,18 @@ export default function TabLayout() {
           title: 'Anasayfa',
           tabBarIcon: ({ color, size }) => (
             <IconSymbol size={size} name="house.fill" color={color} />
+          ),
+          // Takvim'e hızlı erişim — eğitim/sınav son tarihlerini ay görünümünde aç.
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/calendar')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Takvim"
+              style={({ pressed }) => ({ marginRight: 16, opacity: pressed ? 0.6 : 1 })}
+            >
+              <IconSymbol name="calendar" size={24} color={t.accent.clay} />
+            </Pressable>
           ),
         }}
       />
