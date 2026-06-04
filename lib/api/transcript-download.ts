@@ -29,7 +29,11 @@ export async function shareTranscriptPdf(): Promise<void> {
   await file.create({ overwrite: true });
   await file.write(new Uint8Array(buffer));
 
-  if (!(await Sharing.isAvailableAsync())) return;
+  // Sessiz dönüş "Hazırlanıyor…" sonrası butonu sessizce resetliyordu; çağıran
+  // try/catch ile Alert gösterdiği için açık hata fırlat.
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Paylaşım bu cihazda kullanılamıyor.');
+  }
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/pdf',
     dialogTitle: 'Transkripti Paylaş',
