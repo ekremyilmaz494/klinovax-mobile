@@ -274,6 +274,7 @@ function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trainings/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="kvkk" options={{ headerShown: true }} />
           {/* Exam ekranları artık kendi grup layout'unda (app/exam/[assignmentId]/
               _layout.tsx) — header'lar + per-screen options orada, kendi
               ErrorBoundary'siyle. Burada sadece grubu nested navigator olarak
