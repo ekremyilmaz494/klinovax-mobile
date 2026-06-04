@@ -59,6 +59,21 @@ export function groupEventsByDay(events: CalendarEvent[]): AgendaSection[] {
   }));
 }
 
+/**
+ * Dashboard ajanda önizlemesi: bugünden (todayKey 'YYYY-MM-DD') itibaren başlayan
+ * gün gruplarını döndürür, en fazla `maxGroups` tane. Geçmiş günler elenir.
+ * 'YYYY-MM-DD' string'leri sözlüksel sıralandığında tarih sırası korunur.
+ */
+export function upcomingSections(
+  events: CalendarEvent[],
+  todayKey: string,
+  maxGroups: number,
+): AgendaSection[] {
+  return groupEventsByDay(events)
+    .filter((s) => s.dayKey >= todayKey)
+    .slice(0, maxGroups);
+}
+
 /** 'YYYY-MM-DD' → 'Çarşamba, 4 Haziran' (yerel Date'ten, tz kaymasız). */
 export function formatDayTitle(dayKey: string): string {
   const [y, m, d] = dayKey.split('-').map(Number);

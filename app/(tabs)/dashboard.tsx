@@ -1,30 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AgendaPreview } from '@/components/dashboard/AgendaPreview';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { StatCard } from '@/components/ui/StatCard';
 import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, apiFetch } from '@/lib/api/client';
+import { monthParam } from '@/lib/calendar/agenda';
 import { useAuthStore } from '@/store/auth';
 import type {
   DashboardResponse,
   RecentActivity,
   StaffProfile,
-  UpcomingTraining,
   UrgentTraining,
 } from '@/types/staff';
+
+/** Yerel tarihten 'YYYY-MM-DD' — ajanda filtre anahtarı (tz kaymasız). */
+function dayKeyOf(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 export default function DashboardScreen() {
   const t = useTheme();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [refreshing, setRefreshing] = useState(false);
+  // new Date() yalnızca ilk render'da — ajanda filtre/ay anahtarları sabit kalsın.
+  const [now] = useState(() => new Date());
+  const monthStr = monthParam(now);
+  const todayKey = dayKeyOf(now);
 
   const { data, isLoading, error, refetch } = useQuery<DashboardResponse, Error>({
     queryKey: ['staff-dashboard'],
@@ -33,13 +45,14 @@ export default function DashboardScreen() {
   });
 
   // Selamlama için isim — profil tab'ıyla aynı queryKey, cache paylaşılır.
-  // E-posta gizlilik nedeniyle gösterilmiyor; profil yüklenmediyse sadece "Merhaba,".
   const { data: profile } = useQuery<StaffProfile, Error>({
     queryKey: ['staff', 'profile'],
     enabled: !!user,
     queryFn: () => apiFetch<StaffProfile>('/api/staff/profile'),
   });
-  const displayName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : '';
+  const firstName = profile?.firstName?.trim() ?? '';
+  // Profesyonel bağlam: unvan · departman (varsa) — daha önce kullanılmıyordu.
+  const subtitle = [profile?.title, profile?.department].filter(Boolean).join(' · ');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -57,7 +70,7 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -66,34 +79,27 @@ export default function DashboardScreen() {
           />
         }
       >
-        <View style={{ marginBottom: 24 }}>
-          <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+        {/* Hero — Warm Editorial brand selamlaması (display variant, brand istisnası). */}
+        <View style={{ marginBottom: t.space[6] }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
             HOŞ GELDİN
           </Text>
-          <Text
-            italic
-            style={{
-              fontFamily: 'Fraunces_700Bold',
-              fontSize: 44,
-              lineHeight: 50,
-              letterSpacing: -0.8,
-              color: t.colors.text.primary,
-            }}
-          >
-            Merhaba,
+          <Text variant="display" italic tone="primary" numberOfLines={2}>
+            Merhaba{firstName ? `, ${firstName}` : ''}
           </Text>
-          {displayName ? (
-            <Text variant="title-3" tone="secondary" numberOfLines={1} style={{ marginTop: 4 }}>
-              {displayName}
+          {subtitle ? (
+            <Text
+              variant="subhead"
+              tone="tertiary"
+              numberOfLines={1}
+              style={{ marginTop: t.space[1] }}
+            >
+              {subtitle}
             </Text>
           ) : null}
         </View>
 
-        {isLoading && !data ? (
-          <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-            <ActivityIndicator color={t.colors.accent.clay} size="large" />
-          </View>
-        ) : null}
+        {isLoading && !data ? <DashboardSkeleton /> : null}
 
         {error && !data ? (
           <ScreenError
@@ -103,46 +109,23 @@ export default function DashboardScreen() {
         ) : null}
 
         {data ? (
-          <>
+          <View style={{ gap: t.space[6] }}>
             {data.urgentTraining ? <UrgentCard item={data.urgentTraining} /> : null}
 
-            <View
-              style={{
-                backgroundColor: t.colors.surface.primary,
-                borderRadius: t.radius.lg,
-                borderWidth: t.hairline,
-                borderColor: t.colors.border.subtle,
-                overflow: 'hidden',
-              }}
-            >
-              <Stack direction="row">
-                <StatCard label="Atanan" value={data.stats.assigned} tone="info" flat />
-                <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
-                <StatCard label="Devam" value={data.stats.inProgress} tone="warning" flat />
-              </Stack>
-              <View style={{ height: t.hairline, backgroundColor: t.colors.border.subtle }} />
-              <Stack direction="row">
-                <StatCard label="Tamamlanan" value={data.stats.completed} tone="success" flat />
-                <View style={{ width: t.hairline, backgroundColor: t.colors.border.subtle }} />
-                <StatCard label="Başarısız" value={data.stats.failed} tone="danger" flat />
-              </Stack>
-            </View>
+            <StatsGrid stats={data.stats} />
 
-            <View style={{ marginTop: 24 }}>
+            <View>
               <Stack
                 direction="row"
                 justify="space-between"
                 align="center"
-                style={{ marginBottom: 10 }}
+                style={{ marginBottom: t.space[2] }}
               >
-                <Text variant="title-3">Genel ilerleme</Text>
+                <Text variant="title-2">Genel ilerleme</Text>
                 <Text
-                  style={{
-                    fontFamily: 'Fraunces_700Bold',
-                    fontSize: 18,
-                    color: t.colors.accent.clay,
-                    fontVariant: ['tabular-nums'],
-                  }}
+                  variant="metricSmall"
+                  maxFontSizeMultiplier={1.6}
+                  style={{ color: t.colors.accent.clay, fontVariant: ['tabular-nums'] }}
                 >
                   %{data.stats.overallProgress}
                 </Text>
@@ -150,50 +133,30 @@ export default function DashboardScreen() {
               <ProgressBar value={data.stats.overallProgress} height={10} />
             </View>
 
-            <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
-              Yaklaşan eğitimler
-            </Text>
-            {data.upcomingTrainings.length === 0 ? (
-              <EmptyState
-                icon="calendar"
-                title="Yaklaşan eğitim yok"
-                description="Tüm atamalarınız güncel."
-              />
-            ) : (
-              <View style={{ gap: 10 }}>
-                {data.upcomingTrainings.map((it) => (
-                  <UpcomingItem key={it.id} item={it} />
-                ))}
-              </View>
-            )}
+            <AgendaPreview todayKey={todayKey} monthStr={monthStr} />
 
-            <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
-              Son aktivite
-            </Text>
-            {data.recentActivity.length === 0 ? (
-              <EmptyState icon="clock" title="Henüz aktivite yok" />
-            ) : (
-              <View
-                style={{
-                  backgroundColor: t.colors.surface.primary,
-                  borderRadius: t.radius.lg,
-                  borderWidth: t.hairline,
-                  borderColor: t.colors.border.subtle,
-                  paddingVertical: 4,
-                  paddingLeft: 4,
-                }}
-              >
-                {data.recentActivity.map((a, i) => (
-                  <ActivityItem
-                    key={`${a.time}-${i}`}
-                    item={a}
-                    isFirst={i === 0}
-                    isLast={i === data.recentActivity.length - 1}
-                  />
-                ))}
-              </View>
-            )}
-          </>
+            <View>
+              <Text variant="title-2" style={{ marginBottom: t.space[3] }}>
+                Son aktivite
+              </Text>
+              {data.recentActivity.length === 0 ? (
+                <EmptyState icon="clock" title="Henüz aktivite yok" />
+              ) : (
+                <Card padding={0}>
+                  <View style={{ paddingVertical: t.space[1], paddingLeft: t.space[1] }}>
+                    {data.recentActivity.map((a, i) => (
+                      <ActivityItem
+                        key={`${a.time}-${i}`}
+                        item={a}
+                        isFirst={i === 0}
+                        isLast={i === data.recentActivity.length - 1}
+                      />
+                    ))}
+                  </View>
+                </Card>
+              )}
+            </View>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -204,13 +167,12 @@ function UrgentCard({ item }: { item: UrgentTraining }) {
   const t = useTheme();
   return (
     // Kart tıklanabilir: kullanıcı "acil eğitim" uyarısından doğrudan eğitim
-    // detayına gidip başlayabilmeli — daha önce düz Card'dı, dokunulduğunda
-    // hiçbir şey olmuyordu.
+    // detayına gidip başlayabilmeli.
     <Pressable
       onPress={() => router.push(`/trainings/${item.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`Acil eğitim: ${item.title}`}
-      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1, marginBottom: 16 })}
+      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
     >
       <Card variant="accent" rail>
         <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 6 }}>
@@ -226,41 +188,6 @@ function UrgentCard({ item }: { item: UrgentTraining }) {
           </Text>
         </Stack>
       </Card>
-    </Pressable>
-  );
-}
-
-function UpcomingItem({ item }: { item: UpcomingTraining }) {
-  const t = useTheme();
-  const daysTone = item.daysLeft <= 7 ? 'danger' : item.daysLeft <= 14 ? 'warning' : 'neutral';
-  return (
-    // Tıklanabilir: kart eğitim detayına götürür — daha önce düz View'dı ve
-    // kullanıcılar dokunup "buton çalışmıyor" sanıyordu.
-    <Pressable
-      onPress={() => router.push(`/trainings/${item.id}`)}
-      accessibilityRole="button"
-      accessibilityLabel={`Eğitim: ${item.title}`}
-      style={({ pressed }) => ({
-        backgroundColor: t.colors.surface.primary,
-        borderRadius: t.radius.lg,
-        borderWidth: t.hairline,
-        borderColor: t.colors.border.subtle,
-        padding: 16,
-        opacity: pressed ? 0.92 : 1,
-      })}
-    >
-      <Text variant="bodyEmph" numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 8 }}>
-        <Text variant="footnote" tone="tertiary">
-          {item.deadline || 'Süresiz'}
-        </Text>
-        {item.deadline ? <Badge label={`${item.daysLeft} gün`} tone={daysTone} /> : null}
-      </Stack>
-      <View style={{ marginTop: 12 }}>
-        <ProgressBar value={item.progress} height={6} />
-      </View>
     </Pressable>
   );
 }
