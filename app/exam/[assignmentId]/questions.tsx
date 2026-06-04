@@ -10,7 +10,6 @@ import { Button, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
-import { isAnswerLockError, rollbackAnswer } from '@/lib/exam/answer-lock';
 import {
   extractPhaseRedirect,
   phaseRedirectCopy,
@@ -302,8 +301,8 @@ function QuestionsView({
   const totalQuestions = data.questions.length;
 
   const handleSelect = (q: ExamQuestion, optionUuid: string) => {
-    // Önceki seçimi sakla — 423 (kilit) durumunda local state'i geri almak için.
-    const previousAnswer = answers.get(q.questionId);
+    // Cevap seçimi: local state güncelle + arka planda save-answer. Cevaplar
+    // sınav gönderilene kadar serbestçe değişir — soru başına süre kilidi yoktur.
     setAnswers((prev) => {
       const next = new Map(prev);
       next.set(q.questionId, optionUuid);
@@ -318,15 +317,7 @@ function QuestionsView({
       },
       {
         onError: (error) => {
-          if (isAnswerLockError(error)) {
-            // Backend cevabı kilitledi (post-exam 30sn grace doldu).
-            // UI'ı backend ile tutarlı kıl: önceki seçime geri al.
-            setAnswers((prev) => rollbackAnswer(prev, q.questionId, previousAnswer));
-            Alert.alert(
-              'Cevap kilitli',
-              'Bu sorunun cevabı 30 saniye geçtiği için kilitlendi. Önceki seçimin korunuyor.',
-            );
-          } else if (error instanceof ApiError && error.status === 429) {
+          if (error instanceof ApiError && error.status === 429) {
             Alert.alert(
               'Çok hızlı',
               'Cevap kaydetme limitine ulaşıldı. Lütfen kısa bir süre bekle.',
