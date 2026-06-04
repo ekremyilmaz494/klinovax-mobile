@@ -15,19 +15,32 @@ export const ANTI_CHEAT_WATCH_FLOOR = 0.9;
  * Bir videonun tamamlanmış sayılıp completion POST'unun atılması gerekip
  * gerekmediği. `accumulated` yalnızca play state'inde geçen gerçek izleme
  * süresidir (skip-to-end exploit'i bu yüzden tetiklemez).
+ *
+ * `reachedEnd` (web onEnded paritesi): video DOĞAL olarak sonuna geldi. İleri
+ * sarma engelli (clampSeekTarget + nativeControls=false) olduğu için sona gelmek
+ * videonun gerçekten izlendiği anlamına gelir — bu durumda accumulated eşiği
+ * ARANMAZ. Sebep: accumulated 5sn tick'le güncelleniyor ve video bitince oynatma
+ * durduğu an son dilim eklenmiyor; KISA videolarda bu, %90 eşiğini kıl payı
+ * kaçırıp tamamlamayı hiç tetiklememeye (kullanıcı son sınava geçemeden takılı
+ * kalmaya) yol açıyordu. Backend yine watchedTime >= %90 istiyor;
+ * buildCompletionWatchedTime taban olarak ceil(duration*0.9) gönderdiği için
+ * anti-cheat zayıflamaz.
  */
 export function shouldCompleteVideo({
   accumulated,
   durationSeconds,
   alreadyCompleted,
   isPending,
+  reachedEnd = false,
 }: {
   accumulated: number;
   durationSeconds: number;
   alreadyCompleted: boolean;
   isPending: boolean;
+  reachedEnd?: boolean;
 }): boolean {
   if (alreadyCompleted || isPending || !durationSeconds) return false;
+  if (reachedEnd) return true;
   return accumulated >= durationSeconds * ANTI_CHEAT_WATCH_FLOOR;
 }
 

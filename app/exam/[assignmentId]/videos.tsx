@@ -545,59 +545,67 @@ function VideoBlock({
   // Eşik DB duration'ı (video.duration) üzerinden hesaplanır — player.duration metadata'sı
   // backend'in karşılaştırdığı değerden sapabilir, sapma sessiz redde yol açar.
   // İleri sarıp sona gelmek tetiklemez: accumulator şartı her tetikleyicide aranır.
-  const tryComplete = useCallback(() => {
-    if (completionInProgressRef.current) return;
-    const accumulated = accumulatedRef.current;
-    if (
-      !shouldCompleteVideo({
-        accumulated,
-        durationSeconds: video.duration,
-        alreadyCompleted: completedRef.current,
-        isPending: completeMutationRef.current.isPending,
-      })
-    ) {
-      return;
-    }
-    completionInProgressRef.current = true;
-    completeMutationRef.current.mutate(
-      {
-        assignmentId,
-        videoId: video.id,
-        position: Math.floor(player.currentTime),
-        watchedTime: buildCompletionWatchedTime(accumulated, video.duration),
-      },
-      {
-        onSuccess: (data) => {
-          completedRef.current = true;
-          // Tamamlama backend'e yazıldı — yerel önbellek artık gereksiz, temizle.
-          void clearVideoProgress(assignmentId, video.id);
-          onCompleted(data.allVideosCompleted);
+  const tryComplete = useCallback(
+    (reachedEnd: boolean) => {
+      if (completionInProgressRef.current) return;
+      const accumulated = accumulatedRef.current;
+      if (
+        !shouldCompleteVideo({
+          accumulated,
+          durationSeconds: video.duration,
+          alreadyCompleted: completedRef.current,
+          isPending: completeMutationRef.current.isPending,
+          reachedEnd,
+        })
+      ) {
+        return;
+      }
+      completionInProgressRef.current = true;
+      completeMutationRef.current.mutate(
+        {
+          assignmentId,
+          videoId: video.id,
+          position: Math.floor(player.currentTime),
+          watchedTime: buildCompletionWatchedTime(accumulated, video.duration),
         },
-        onError: (err) => {
-          // Backend "zaten tamamlanmış" (409/422): paused mutation replay'i ya da
-          // flaky network retry'ı. Hata değil — defaults exam-videos cache'ini
-          // invalidate etti, sessizce geç (spurious "kaydedilemedi" alert'i atma).
-          if (isAlreadyProcessedError(err)) return;
-          // Gerçek hata: kullanıcı yeniden açmazsa video baştan oynar — görünür uyar.
-          Alert.alert(
-            'Tamamlama kaydedilemedi',
-            err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
-          );
+        {
+          onSuccess: (data) => {
+            completedRef.current = true;
+            // Tamamlama backend'e yazıldı — yerel önbellek artık gereksiz, temizle.
+            void clearVideoProgress(assignmentId, video.id);
+            onCompleted(data.allVideosCompleted);
+          },
+          onError: (err) => {
+            // Backend "zaten tamamlanmış" (409/422): paused mutation replay'i ya da
+            // flaky network retry'ı. Hata değil — defaults exam-videos cache'ini
+            // invalidate etti, sessizce geç (spurious "kaydedilemedi" alert'i atma).
+            if (isAlreadyProcessedError(err)) return;
+            // Gerçek hata: kullanıcı yeniden açmazsa video baştan oynar — görünür uyar.
+            Alert.alert(
+              'Tamamlama kaydedilemedi',
+              err.message || 'Bağlantını kontrol edip videoyu yeniden oynatmayı dene.',
+            );
+          },
+          onSettled: () => {
+            completionInProgressRef.current = false;
+          },
         },
-        onSettled: () => {
-          completionInProgressRef.current = false;
-        },
-      },
-    );
-  }, [player, assignmentId, video.id, video.duration, onCompleted]);
+      );
+    },
+    [player, assignmentId, video.id, video.duration, onCompleted],
+  );
 
   // Doğal bitiş — web'in <video> onEnded sinyalinin RN karşılığı (kanonik tetikleyici).
-  useEventListener(player, 'playToEnd', tryComplete);
+  // reachedEnd=true: ileri-sarma kapalı olduğu için sona gelmek = video izlendi; kısa
+  // videoda 5sn'lik sayaç granülerliği %90 eşiğini kıl payı kaçırsa bile tamamlama
+  // buradan kesin gider (aksi halde kullanıcı son sınava geçemeden takılı kalıyordu).
+  const completeOnEnd = useCallback(() => tryComplete(true), [tryComplete]);
+  useEventListener(player, 'playToEnd', completeOnEnd);
 
   // Güvence tetikleyicisi: kullanıcı %90+ izleyip videoyu sonuna kadar oynatmadan
-  // ayrılırsa da tamamlama kaçmasın.
+  // ayrılırsa da tamamlama kaçmasın (reachedEnd=false → accumulated eşiği aranır).
   useEffect(() => {
-    const id = setInterval(tryComplete, 2000);
+    const id = setInterval(() => tryComplete(false), 2000);
     return () => clearInterval(id);
   }, [tryComplete]);
 
