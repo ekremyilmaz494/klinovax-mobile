@@ -35,7 +35,19 @@ export interface SemanticColors {
     infoBg: string;
   };
   overlay: { scrim: string; pressed: string };
+  // Video oynatıcı kontrolleri her zaman koyu medya/scrim üzerinde durur — sistem
+  // teması fark etmez (YouTube gibi chrome). Bu yüzden her iki temada da AYNI:
+  // açık ikon/metin, yarı saydam track ve buton zeminleri.
+  media: { control: string; track: string; scrim: string; buttonBg: string };
 }
+
+// İki temada da birebir aynı (medya chrome tema-bağımsız).
+const mediaControls = {
+  control: Palette.sand[50],
+  track: 'rgba(255,255,255,0.28)',
+  scrim: 'rgba(0,0,0,0.40)',
+  buttonBg: 'rgba(0,0,0,0.45)',
+};
 
 export const lightTheme: SemanticColors = {
   surface: {
@@ -82,6 +94,7 @@ export const lightTheme: SemanticColors = {
     scrim: 'rgba(27,26,23,0.45)',
     pressed: 'rgba(27,26,23,0.06)',
   },
+  media: mediaControls,
 };
 
 export const darkTheme: SemanticColors = {
@@ -129,6 +142,7 @@ export const darkTheme: SemanticColors = {
     scrim: 'rgba(0,0,0,0.55)',
     pressed: 'rgba(255,255,255,0.06)',
   },
+  media: mediaControls,
 };
 
 export interface Theme {

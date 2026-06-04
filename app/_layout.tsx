@@ -11,6 +11,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import 'react-native-url-polyfill/auto';
 
@@ -299,10 +300,14 @@ function RootLayout() {
 // altındaki tüm ekranlar useColorScheme → tema tercihini okuyabilsin. Provider'ın
 // dışında olamaz; içindeki useColorScheme çağrıları context'e muhtaç.
 function RootLayoutWithProviders() {
+  // GestureHandlerRootView kökü sarmalı: video oynatıcı overlay'i (tap/çift-tap/pan)
+  // react-native-gesture-handler kullanıyor; bu sarmalayıcı olmadan jestler iletilmez.
   return (
-    <ThemePreferenceProvider>
-      <RootLayout />
-    </ThemePreferenceProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemePreferenceProvider>
+        <RootLayout />
+      </ThemePreferenceProvider>
+    </GestureHandlerRootView>
   );
 }
 
