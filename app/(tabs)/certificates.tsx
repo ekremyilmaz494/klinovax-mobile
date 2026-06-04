@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
 import { shareCertificatePdf } from '@/lib/api/cert-download';
+import { shareTranscriptPdf } from '@/lib/api/transcript-download';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth';
 import type { Certificate, CertificatesResponse } from '@/types/staff';
@@ -83,6 +84,9 @@ export default function CertificatesScreen() {
                 {data?.total ?? items.length} SERTİFİKA
               </Text>
               <Text variant="title-2">Başarımların</Text>
+              <View style={{ marginTop: 14 }}>
+                <TranscriptButton />
+              </View>
             </View>
           ) : null
         }
@@ -106,6 +110,41 @@ export default function CertificatesScreen() {
         removeClippedSubviews={true}
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Transkript = tüm tamamlanmış eğitimlerin tek PDF dökümü. Backend yalnızca PDF
+ * döner; sertifika paylaşımıyla aynı share-sheet yolundan iner.
+ */
+function TranscriptButton() {
+  const t = useTheme();
+  const [sharing, setSharing] = useState(false);
+  const onPress = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await shareTranscriptPdf();
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Transkript indirilemedi.');
+    } finally {
+      setSharing(false);
+    }
+  };
+  return (
+    <Button
+      label={sharing ? 'Hazırlanıyor…' : 'Transkriptimi paylaş'}
+      variant="outline"
+      onPress={onPress}
+      disabled={sharing}
+      loading={sharing}
+      iconLeft={
+        !sharing ? (
+          <Ionicons name="document-text-outline" size={18} color={t.colors.accent.clay} />
+        ) : undefined
+      }
+      fullWidth
+    />
   );
 }
 
