@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
 import { apiFetch } from '@/lib/api/client';
+import { shareTranscriptPdf } from '@/lib/api/transcript-download';
 import { openLegal } from '@/lib/legal/open-legal';
 import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
 import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
@@ -206,6 +207,11 @@ export default function ProfileScreen() {
           <InfoRow label="Unvan" value={profile?.title || roleLabel} last />
         </Card>
 
+        <SectionTitle>Belgelerim</SectionTitle>
+        <Card>
+          <TranscriptRow />
+        </Card>
+
         <SectionTitle>Güvenlik</SectionTitle>
         <Card>
           <View
@@ -380,6 +386,55 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
         {value}
       </Text>
     </View>
+  );
+}
+
+/**
+ * Transkript satırı: tüm tamamlanan eğitimlerin PDF dökümünü indir + paylaş.
+ * LinkRow'dan farkı — chevron yerine indir ikonu ve indirme sırasında spinner.
+ */
+function TranscriptRow() {
+  const t = useTheme();
+  const [sharing, setSharing] = useState(false);
+  const onPress = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await shareTranscriptPdf();
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Transkript indirilemedi.');
+    } finally {
+      setSharing(false);
+    }
+  };
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={sharing}
+      accessibilityRole="button"
+      accessibilityLabel="Transkriptimi indir ve paylaş"
+      style={({ pressed }) => [
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 14,
+          gap: 12,
+          opacity: pressed || sharing ? 0.5 : 1,
+        },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text variant="callout">Transkriptimi indir</Text>
+        <Text variant="footnote" tone="tertiary" style={{ marginTop: 2 }}>
+          Tüm tamamladığın eğitimlerin tek PDF dökümü.
+        </Text>
+      </View>
+      {sharing ? (
+        <ActivityIndicator color={t.colors.accent.clay} />
+      ) : (
+        <IconSymbol name="square.and.arrow.up" size={20} color={t.colors.text.tertiary} />
+      )}
+    </Pressable>
   );
 }
 

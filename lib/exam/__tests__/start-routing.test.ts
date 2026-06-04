@@ -2,6 +2,7 @@ import { ApiError } from '@/lib/api/client';
 
 import {
   extractPendingFeedbackRoute,
+  resolveDuplicateSubmitRoute,
   resolvePreSubmitTarget,
   resolveStartRoute,
 } from '../start-routing';
@@ -45,6 +46,16 @@ describe('resolvePreSubmitTarget', () => {
 
   it('nextStep eksikse (eski backend) güvenli varsayılan: videolar', () => {
     expect(resolvePreSubmitTarget(undefined)).toBe('videos');
+  });
+});
+
+describe('resolveDuplicateSubmitRoute', () => {
+  it("post fazı 'zaten işlendi' → sonuç ekranı (sınav teslim edilmiş, hata gösterilmez)", () => {
+    expect(resolveDuplicateSubmitRoute('post')).toEqual({ kind: 'result' });
+  });
+
+  it("pre fazı 'zaten işlendi' → eğitim detayı (409'da nextStep yok; detay doğru adımı çözer)", () => {
+    expect(resolveDuplicateSubmitRoute('pre')).toEqual({ kind: 'detail' });
   });
 });
 
