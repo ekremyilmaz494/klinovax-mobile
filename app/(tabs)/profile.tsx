@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -250,6 +250,9 @@ export default function ProfileScreen() {
 
         <SectionTitle>Yasal</SectionTitle>
         <Card>
+          {/* KVKK hak talepleri ekranı — aydınlatma metninden (bilgilendirme) farklı:
+              kullanıcı buradan veri sahibi haklarına dair talep oluşturur. */}
+          <LinkRow label="KVKK Veri Haklarım" onPress={() => router.push('/kvkk')} />
           {/* Yasal metinler sistemin in-app tarayıcısında açılır (Chrome Custom Tabs /
               SafariViewController) — gömülü WebView Android'de render süreci ölünce
               uygulamayı çökertiyordu. Custom Tabs kendi kapatma butonuyla güvenli. */}
