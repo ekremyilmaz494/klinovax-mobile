@@ -161,7 +161,7 @@ lib/
 │   ├── cert-download.ts       # sertifika PDF paylaşımı
 │   └── notifications.ts       # bildirim endpoint'leri
 ├── exam/                      # SAF exam mantığı (test edilen): video-completion (%90 eşik),
-│   │                          #   timer, start-routing, answer-lock, result-gating, feedback-payload,
+│   │                          #   timer, start-routing, result-gating, feedback-payload,
 │   │                          #   state-machine (web'den port — web kaynağı tek doğru kaynak)
 │   └── __tests__/             # exam mantığı test suite'i
 ├── sentry.ts                  # initSentry (DSN yoksa no-op) + captureBoundaryError
