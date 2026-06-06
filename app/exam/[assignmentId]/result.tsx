@@ -105,6 +105,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
         </Text>
         <Text
           italic
+          maxFontSizeMultiplier={1.6}
           style={{
             fontFamily: 'Fraunces_700Bold',
             fontSize: 80,
@@ -149,7 +150,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
           </Text>
           <View style={{ gap: 10 }}>
             {data.results.map((r, i) => (
-              <ResultRow key={r.questionText.substring(0, 40)} index={i + 1} item={r} />
+              <ResultRow key={`q-${i}`} index={i + 1} item={r} />
             ))}
           </View>
         </>

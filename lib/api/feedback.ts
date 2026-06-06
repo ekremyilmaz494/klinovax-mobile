@@ -1,3 +1,5 @@
+import { feedbackFormResponseSchema } from './schemas/feedback';
+import { validate } from './schemas/index';
 import { apiFetch } from './client';
 import type {
   FeedbackFormResponse,
@@ -13,8 +15,9 @@ import type {
  * görmeli, 409 "zaten gönderildi" başarı sayılır). Bu yüzden mutationKey yok.
  */
 
-export function fetchFeedbackForm(): Promise<FeedbackFormResponse> {
-  return apiFetch<FeedbackFormResponse>('/api/feedback/form');
+export async function fetchFeedbackForm(): Promise<FeedbackFormResponse> {
+  const data = await apiFetch<FeedbackFormResponse>('/api/feedback/form');
+  return validate(feedbackFormResponseSchema, data, 'feedback.form');
 }
 
 export function submitFeedback(body: FeedbackSubmitBody): Promise<FeedbackSubmitResponse> {

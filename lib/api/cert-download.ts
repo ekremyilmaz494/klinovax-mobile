@@ -42,7 +42,11 @@ export async function shareCertificatePdf(params: {
   certificateCode: string;
 }): Promise<void> {
   const uri = await cacheCertificatePdf(params);
-  if (!(await Sharing.isAvailableAsync())) return;
+  // Paylaşım yoksa sessizce dönmek "indir/paylaş" butonunu hiçbir şey olmadan
+  // resetliyordu (sessiz başarısızlık). Çağıran try/catch ile Alert gösteriyor.
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Paylaşım bu cihazda kullanılamıyor.');
+  }
   await Sharing.shareAsync(uri, {
     mimeType: 'application/pdf',
     dialogTitle: 'Sertifikayı Paylaş',
