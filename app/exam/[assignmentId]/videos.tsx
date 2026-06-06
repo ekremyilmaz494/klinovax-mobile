@@ -1,21 +1,16 @@
 import { useEvent, useEventListener } from 'expo';
-import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { StatusBar } from 'expo-status-bar';
 import { onlineManager, useMutation, useQuery } from '@tanstack/react-query';
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ComponentProps,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   AppState,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   View,
@@ -24,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
+import { VideoControlsOverlay } from '@/components/video/VideoControlsOverlay';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -631,6 +627,72 @@ function VideoBlock({
     player.volume = next ? 0 : 1;
   };
 
+  // Scrubber/dokunma ile konuma git — clampSeekTarget ileri sarmayı no-op'a düşürür
+  // (anti-cheat invariant'ı tek noktada; geri konum serbest).
+  const seekTo = (seconds: number) => {
+    player.currentTime = clampSeekTarget(player.currentTime, seconds);
+  };
+
+  // Yatay tam ekran — expo-screen-orientation ile cihazı döndürür. app.json
+  // "portrait" kilitli; iOS'ta lockAsync'in çalışması için expo-screen-orientation
+  // plugin'inin AppDelegate kancası şart (app.json plugins'e eklendi). Native
+  // fullscreen (VideoView.enterFullscreen) KULLANILMAZ — o native kontrolleri açıp
+  // ileri sarma butonunu geri getirir; anti-cheat'i bozar.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const enterFullscreen = useCallback(() => {
+    setIsFullscreen(true);
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+  }, []);
+
+  const exitFullscreen = useCallback(() => {
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+      .catch(() => {})
+      .finally(() => setIsFullscreen(false));
+  }, []);
+
+  // Ekrandan ayrılırken (unmount) yönelimi portrait'e geri al — fullscreen'deyken
+  // geri gidilirse uygulama yatay kalmasın.
+  useEffect(() => {
+    return () => {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+        () => {},
+      );
+    };
+  }, []);
+
+  const stage = (fullscreen: boolean) => (
+    <View
+      style={{
+        position: 'relative',
+        width: '100%',
+        backgroundColor: '#000',
+        ...(fullscreen ? { flex: 1 } : { aspectRatio: 16 / 9 }),
+      }}
+    >
+      <VideoView
+        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+        player={player}
+        nativeControls={false}
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
+        contentFit="contain"
+      />
+      <VideoControlsOverlay
+        player={player}
+        durationSeconds={video.duration}
+        isPlaying={isPlaying}
+        muted={muted}
+        isFullscreen={fullscreen}
+        onTogglePlay={togglePlay}
+        onSeekBackward={seekBackward}
+        onToggleMute={toggleMute}
+        onSeekTo={seekTo}
+        onToggleFullscreen={fullscreen ? exitFullscreen : enterFullscreen}
+      />
+    </View>
+  );
+
   return (
     <View
       style={{
@@ -641,47 +703,13 @@ function VideoBlock({
         marginBottom: 16,
       }}
     >
-      <VideoView
-        style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }}
-        player={player}
-        nativeControls={false}
-        allowsFullscreen={false}
-        allowsPictureInPicture={false}
-        contentFit="contain"
-      />
-
-      {/* Kontrol çubuğu: oynat/duraklat · 10sn geri · ilerleme · ses */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          backgroundColor: t.colors.surface.secondary,
-        }}
-      >
-        <ControlButton
-          icon={isPlaying ? 'pause.fill' : 'play.fill'}
-          label={isPlaying ? 'Duraklat' : 'Oynat'}
-          onPress={togglePlay}
-          primary
-          t={t}
-        />
-        <ControlButton
-          icon="gobackward.10"
-          label="10 saniye geri sar"
-          onPress={seekBackward}
-          t={t}
-        />
-        <PlaybackProgress player={player} durationSeconds={video.duration} t={t} />
-        <ControlButton
-          icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
-          label={muted ? 'Sesi aç' : 'Sesi kapat'}
-          onPress={toggleMute}
-          t={t}
-        />
-      </View>
+      {/* Fullscreen'deyken inline alanı siyah placeholder tutar — player tek yerde
+          (modal'da) mount kalsın diye; layout zıplamasın. */}
+      {isFullscreen ? (
+        <View style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }} />
+      ) : (
+        stage(false)
+      )}
 
       {/* Başlık satırı */}
       <Stack
@@ -712,84 +740,20 @@ function VideoBlock({
           </Stack>
         </View>
       </Stack>
-    </View>
-  );
-}
 
-/** Kontrol çubuğu butonu — 44pt dokunma hedefi; birincil (oynat) clay, diğerleri nötr. */
-function ControlButton({
-  icon,
-  label,
-  onPress,
-  primary,
-  t,
-}: {
-  icon: ComponentProps<typeof IconSymbol>['name'];
-  label: string;
-  onPress: () => void;
-  primary?: boolean;
-  t: ReturnType<typeof useTheme>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={6}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: primary ? t.colors.accent.clay : t.colors.surface.primary,
-        borderWidth: primary ? 0 : t.hairline,
-        borderColor: t.colors.border.subtle,
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <IconSymbol
-        name={icon}
-        size={20}
-        color={primary ? t.colors.accent.clayOnAccent : t.colors.text.primary}
-      />
-    </Pressable>
-  );
-}
-
-/**
- * İlerleme göstergesi — SADECE görsel, dokunulamaz (ileri sarma engeli kuralının
- * parçası). Kendi component'inde izole: 1Hz timeUpdate re-render'ı player'ı ve
- * kontrol butonlarını yeniden çizdirmesin.
- */
-function PlaybackProgress({
-  player,
-  durationSeconds,
-  t,
-}: {
-  player: VideoPlayer;
-  durationSeconds: number;
-  t: ReturnType<typeof useTheme>;
-}) {
-  const timeUpdate = useEvent(player, 'timeUpdate', {
-    currentTime: player.currentTime,
-    currentLiveTimestamp: null,
-    currentOffsetFromLive: null,
-    bufferedPosition: 0,
-  });
-  const current = Math.min(Math.floor(timeUpdate?.currentTime ?? 0), durationSeconds);
-  const pct = durationSeconds > 0 ? Math.min((current / durationSeconds) * 100, 100) : 0;
-  return (
-    <View style={{ flex: 1, gap: 4 }}>
-      <ProgressBar value={pct} height={4} />
-      <Text
-        variant="caption"
-        tone="tertiary"
-        maxFontSizeMultiplier={1.6}
-        style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}
+      {/* Yatay tam ekran — supportedOrientations iOS modal'ın dönmesine izin verir
+          (app portrait kilitliyken bile). Android'de ScreenOrientation.lockAsync döndürür. */}
+      <Modal
+        visible={isFullscreen}
+        animationType="fade"
+        supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}
+        onRequestClose={exitFullscreen}
       >
-        {formatDuration(current)} / {formatDuration(durationSeconds)}
-      </Text>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          {isFullscreen ? <StatusBar hidden /> : null}
+          {isFullscreen ? stage(true) : null}
+        </View>
+      </Modal>
     </View>
   );
 }

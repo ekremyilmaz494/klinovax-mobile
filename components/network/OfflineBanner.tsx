@@ -7,12 +7,15 @@ import { usePendingMutationCount } from '@/hooks/use-pending-mutation-count';
 import { useOnline } from '@/lib/network/use-online';
 
 /**
- * Üst sticky banner — üç durumdan birini gösterir:
- *   1) Offline + bekleyen mutation YOK → "İnternet yok — kayıtlı veriler"
- *      (warm amber)
- *   2) Offline + bekleyen mutation VAR → "İnternet yok — N işlem sırada"
- *   3) Online + bekleyen mutation VAR  → "N işlem gönderiliyor…" (clay accent)
- *   4) Online + bekleyen mutation YOK → hiçbir şey gösterme
+ * Üst sticky banner — YALNIZCA çevrimdışıyken görünür:
+ *   1) Offline + bekleyen mutation YOK → "İnternet yok — kayıtlı veriler" (warm amber)
+ *   2) Offline + bekleyen mutation VAR → "İnternet yok — N işlem sırada bekliyor"
+ *   3) Online → hiçbir şey gösterme
+ *
+ * Eskiden online + bekleyen mutation durumunda "N işlem gönderiliyor…" anlık banner'ı
+ * vardı; ama her mutation (sınav şıkkı kaydı, video heartbeat) bunu saniyede çakıp
+ * söndürüyordu — rahatsız edici ve gereksizdi (işlemler arka planda güvenle gidiyor,
+ * kayıp riski yok). Online sync göstergesi kaldırıldı; sadece çevrimdışı bilgisi kaldı.
  */
 export function OfflineBanner() {
   const t = useTheme();
@@ -20,18 +23,16 @@ export function OfflineBanner() {
   const pendingCount = usePendingMutationCount();
   const insets = useSafeAreaInsets();
 
-  if (isOnline && pendingCount === 0) return null;
+  // Online iken hiçbir şey gösterme — flaş'ın kaynağı buydu.
+  if (isOnline) return null;
 
-  const variant: 'offline' | 'syncing' = isOnline ? 'syncing' : 'offline';
   const message =
-    variant === 'syncing'
-      ? `${pendingCount} işlem gönderiliyor…`
-      : pendingCount > 0
-        ? `İnternet bağlantısı yok — ${pendingCount} işlem sırada bekliyor`
-        : 'İnternet bağlantısı yok — kayıtlı veriler gösteriliyor';
+    pendingCount > 0
+      ? `İnternet bağlantısı yok — ${pendingCount} işlem sırada bekliyor`
+      : 'İnternet bağlantısı yok — kayıtlı veriler gösteriliyor';
 
-  const bg = variant === 'syncing' ? t.colors.accent.clay : t.colors.status.warning;
-  const fg = variant === 'syncing' ? t.colors.accent.clayOnAccent : '#FFFFFF';
+  const bg = t.colors.status.warning;
+  const fg = '#FFFFFF';
 
   return (
     <SafeAreaView
@@ -40,11 +41,7 @@ export function OfflineBanner() {
       pointerEvents="box-none"
     >
       <View style={[styles.banner, { backgroundColor: bg, marginTop: insets.top > 0 ? 0 : 4 }]}>
-        <Ionicons
-          name={variant === 'syncing' ? 'cloud-upload-outline' : 'cloud-offline-outline'}
-          size={16}
-          color={fg}
-        />
+        <Ionicons name="cloud-offline-outline" size={16} color={fg} />
         <Text variant="subhead" numberOfLines={1} style={{ color: fg, flexShrink: 1 }}>
           {message}
         </Text>

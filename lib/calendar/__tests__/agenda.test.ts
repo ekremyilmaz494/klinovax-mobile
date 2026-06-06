@@ -1,6 +1,6 @@
 import type { CalendarEvent } from '@/types/calendar';
 
-import { groupEventsByDay, monthLabel, monthParam, shiftMonth } from '../agenda';
+import { groupEventsByDay, monthLabel, monthParam, shiftMonth, upcomingSections } from '../agenda';
 
 function ev(partial: Partial<CalendarEvent> & { id: string; start: string }): CalendarEvent {
   return {
@@ -64,5 +64,28 @@ describe('groupEventsByDay', () => {
     const input = [ev({ id: 'a', start: '2026-06-05T09:00:00.000Z' })];
     groupEventsByDay(input);
     expect(input[0].id).toBe('a');
+  });
+});
+
+describe('upcomingSections', () => {
+  const events = [
+    ev({ id: 'past', start: '2026-06-02T09:00:00.000Z' }),
+    ev({ id: 'today', start: '2026-06-04T09:00:00.000Z' }),
+    ev({ id: 'next', start: '2026-06-06T09:00:00.000Z' }),
+    ev({ id: 'later', start: '2026-06-09T09:00:00.000Z' }),
+  ];
+
+  it('bugünden önceki günleri eler', () => {
+    const sections = upcomingSections(events, '2026-06-04', 10);
+    expect(sections.map((s) => s.dayKey)).toEqual(['2026-06-04', '2026-06-06', '2026-06-09']);
+  });
+
+  it('maxGroups ile grup sayısını sınırlar', () => {
+    const sections = upcomingSections(events, '2026-06-04', 2);
+    expect(sections.map((s) => s.dayKey)).toEqual(['2026-06-04', '2026-06-06']);
+  });
+
+  it('hepsi geçmişse boş döner', () => {
+    expect(upcomingSections(events, '2026-07-01', 5)).toEqual([]);
   });
 });
