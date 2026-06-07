@@ -1,6 +1,22 @@
 import type { FeedbackForm } from '@/types/feedback';
 
-import { buildFeedbackPayload, isFeedbackComplete } from '../feedback-payload';
+import {
+  buildFeedbackPayload,
+  isFeedbackComplete,
+  YES_PARTIAL_NO_OPTIONS,
+} from '../feedback-payload';
+
+describe('YES_PARTIAL_NO_OPTIONS — web kanonik skorlama', () => {
+  // KRİTİK: web feedback-helpers.ts YES_PARTIAL_NO_LABELS ile birebir aynı olmalı.
+  // Ters çevrilirse (örn. Evet=3) web raporları yanıtı yanlış gösterir.
+  it('Evet=1, Kısmen=2, Hayır=3', () => {
+    expect(YES_PARTIAL_NO_OPTIONS).toEqual([
+      { label: 'Evet', score: 1 },
+      { label: 'Kısmen', score: 2 },
+      { label: 'Hayır', score: 3 },
+    ]);
+  });
+});
 
 function form(): FeedbackForm {
   return {

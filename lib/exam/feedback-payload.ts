@@ -8,6 +8,18 @@ import type { FeedbackForm } from '@/types/feedback';
 /** itemId → seçilen score (likert/yes-no) veya metin (text tipi). Ekrandaki AnswerState ile aynı. */
 export type FeedbackAnswerState = Record<string, { score?: number; textAnswer?: string }>;
 
+/**
+ * yes_partial_no seçenekleri — score kodlaması web (feedback-helpers.ts
+ * YES_PARTIAL_NO_LABELS) ile BİREBİR aynı olmalı: Evet=1, Kısmen=2, Hayır=3.
+ * Ters çevrilirse web raporları aynı yanıtı farklı gösterir (sessiz veri bozulması);
+ * bu bug bir kez yaşandı (mobil Evet=3 gönderiyordu). Tek kaynak burada.
+ */
+export const YES_PARTIAL_NO_OPTIONS: { label: string; score: number }[] = [
+  { label: 'Evet', score: 1 },
+  { label: 'Kısmen', score: 2 },
+  { label: 'Hayır', score: 3 },
+];
+
 /** Tek bir cevabın "dolu" sayılıp sayılmadığı — score sayı VEYA text trim edilmiş boş değil. */
 function hasValue(a: { score?: number; textAnswer?: string } | undefined): boolean {
   if (!a) return false;
