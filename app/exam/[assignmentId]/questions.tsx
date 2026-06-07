@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
@@ -184,6 +184,18 @@ function QuestionsView({
     answersRef.current = answers;
   }, [answers]);
 
+  // Anti-cheat telemetri: sınav sırasında uygulamadan ayrılma (arka plan/odak kaybı)
+  // sayısı. submit'te backend'e gönderilir. Mobilde çıkış zaten engelli (android back
+  // guard + header back kapalı) ama home tuşu/gelen çağrı gibi arka plana geçişler
+  // buradan sayılır. Web post-exam'deki sekme-değişim sayacının mobil karşılığı.
+  const tabSwitchRef = useRef(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') tabSwitchRef.current += 1;
+    });
+    return () => sub.remove();
+  }, []);
+
   const saveMutation = useMutation<{ saved: true }, Error, SaveAnswerVars>({
     mutationKey: MUTATION_KEYS.saveAnswer,
   });
@@ -224,6 +236,7 @@ function QuestionsView({
       selectedOptionId,
     })),
     phase,
+    tabSwitchCount: tabSwitchRef.current,
   });
 
   // useCallback gerekli: aşağıdaki expired effect dep array'inde kullanılıyor.
@@ -473,6 +486,88 @@ function QuestionsView({
               </Pressable>
             );
           })}
+        </View>
+
+        {/* Soru haritası — cevaplanan/boş durumu + soruya atlama. Mobil serbest
+            gezinmeye izin verir (web'deki tek-yön kilit YOK), tüm hücreler tıklanır. */}
+        <View
+          style={{
+            marginTop: 28,
+            borderTopWidth: t.hairline,
+            borderTopColor: t.colors.border.subtle,
+            paddingTop: 16,
+          }}
+        >
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: 12 }}>
+            SORU HARİTASI
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {data.questions.map((q, i) => {
+              const isAnswered = answers.has(q.questionId);
+              const isCurrent = i === safeIdx;
+              return (
+                <Pressable
+                  key={q.questionId}
+                  onPress={() => setCurrentIdx(i)}
+                  accessibilityLabel={`Soru ${i + 1}${isAnswered ? ', cevaplandı' : ', boş'}`}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: t.radius.md,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: isCurrent ? 2 : t.hairline,
+                    borderColor: isCurrent ? t.colors.accent.clay : t.colors.border.default,
+                    backgroundColor: isAnswered
+                      ? t.colors.accent.clayMuted
+                      : t.colors.surface.primary,
+                  }}
+                >
+                  <Text
+                    variant="caption"
+                    style={{
+                      fontFamily: 'InterTight_600SemiBold',
+                      color: isAnswered ? t.colors.accent.clay : t.colors.text.tertiary,
+                    }}
+                  >
+                    {i + 1}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Stack direction="row" gap={4} style={{ marginTop: 14 }}>
+            <Stack direction="row" align="center" gap={2}>
+              <View
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 4,
+                  backgroundColor: t.colors.accent.clayMuted,
+                  borderWidth: t.hairline,
+                  borderColor: t.colors.accent.clay,
+                }}
+              />
+              <Text variant="caption" tone="tertiary">
+                Cevaplandı
+              </Text>
+            </Stack>
+            <Stack direction="row" align="center" gap={2}>
+              <View
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 4,
+                  backgroundColor: t.colors.surface.primary,
+                  borderWidth: t.hairline,
+                  borderColor: t.colors.border.default,
+                }}
+              />
+              <Text variant="caption" tone="tertiary">
+                Boş
+              </Text>
+            </Stack>
+          </Stack>
         </View>
       </ScrollView>
 

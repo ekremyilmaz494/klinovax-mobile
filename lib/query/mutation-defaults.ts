@@ -29,6 +29,8 @@ export type SubmitExamVars = {
   assignmentId: string;
   answers: { questionId: string; selectedOptionId: string }[];
   phase: ExamPhase;
+  /** Anti-cheat telemetri: sınav sırasında uygulamadan kaç kez ayrıldı (arka plan/odak kaybı). */
+  tabSwitchCount?: number;
 };
 
 export type SaveVideoProgressVars = {
@@ -87,8 +89,8 @@ export function registerMutationDefaults(client: QueryClient): void {
   // ─── submitExam ──────────────────────────────────────────────────
   // Sınav teslim. 409/422 (already submitted) durumunda swallow + invalidate.
   client.setMutationDefaults(MUTATION_KEYS.submitExam, {
-    mutationFn: ({ assignmentId, answers, phase }: SubmitExamVars) =>
-      submitExam(assignmentId, { answers, phase }),
+    mutationFn: ({ assignmentId, answers, phase, tabSwitchCount }: SubmitExamVars) =>
+      submitExam(assignmentId, { answers, phase, tabSwitchCount }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
     onSuccess: (_data: ExamSubmitResponse, vars: SubmitExamVars) => {
