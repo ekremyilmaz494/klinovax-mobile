@@ -73,7 +73,17 @@ export default function TrainingDetailScreen() {
 
 function Detail({ data }: { data: TrainingDetail }) {
   const t = useTheme();
-  const action = resolveAction(data);
+  // SCORM eğitimi: normal pre/video/post akışı yerine WebView oynatıcısı. CTA hep
+  // oynatıcıya gider; oynatıcı kendi resume/tamamlama durumunu yönetir.
+  const action = data.isScorm
+    ? {
+        label:
+          data.status === 'passed' || data.postExamCompleted
+            ? 'SCORM eğitimini tekrar aç'
+            : 'SCORM eğitimini aç',
+        disabled: data.status === 'locked' || data.isNotStarted,
+      }
+    : resolveAction(data);
 
   // Retry CTA'sı (`start-direct`) POST /start'ı ekran açmadan yerinde çalıştırır.
   // navigate=push → detay stack'te kalır (videodan geri → detay). Bilinmeyen status'te
@@ -97,6 +107,13 @@ function Detail({ data }: { data: TrainingDetail }) {
    * doğrudan videoya yönlenir (web paritesi), zorunlu feedback 423 gate'i korunur.
    */
   const handleCtaPress = () => {
+    if (data.isScorm) {
+      router.push({
+        pathname: '/scorm/[trainingId]',
+        params: { trainingId: data.id, title: data.title, entryPoint: data.scormEntryPoint ?? '' },
+      });
+      return;
+    }
     const target = resolveTrainingDetailRoute(data);
     switch (target.kind) {
       case 'start':
@@ -247,36 +264,50 @@ function Detail({ data }: { data: TrainingDetail }) {
         <MetaCell label="Son tarih" value={data.deadline || '—'} />
       </View>
 
-      <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
-        İlerleme
-      </Text>
-      <View style={{ gap: 10 }}>
-        {!data.examOnly && (
-          <Step
-            n={1}
-            label="Ön sınav"
-            done={data.preExamCompleted}
-            current={resolveCurrentStep(data) === 'pre'}
-          />
-        )}
-        {!data.examOnly && (
-          <Step
-            n={2}
-            label="Videolar"
-            done={data.videosCompleted}
-            current={resolveCurrentStep(data) === 'videos'}
-          />
-        )}
-        <Step
-          n={data.examOnly ? 1 : 3}
-          label="Son sınav"
-          done={data.postExamCompleted}
-          current={resolveCurrentStep(data) === 'post'}
-          score={data.lastAttemptScore}
-        />
-      </View>
+      {data.isScorm ? (
+        <Card style={{ marginTop: 24 }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: 6 }}>
+            SCORM İÇERİK
+          </Text>
+          <Text variant="body" tone="primary">
+            Bu eğitim etkileşimli bir SCORM paketidir. Aşağıdaki düğmeyle içerik indirilip
+            oynatıcıda açılır; ilerlemen otomatik kaydedilir, kaldığın yerden devam edebilirsin.
+          </Text>
+        </Card>
+      ) : (
+        <>
+          <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+            İlerleme
+          </Text>
+          <View style={{ gap: 10 }}>
+            {!data.examOnly && (
+              <Step
+                n={1}
+                label="Ön sınav"
+                done={data.preExamCompleted}
+                current={resolveCurrentStep(data) === 'pre'}
+              />
+            )}
+            {!data.examOnly && (
+              <Step
+                n={2}
+                label="Videolar"
+                done={data.videosCompleted}
+                current={resolveCurrentStep(data) === 'videos'}
+              />
+            )}
+            <Step
+              n={data.examOnly ? 1 : 3}
+              label="Son sınav"
+              done={data.postExamCompleted}
+              current={resolveCurrentStep(data) === 'post'}
+              score={data.lastAttemptScore}
+            />
+          </View>
+        </>
+      )}
 
-      {data.videos.length > 0 && !data.examOnly ? (
+      {!data.isScorm && data.videos.length > 0 && !data.examOnly ? (
         <>
           <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
             Videolar ({data.videos.length})

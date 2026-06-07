@@ -79,6 +79,8 @@ export type MyTrainingItem = {
   daysLeft?: number;
   score?: number;
   examOnly: boolean;
+  /** SCORM paketi eğitim mi — backend `scormEntryPoint != null`. Kartta rozet için. */
+  isScorm?: boolean;
   questionCount: number;
   examDurationMinutes: number | null;
   passingScore: number;
@@ -156,6 +158,14 @@ export type TrainingDetail = {
   preExamScore?: number;
   lastAttemptScore?: number;
   examOnly: boolean;
+  /**
+   * SCORM paketi eğitim mi (backend `scormEntryPoint != null`). True ise mobil
+   * normal pre/video/post akışı yerine WebView SCORM oynatıcısına yönlendirir.
+   * Optional: eski persisted cache (24h) alanı içermeyebilir.
+   */
+  isScorm?: boolean;
+  /** SCORM paketinin başlangıç dosyası (content route'una göre relative). isScorm ise dolu. */
+  scormEntryPoint?: string | null;
   isExpired: boolean;
   startDate: string | null;
   isNotStarted: boolean;

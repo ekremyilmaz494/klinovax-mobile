@@ -237,11 +237,14 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
         <Text variant="title-3" numberOfLines={2} style={{ flex: 1 }}>
           {item.title}
         </Text>
-        {item.isNotStarted ? (
-          <Badge label="Yakında" tone="info" />
-        ) : (
-          <Badge label={label} tone={tone} />
-        )}
+        <Stack direction="row" gap={1} align="center">
+          {item.isScorm ? <Badge label="SCORM" tone="info" /> : null}
+          {item.isNotStarted ? (
+            <Badge label="Yakında" tone="info" />
+          ) : (
+            <Badge label={label} tone={tone} />
+          )}
+        </Stack>
       </Stack>
 
       {item.isNotStarted ? (
