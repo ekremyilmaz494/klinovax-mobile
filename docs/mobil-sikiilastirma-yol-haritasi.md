@@ -167,3 +167,32 @@ Repo **disiplini iyi** (strict TS, CI, lint, husky, EAS). Eksik olan tek şey, s
 **asıl yarısı**: mantığı koruyan **testler** ve çökmeyi yakalayan **ErrorBoundary/Sentry**. Bu ikisi
 girince "küçük değişiklik sessizce kırar" riski büyük ölçüde kapanır. Başlangıç için en yüksek getiri:
 **M1 (test altyapısı + ilk 3 exam-flow testi + CI test job).**
+
+---
+
+## 9. Derinlemesine Denetim Turu (2026-06-04) — Sonuç
+
+Uçtan uca kod-seviyesi denetim yapıldı (exam akışı, auth/refresh, offline, ikincil ekranlar,
+design-system + a11y). **Sonuç: çekirdek sağlam.** Doğrulanmış 🔴 Kritik / 🟠 Yüksek hata YOK.
+İnceleme ajanlarının "kritik" işaretlediği çoğu bulgu gerçek kod okunduğunda false-positive çıktı
+(timer çift-submit, video cache stale-bleed, biyometrik clock-skew, mid-exam re-lock, answer-lock
+döngüsü — hepsi `dosya:satır` ile çürütüldü). Detay rapor: planlama dosyası `lovely-discovering-sprout.md`.
+
+**Uygulanan minör düzeltmeler (branch `fix/audit-minor-findings`, hepsi test+typecheck+lint yeşil):**
+
+- **F1** — Ölü bağımlılıklar kaldırıldı: `@supabase/supabase-js` + `react-hook-form` (sıfır kaynak
+  import). ⚠️ **Bağımlılık ağacı değişti → yeni EAS build + smoke test önerilir** (OTA tek başına yetmez).
+- **F3** — `result.tsx` soru-detay React key'i `index` tabanlı (soru metni substring yerine).
+- **F4** — 429 `Retry-After` parse edilip kullanıcıya "X sn sonra dene" gösteriliyor
+  (`client.ts: parseRetryAfterSeconds` + `ApiError.retryAfter`; test: `lib/api/__tests__/retry-after.test.ts`).
+- **EK1** — `result.tsx` hero skoruna `maxFontSizeMultiplier={1.6}` (AX3'te taşma önlemi).
+- **EK2** — Sertifika/transkript paylaşımı: `Sharing` yoksa sessiz `return` yerine açık hata fırlatılıyor
+  (çağıran `Alert` gösteriyor; sessiz başarısızlık giderildi).
+
+**Kasıtlı olduğu için DOKUNULMAYAN (do-no-harm):** `phase-redirect` 'post-exam' → detay yönlendirmesi
+(testle kilitli, redirect-loop önler); biyometrik "günde bir" politikası; zod graceful pass-through;
+logout best-effort push-unregister; reaktif (proaktif değil) token refresh.
+
+**Backend teyidi bekleyen (mobil değişmedi):** login `mustChangePassword`/`setupCompleted` —
+mobil `!res.session` ile güvenli tarafta blokluyor; backend'in bu hallerde session vermediği varsayımı
+doğrulanmalı.

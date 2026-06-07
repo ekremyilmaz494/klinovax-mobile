@@ -2,6 +2,8 @@ import { type QueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 
+import { Sentry } from '@/lib/sentry';
+
 /**
  * Klinovax bildirim handler kurulumu — uygulama açıldığında ve foreground'da
  * gelen push'lar için davranış belirler.
@@ -48,9 +50,19 @@ export function setupNotifications(queryClient: QueryClient): () => void {
     if (typeof url === 'string' && ALLOWED_PREFIXES.some((p) => url.startsWith(p))) {
       try {
         router.push(url as never);
-      } catch {
-        // Geçersiz route — sessiz geç
+      } catch (e) {
+        // Geçersiz route — kullanıcıya gösterme ama gözlemlenebilir kıl (silinen
+        // eğitim, bozuk param vb. tekrarlarsa investigate edilebilsin).
+        Sentry.captureException(e, { tags: { kind: 'notification-routing' }, extra: { url } });
       }
+    } else if (typeof url === 'string' && url.length > 0) {
+      // Whitelist dışı URL: açık-redirect/deep-link kötüye kullanımını bilerek
+      // engelliyoruz, ama beklenmeyen backend payload'ı olabilir — sessiz yutma.
+      Sentry.captureMessage('Bildirim URL whitelist dışı', {
+        level: 'warning',
+        tags: { kind: 'notification-routing' },
+        extra: { url },
+      });
     }
   });
 

@@ -100,6 +100,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public body: unknown,
+    /** 429'da `Retry-After` header'ından saniye (yoksa null) — UI "X sn sonra dene" için. */
+    public retryAfter: number | null = null,
   ) {
     super(
       typeof body === 'object' && body && 'error' in body
@@ -107,6 +109,23 @@ export class ApiError extends Error {
         : `HTTP ${status}`,
     );
   }
+}
+
+/**
+ * 429 `Retry-After` header'ını saniyeye çevirir. RFC 7231: ya delay-seconds
+ * (tam sayı) ya da HTTP-date. Geçersiz/eksik → null. `nowMs` dışarıdan verilir
+ * (HTTP-date farkı deterministik test edilebilsin).
+ */
+export function parseRetryAfterSeconds(
+  value: string | null | undefined,
+  nowMs: number,
+): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  const dateMs = Date.parse(trimmed);
+  if (Number.isNaN(dateMs)) return null;
+  return Math.max(0, Math.ceil((dateMs - nowMs) / 1000));
 }
 
 /**
@@ -181,7 +200,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       body = text;
     }
   }
-  if (!res.ok) throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` });
+  if (!res.ok) {
+    const retryAfter =
+      res.status === 429
+        ? parseRetryAfterSeconds(res.headers.get('retry-after'), Date.now())
+        : null;
+    throw new ApiError(res.status, body ?? { error: `HTTP ${res.status}` }, retryAfter);
+  }
   return body as T;
 }
 

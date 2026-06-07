@@ -77,6 +77,79 @@ describe('shouldCompleteVideo — %90 eşiği', () => {
   });
 });
 
+describe('shouldCompleteVideo — reachedEnd (doğal bitiş / onEnded paritesi)', () => {
+  it('reachedEnd=true ise accumulated eşiğin ALTINDA olsa bile true (kısa video takılma fix)', () => {
+    // Kısa video: 5sn sayaç granülerliği accumulated'ı eşiğin (18) altında bırakabilir
+    // ama video gerçekten sona geldi (ileri-sarma kapalı) → tamamlanmalı.
+    expect(
+      shouldCompleteVideo({
+        accumulated: 15,
+        durationSeconds: 20,
+        alreadyCompleted: false,
+        isPending: false,
+        reachedEnd: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('reachedEnd belirtilmezse (default false) eşik davranışı korunur', () => {
+    expect(
+      shouldCompleteVideo({
+        accumulated: 15,
+        durationSeconds: 20,
+        alreadyCompleted: false,
+        isPending: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('reachedEnd=true olsa bile zaten tamamlanmışsa false (idempotence)', () => {
+    expect(
+      shouldCompleteVideo({
+        accumulated: 20,
+        durationSeconds: 20,
+        alreadyCompleted: true,
+        isPending: false,
+        reachedEnd: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('reachedEnd=true olsa bile mutation pending iken false (çift POST engeli)', () => {
+    expect(
+      shouldCompleteVideo({
+        accumulated: 20,
+        durationSeconds: 20,
+        alreadyCompleted: false,
+        isPending: true,
+        reachedEnd: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('reachedEnd=true olsa bile duration 0 ise false', () => {
+    expect(
+      shouldCompleteVideo({
+        accumulated: 0,
+        durationSeconds: 0,
+        alreadyCompleted: false,
+        isPending: false,
+        reachedEnd: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('doğal bitişte gönderilecek watchedTime backend %90 eşiğini karşılar', () => {
+    // reachedEnd ile tamamlanan kısa videoda bile buildCompletionWatchedTime
+    // ceil(duration*0.9) taban gönderir → backend reddetmez.
+    const duration = 20;
+    const accumulated = 15; // eşiğin altında
+    expect(buildCompletionWatchedTime(accumulated, duration)).toBeGreaterThanOrEqual(
+      Math.ceil(duration * ANTI_CHEAT_WATCH_FLOOR),
+    );
+  });
+});
+
 describe('buildCompletionWatchedTime — floor regresyon kilidi', () => {
   it('accumulated floor %90 eşiğinin altına yuvarlansa bile ceil(duration*0.9) taban alınır', () => {
     // duration=100 → eşik 90. accumulated=90.4 floor edilince 90 olur, bu eşitlik

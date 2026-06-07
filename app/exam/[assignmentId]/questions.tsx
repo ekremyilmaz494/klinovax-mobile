@@ -318,10 +318,11 @@ function QuestionsView({
       {
         onError: (error) => {
           if (error instanceof ApiError && error.status === 429) {
-            Alert.alert(
-              'Çok hızlı',
-              'Cevap kaydetme limitine ulaşıldı. Lütfen kısa bir süre bekle.',
-            );
+            const wait =
+              error.retryAfter && error.retryAfter > 0
+                ? ` ${error.retryAfter} saniye sonra tekrar dene.`
+                : ' Lütfen kısa bir süre bekle.';
+            Alert.alert('Çok hızlı', `Cevap kaydetme limitine ulaşıldı.${wait}`);
           }
           // 4xx olmayan/network hataları offline-first ile paused kuyruğa gider.
         },
