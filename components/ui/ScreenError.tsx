@@ -5,9 +5,17 @@ import { Button, Text, useTheme } from '@/design-system';
 type Props = {
   message: string;
   onRetry?: () => void;
+  /** Başlık (varsayılan "Bir sorun oluştu"). Kalıcı hatalarda örn. "Eğitime erişilemiyor". */
+  title?: string;
+  /**
+   * `onRetry` yokken gösterilen alternatif eylem — kalıcı (geri dönüşü olmayan) hatalar için.
+   * Örn. 403/404: tekrar denemek anlamsız, kullanıcıyı listeye geri götür. `onRetry` varsa
+   * yok sayılır (retry önceliklidir).
+   */
+  action?: { label: string; onPress: () => void };
 };
 
-export function ScreenError({ message, onRetry }: Props) {
+export function ScreenError({ message, onRetry, title, action }: Props) {
   const t = useTheme();
   return (
     <View
@@ -32,7 +40,7 @@ export function ScreenError({ message, onRetry }: Props) {
         <IconSymbol name="exclamationmark.triangle.fill" size={28} color={t.colors.status.danger} />
       </View>
       <Text variant="title-3" tone="primary" align="center">
-        Bir sorun oluştu
+        {title ?? 'Bir sorun oluştu'}
       </Text>
       <Text variant="body" tone="tertiary" align="center" style={{ maxWidth: 320 }}>
         {message}
@@ -40,6 +48,10 @@ export function ScreenError({ message, onRetry }: Props) {
       {onRetry ? (
         <View style={{ marginTop: 8 }}>
           <Button label="Tekrar dene" variant="primary" onPress={onRetry} />
+        </View>
+      ) : action ? (
+        <View style={{ marginTop: 8 }}>
+          <Button label={action.label} variant="primary" onPress={action.onPress} />
         </View>
       ) : null}
     </View>

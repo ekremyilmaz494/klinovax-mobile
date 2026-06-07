@@ -25,6 +25,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { ApiError } from '@/lib/api/client';
 import { fetchExamVideos } from '@/lib/api/exam';
 import { resolveAttemptStatusRoute, shouldRedirectExamRoute } from '@/lib/exam/route-guard';
 import {
@@ -115,6 +116,13 @@ export default function VideosScreen() {
     [data, activeVideoId],
   );
 
+  // 403 (yetkisiz) / 404 (bulunamadı) KALICI hatadır — tekrar denemek anlamsız,
+  // kullanıcıyı listeye geri götür. 401 globalde apiRequest içinde ele alınır
+  // (refresh → auth-fail'de logout); buraya kalıcı düşmez. Diğer her şey (5xx,
+  // ağ=0, 429) geçici → retry korunur.
+  const permanentError =
+    error instanceof ApiError && (error.status === 403 || error.status === 404);
+
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ExpoStack.Screen options={{ title: data?.trainingTitle ?? 'Videolar' }} />
@@ -124,10 +132,21 @@ export default function VideosScreen() {
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
       ) : error && !data ? (
-        <ScreenError
-          message={error.message || 'Videolar yüklenemedi.'}
-          onRetry={() => void refetch()}
-        />
+        permanentError ? (
+          <ScreenError
+            title="Eğitime erişilemiyor"
+            message="Bu eğitime şu an erişemiyorsun. Eğitim listene dönebilirsin."
+            action={{
+              label: 'Eğitimlerime dön',
+              onPress: () => router.replace('/(tabs)/trainings'),
+            }}
+          />
+        ) : (
+          <ScreenError
+            message={error.message || 'Videolar yüklenemedi.'}
+            onRetry={() => void refetch()}
+          />
+        )
       ) : data && data.videos.length === 0 ? (
         <EmptyState icon="play.fill" title="Bu eğitime video eklenmemiş" />
       ) : data && activeVideo && accessToken ? (
