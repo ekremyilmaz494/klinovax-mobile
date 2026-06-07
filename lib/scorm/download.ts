@@ -79,5 +79,12 @@ export async function downloadScormPackage(opts: {
 
   const entryRel = entryNorm ?? 'index.html';
   const entryFile = new File(baseDir, ...entryRel.split('/'));
+  // Best-effort döngü tekil dosya hatalarını yutar (opsiyonel alt-kaynaklar S3'te
+  // eksik olabilir). Ama ENTRY dosyası sessizce inmediyse (ör. token indirme sırasında
+  // doldu) WebView kırık bir file:// yükler → kullanıcıya hata göstermeden boş ekran.
+  // Açıkça doğrula: entry yoksa fırlat ki ekran "tekrar dene" hata UI'ı göstersin.
+  if (!entryFile.exists) {
+    throw new Error('SCORM başlangıç dosyası indirilemedi');
+  }
   return { entryUri: entryFile.uri, baseDirUri: baseDir.uri };
 }

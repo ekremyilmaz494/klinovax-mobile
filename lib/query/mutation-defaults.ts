@@ -80,10 +80,11 @@ export function registerMutationDefaults(client: QueryClient): void {
       saveExamAnswer(assignmentId, { questionId, selectedOptionId, examPhase }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
-    // 423 (post-exam answer locked) ve 429 (rate limit) gibi 4xx'ler
-    // component-level per-call onError'da handle edilir — kullanıcı bildirim
-    // görmeden cevabını değiştirdiğini sanmasın. Cache invalidation YAPMAZ:
-    // exam-questions query'si gcTime: 0 ile her açılışta fresh fetch.
+    // 429 (rate limit) gibi 4xx'ler component-level per-call onError'da handle
+    // edilir — kullanıcı bildirim görmeden cevabını değiştirdiğini sanmasın. (Eski
+    // 30sn post-exam cevap kilidi / 423 backend'de kaldırıldı; save-answer artık
+    // 423 dönmüyor.) Cache invalidation YAPMAZ: exam-questions query'si gcTime: 0
+    // ile her açılışta fresh fetch.
   });
 
   // ─── submitExam ──────────────────────────────────────────────────
