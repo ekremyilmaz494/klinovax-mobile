@@ -17,6 +17,7 @@ import type {
   AttemptRequest,
   AttemptRequestsResponse,
   TrainingDetail,
+  TrainingFeedbackState,
   TrainingVideo,
 } from '@/types/staff';
 
@@ -340,12 +341,8 @@ function Detail({ data }: { data: TrainingDetail }) {
 
       {isExhausted(data) ? <AttemptRequestSection data={data} /> : null}
 
-      {data.feedback?.canSubmit && !data.feedback.submitted && data.feedback.attemptId ? (
-        <FeedbackPrompt
-          attemptId={data.feedback.attemptId}
-          trainingTitle={data.title}
-          mandatory={data.feedback.mandatory}
-        />
+      {data.feedback?.formActive ? (
+        <FeedbackSection feedback={data.feedback} trainingTitle={data.title} />
       ) : null}
 
       <View style={{ marginTop: 32 }}>
@@ -364,43 +361,91 @@ function Detail({ data }: { data: TrainingDetail }) {
 }
 
 /**
- * Tamamlanan deneme için geri bildirim CTA'sı (EY.FR.40). Zorunlu form
- * doldurulmadan backend yeni eğitim başlatmayı 423 ile kilitler — buradan
- * doldurmak personeli o kilide hiç sokmaz.
+ * Geri bildirim bölümü (EY.FR.40) — web my-trainings/[id] FeedbackSection paritesi.
+ * Org'da aktif form varken (`formActive`) HER ZAMAN render edilir; 3 durum:
+ *   (a) submitted    → "Geri bildiriminiz alındı" onayı + gönderim tarihi
+ *   (b) canSubmit    → "Geri bildirim ver" CTA (zorunluysa uyarı varyantı)
+ *   (c) henüz açık değil → bilgilendirme (sınav tamamlanınca açılır)
+ * Zorunlu form doldurulmadan backend yeni eğitim başlatmayı 423 ile kilitler —
+ * buradan doldurmak personeli o kilide hiç sokmaz.
  */
-function FeedbackPrompt({
-  attemptId,
+function FeedbackSection({
+  feedback,
   trainingTitle,
-  mandatory,
 }: {
-  attemptId: string;
+  feedback: TrainingFeedbackState;
   trainingTitle: string;
-  mandatory: boolean;
 }) {
+  const t = useTheme();
+  // Closure içinde daralma korunsun diye property'yi local const'a al.
+  const attemptId = feedback.attemptId;
+
   return (
     <View style={{ marginTop: 28 }}>
-      <Text variant="title-3" style={{ marginBottom: 12 }}>
+      <Text variant="title-3" style={{ marginBottom: 4 }}>
         Geri bildirim
       </Text>
-      <Card variant={mandatory ? 'warning' : 'default'} rail={mandatory}>
-        <Text variant="body" tone="primary" style={{ marginBottom: 12 }}>
-          {mandatory
-            ? 'Bu eğitim için geri bildirim formu doldurman zorunlu. Doldurmadan yeni bir eğitim başlatamazsın.'
-            : 'Bu eğitim hakkında geri bildirim verebilirsin. Görüşlerin eğitim kalitesini artırır.'}
-        </Text>
-        <Button
-          label="Geri bildirim ver"
-          variant="primary"
-          size="md"
-          onPress={() =>
-            router.push({
-              pathname: '/feedback/[attemptId]',
-              params: { attemptId, title: trainingTitle },
-            })
-          }
-          fullWidth
-        />
-      </Card>
+      <Text variant="footnote" tone="tertiary" style={{ marginBottom: 12 }}>
+        Eğitim değerlendirme formu · EY.FR.40
+      </Text>
+
+      {feedback.submitted ? (
+        // (a) Gönderildi
+        <Card variant="success" rail>
+          <Text variant="overline" style={{ color: t.colors.status.success, marginBottom: 4 }}>
+            GERİ BİLDİRİM ALINDI
+          </Text>
+          <Text variant="body" tone="primary">
+            Bu eğitim için değerlendirme formunu tamamladın. Katkın için teşekkürler.
+          </Text>
+          {feedback.submittedAt ? (
+            <Text
+              variant="footnote"
+              tone="tertiary"
+              style={{ marginTop: 8, fontFamily: 'InterTight_600SemiBold' }}
+            >
+              Gönderim · {feedback.submittedAt}
+            </Text>
+          ) : null}
+        </Card>
+      ) : feedback.canSubmit && attemptId ? (
+        // (b) Doldurulabilir
+        <Card variant={feedback.mandatory ? 'warning' : 'default'} rail={feedback.mandatory}>
+          {feedback.mandatory ? (
+            <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+              ZORUNLU GERİ BİLDİRİM
+            </Text>
+          ) : null}
+          <Text variant="body" tone="primary" style={{ marginBottom: 12 }}>
+            {feedback.mandatory
+              ? 'Bu eğitim için geri bildirim formu doldurman zorunlu. Doldurmadan yeni bir eğitim başlatamazsın.'
+              : 'Bu eğitim hakkında geri bildirim verebilirsin. Görüşlerin eğitim kalitesini artırır.'}
+          </Text>
+          <Button
+            label="Geri bildirim ver"
+            variant="primary"
+            size="md"
+            onPress={() =>
+              router.push({
+                pathname: '/feedback/[attemptId]',
+                params: { attemptId, title: trainingTitle },
+              })
+            }
+            fullWidth
+          />
+        </Card>
+      ) : (
+        // (c) Henüz açık değil
+        <Card variant="default">
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+            GERİ BİLDİRİM
+          </Text>
+          <Text variant="body" tone="primary">
+            Geri bildirim formu, eğitimi tamamlayıp sınavı bitirdikten sonra açılır.
+            {feedback.mandatory ? ' Bu eğitim için geri bildirim zorunludur.' : ''}
+          </Text>
+        </Card>
+      )}
     </View>
   );
 }

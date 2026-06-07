@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Paths } from 'expo-file-system';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -126,9 +127,14 @@ export default function CertificatePreviewScreen() {
             source={{ uri }}
             style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
             originWhitelist={['*']}
-            allowFileAccess={Platform.OS === 'android'}
-            allowFileAccessFromFileURLs={Platform.OS === 'android'}
-            allowUniversalAccessFromFileURLs={Platform.OS === 'android'}
+            // PDF cache'e file:// olarak yazılıyor. iOS WebView, cache dizinine
+            // açık okuma izni (allowingReadAccessToURL) verilmeden file:// URI'sini
+            // açamaz → boş ekran. SCORM oynatıcısıyla aynı pattern (scorm/[trainingId].tsx).
+            allowFileAccess
+            allowFileAccessFromFileURLs
+            allowUniversalAccessFromFileURLs
+            allowingReadAccessToURL={Platform.OS === 'ios' ? Paths.cache.uri : undefined}
+            onError={({ nativeEvent }) => setError(nativeEvent.description || 'PDF açılamadı.')}
             startInLoadingState
             renderLoading={() => (
               <View

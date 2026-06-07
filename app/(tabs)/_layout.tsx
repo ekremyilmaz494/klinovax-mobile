@@ -58,7 +58,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Anasayfa',
+          title: 'Ana Sayfa',
+          // Sola hizala: başlık, sağdaki takvim ikonuna kadar tüm genişliği kullanır
+          // → "Ana Sayfa" native header'da artık kesilmez (önceki "Anasa…" bug'ı).
+          headerTitleAlign: 'left',
           tabBarIcon: ({ color, size }) => (
             <IconSymbol size={size} name="house.fill" color={color} />
           ),
