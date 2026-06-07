@@ -13,6 +13,12 @@ import type { TrainingDetail } from '@/types/staff';
 
 export type ExamRouteTarget =
   | { kind: 'start' }
+  /**
+   * Retry: POST /start ekranını AÇMADAN yerinde çalıştır (kuralları atla) ve dönen
+   * status'e göre yönlendir. `start`'tan farkı kurallar ekranını göstermemesidir —
+   * retry'da ön sınav atlanıp doğrudan videoya gidildiği için sınav kuralları yanıltıcı.
+   */
+  | { kind: 'start-direct' }
   | { kind: 'questions'; phase: 'pre' | 'post' }
   | { kind: 'videos' }
   | { kind: 'result' }
@@ -44,13 +50,18 @@ export function resolveAttemptStatusRoute(
 /**
  * Eğitim detayındaki "Başla / Devam et" CTA'sının hedefi.
  *
- * `start` dönen durumlar POST /start gerektirir (attempt yaratma / yeni deneme +
- * 423 feedback gate). Doğrudan faz dönen durumlar attempt'in zaten var olduğu
- * resume senaryolarıdır — start ekranını atlamak bir dokunuş tasarruf ettirir.
+ * POST /start gerektiren iki durum AYRIŞIR:
+ *   - `start`        : fresh ilk deneme (assigned) — sınav kuralları ekranı anlamlı,
+ *                      kullanıcı ön sınava girecek; kuralları gösterip onay al.
+ *   - `start-direct` : retry (needsRetry / expired-retryable) — ön sınav atlanıp
+ *                      doğrudan videoya gidilir (web paritesi); kurallar ekranı yerine
+ *                      POST /start yerinde çalışır, dönen status'e göre yönlendirilir.
+ * Doğrudan faz dönen durumlar attempt'in zaten var olduğu resume senaryolarıdır —
+ * start ekranını atlamak bir dokunuş tasarruf ettirir.
  */
 export function resolveTrainingDetailRoute(detail: TrainingDetail): ExamRouteTarget {
   if (detail.status === 'locked' || detail.isNotStarted) return { kind: 'training-detail' };
-  if (detail.isExpiredRetryable || detail.needsRetry) return { kind: 'start' };
+  if (detail.isExpiredRetryable || detail.needsRetry) return { kind: 'start-direct' };
   if (detail.isExpired) return { kind: 'training-detail' };
   // Fresh atama: attempt henüz YOK — doğrudan faza gitmek 403/404 verir.
   // POST /start şart (attempt yaratır + zorunlu feedback 423 gate'inden geçer).

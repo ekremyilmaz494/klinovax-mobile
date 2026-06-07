@@ -85,16 +85,27 @@ describe('resolveTrainingDetailRoute', () => {
     });
   });
 
-  it('retry hakkı olan başarısız eğitim → start (yeni attempt POST /start ister)', () => {
+  it('retry hakkı olan başarısız eğitim → start-direct (ekran açmadan POST /start; ön sınav atlanır → video)', () => {
     expect(resolveTrainingDetailRoute(makeDetail({ status: 'failed', needsRetry: true }))).toEqual({
-      kind: 'start',
+      kind: 'start-direct',
     });
   });
 
-  it('expired-retryable → start (baştan başlama POST /start ister)', () => {
+  it('expired-retryable → start-direct (yeni deneme POST /start; kurallar ekranı gösterilmez)', () => {
     expect(
       resolveTrainingDetailRoute(makeDetail({ status: 'in_progress', isExpiredRetryable: true })),
-    ).toEqual({ kind: 'start' });
+    ).toEqual({ kind: 'start-direct' });
+  });
+
+  it('fresh ilk deneme `start` (kurallar) ≠ retry `start-direct` (kurallar atlanır)', () => {
+    // Regresyon kilidi: fresh ilk deneme sınav kurallarını GÖRMELİ; retry ise ön sınav
+    // atlandığı için kurallar ekranını ATLAYIP doğrudan POST /start'a gitmeli.
+    expect(resolveTrainingDetailRoute(makeDetail({ status: 'assigned' }))).toEqual({
+      kind: 'start',
+    });
+    expect(resolveTrainingDetailRoute(makeDetail({ status: 'failed', needsRetry: true }))).toEqual({
+      kind: 'start-direct',
+    });
   });
 
   it('süresi dolmuş (retry yok) → detayda kal', () => {
