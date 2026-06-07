@@ -60,6 +60,16 @@ describe('exam API helper path/method/body', () => {
     expect(mockApiFetch).toHaveBeenCalledWith('/api/exam/a1/videos');
   });
 
+  it('fetchExamVideos review modu → ?mode=review', async () => {
+    await fetchExamVideos('a1', { review: true });
+    expect(mockApiFetch).toHaveBeenCalledWith('/api/exam/a1/videos?mode=review');
+  });
+
+  it('fetchExamVideos review=false → query eklenmez (geriye uyumlu)', async () => {
+    await fetchExamVideos('a1', { review: false });
+    expect(mockApiFetch).toHaveBeenCalledWith('/api/exam/a1/videos');
+  });
+
   it('saveVideoProgress → POST /videos + body', async () => {
     await saveVideoProgress('a1', { videoId: 'v1', watchedTime: 90, completed: true });
     expect(mockApiFetch).toHaveBeenCalledWith('/api/exam/a1/videos', {

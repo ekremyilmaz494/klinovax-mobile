@@ -59,7 +59,11 @@ const AUTO_ADVANCE_SECONDS = 8;
  */
 export default function VideosScreen() {
   const t = useTheme();
-  const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
+  const { assignmentId, mode } = useLocalSearchParams<{ assignmentId: string; mode?: string }>();
+  // İnceleme modu: geçmiş (passed/postExamCompleted) eğitimi serbest sarmayla tekrar izleme.
+  // Backend GET /videos?mode=review tüm videoları completed döner, attemptStatus 'review',
+  // POST 204 no-op. Tamamlama/ilerleme/anti-cheat kapalı; sıralı kilit yok.
+  const isReview = mode === 'review';
   // Zustand auth store'dan oku — refresh sonrası listener tarafından sync ediliyor.
   // SecureStore I/O'su her AppState resume'da yapılmıyor.
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -67,8 +71,12 @@ export default function VideosScreen() {
   const [postExamModal, setPostExamModal] = useState(false);
 
   const { data, error, isLoading, refetch } = useQuery<ExamVideosResponse, Error>({
-    queryKey: ['exam-videos', assignmentId],
-    queryFn: () => fetchExamVideos(assignmentId),
+    // queryKey'e review/normal segmenti — iki mod farklı sunucu yanıtı döner
+    // (review: tüm videolar completed); aynı key'i paylaşırlarsa biri diğerinin
+    // durumunu hidrate eder. completeVideo invalidate'i prefix-match olduğundan
+    // (['exam-videos', assignmentId]) yine ikisini de tazeler.
+    queryKey: ['exam-videos', assignmentId, isReview ? 'review' : 'normal'],
+    queryFn: () => fetchExamVideos(assignmentId, { review: isReview }),
     // gcTime:0 + staleTime:0 — KRİTİK: queryKey assignmentId ile denemeler arası
     // AYNI. Persist/in-memory cache ÖNCEKİ denemenin durumunu (attemptStatus
     // 'post_exam' + videolar completed) yeni denemeye taşırsa, aşağıdaki route-guard
@@ -85,7 +93,10 @@ export default function VideosScreen() {
   // geri sayımla zaten yapıyor; ikisi birden tetiklenirse modal yarıda kesilir.
   const redirectedRef = useRef(false);
   useEffect(() => {
-    if (!data || postExamModal || redirectedRef.current) return;
+    // İnceleme modunda ASLA yönlendirme: attemptStatus 'review' →
+    // resolveAttemptStatusRoute 'result' döner; bu guard olmadan kullanıcı ekranı
+    // göremeden sonuç sayfasına atılır. Review akışını mümkün kılan TEK satır budur.
+    if (!data || postExamModal || redirectedRef.current || isReview) return;
     const expected = resolveAttemptStatusRoute(data.attemptStatus);
     if (!shouldRedirectExamRoute({ kind: 'videos' }, expected)) return;
     redirectedRef.current = true;
@@ -103,7 +114,7 @@ export default function VideosScreen() {
         router.replace(`/exam/${assignmentId}/start`);
         break;
     }
-  }, [data, postExamModal, assignmentId]);
+  }, [data, postExamModal, assignmentId, isReview]);
 
   useEffect(() => {
     if (!data || activeVideoId) return;
@@ -155,6 +166,7 @@ export default function VideosScreen() {
           token={accessToken}
           videos={data.videos}
           activeVideo={activeVideo}
+          isReview={isReview}
           onSelectVideo={setActiveVideoId}
           onAllCompleted={() => {
             // completeVideo mutation defaults zaten aynı 4 cache'i invalidate ediyor
@@ -192,6 +204,7 @@ function Body({
   token,
   videos,
   activeVideo,
+  isReview,
   onSelectVideo,
   onAllCompleted,
   onRequestPostExam,
@@ -200,6 +213,7 @@ function Body({
   token: string | null;
   videos: ExamVideoItem[];
   activeVideo: ExamVideoItem;
+  isReview: boolean;
   onSelectVideo: (id: string) => void;
   onAllCompleted: () => void;
   onRequestPostExam: () => void;
@@ -258,6 +272,7 @@ function Body({
           assignmentId={assignmentId}
           token={token}
           video={activeVideo}
+          isReview={isReview}
           onCompleted={handleCompleted}
         />
       ) : (
@@ -265,6 +280,7 @@ function Body({
           assignmentId={assignmentId}
           token={token}
           video={activeVideo}
+          isReview={isReview}
           onCompleted={handleCompleted}
         />
       )}
@@ -273,7 +289,11 @@ function Body({
         data={videos}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => {
+          // İnceleme modunda hiçbir içerik kilitli değil (serbest gezinme). Normal akışta
+          // sıralı kilit korunur. (Review yanıtında zaten tümü completed → -1; yine de
+          // sunucu veri şekline güvenmeden açıkça kapat.)
           const isLocked =
+            !isReview &&
             item.contentType !== 'pdf' &&
             !item.completed &&
             firstIncompleteMediaIdx >= 0 &&
@@ -298,31 +318,46 @@ function Body({
         removeClippedSubviews={true}
         ListHeaderComponent={
           <>
-            <Stack
-              direction="row"
-              justify="space-between"
-              align="center"
-              style={{ marginBottom: 8, marginTop: 4 }}
-            >
-              <Text variant="overline" tone="tertiary">
-                İLERLEME
-              </Text>
-              <Text
-                variant="caption"
-                tone="primary"
-                style={{ fontVariant: ['tabular-nums'], fontFamily: 'InterTight_600SemiBold' }}
-              >
-                {completedCount}/{totalRequired} video
-              </Text>
-            </Stack>
-            <ProgressBar value={progressPct} height={8} />
+            {isReview ? (
+              <View style={{ marginBottom: 20, marginTop: 4 }}>
+                <Stack direction="row" align="center">
+                  <Tag label="İnceleme Modu" tone="primary" />
+                </Stack>
+                <Text variant="caption" tone="tertiary" style={{ marginTop: 10 }}>
+                  Bu eğitimi tamamladın. İçeriği serbestçe ileri-geri sararak tekrar izleyebilirsin;
+                  ilerleme kaydedilmez.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Stack
+                  direction="row"
+                  justify="space-between"
+                  align="center"
+                  style={{ marginBottom: 8, marginTop: 4 }}
+                >
+                  <Text variant="overline" tone="tertiary">
+                    İLERLEME
+                  </Text>
+                  <Text
+                    variant="caption"
+                    tone="primary"
+                    style={{ fontVariant: ['tabular-nums'], fontFamily: 'InterTight_600SemiBold' }}
+                  >
+                    {completedCount}/{totalRequired} video
+                  </Text>
+                </Stack>
+                <ProgressBar value={progressPct} height={8} />
+              </>
+            )}
             <Text variant="title-3" style={{ marginTop: 24, marginBottom: 12 }}>
               Tüm videolar
             </Text>
           </>
         }
         ListFooterComponent={
-          totalRequired > 0 && completedCount >= totalRequired ? (
+          // İnceleme modunda "Son sınava geç" yok — sınav zaten tamamlandı.
+          !isReview && totalRequired > 0 && completedCount >= totalRequired ? (
             <View style={{ marginTop: 24 }}>
               <Button
                 label="Son sınava geç"
@@ -362,11 +397,13 @@ function PdfBlock({
   assignmentId,
   token,
   video,
+  isReview,
   onCompleted,
 }: {
   assignmentId: string;
   token: string | null;
   video: ExamVideoItem;
+  isReview: boolean;
   onCompleted: (allDone: boolean) => void;
 }) {
   const t = useTheme();
@@ -457,7 +494,13 @@ function PdfBlock({
           borderTopColor: t.colors.border.subtle,
         }}
       >
-        {video.completed ? (
+        {isReview ? (
+          // İnceleme modu: tamamlama yok — yalnızca görüntüleme. "Tamamlandı" göstergesini
+          // de basma (opsiyonel okunmamış PDF'de yanıltıcı olur).
+          <Text variant="caption" tone="tertiary" align="center">
+            İnceleme modu — dokümanı yalnızca görüntülüyorsun.
+          </Text>
+        ) : video.completed ? (
           <Stack direction="row" align="center" gap={2}>
             <IconSymbol name="checkmark.circle.fill" size={18} color={t.colors.status.success} />
             <Text variant="caption" tone="tertiary">
@@ -482,11 +525,13 @@ function VideoBlock({
   assignmentId,
   token,
   video,
+  isReview,
   onCompleted,
 }: {
   assignmentId: string;
   token: string | null;
   video: ExamVideoItem;
+  isReview: boolean;
   onCompleted: (allDone: boolean) => void;
 }) {
   const t = useTheme();
@@ -504,7 +549,8 @@ function VideoBlock({
     // 1 sn: özel kontrol çubuğundaki ilerleme göstergesi timeUpdate event'inden beslenir.
     p.timeUpdateEventInterval = 1;
     // Resume seek: kullanıcının daha önce ULAŞTIĞI konuma dönmek ileri sarma sayılmaz.
-    if (video.lastPosition && video.lastPosition < video.duration - 5) {
+    // İnceleme modunda resume yok — tekrar izlemede baştan başla (serbest sarma zaten açık).
+    if (!isReview && video.lastPosition && video.lastPosition < video.duration - 5) {
       p.currentTime = video.lastPosition;
     }
   });
@@ -554,6 +600,10 @@ function VideoBlock({
   // (yeniden denemede eski izleme kredisi sızmasın). Önbellek yalnızca backend zaten
   // bu denemede ilerleme bildirdiğinde (watchedSeconds>0) çevrimdışı fazlalığı kurtarır.
   useEffect(() => {
+    // İNCELEME MODU: paylaşılan ilerleme önbelleğine (assignmentId:videoId — her iki
+    // mod aynı anahtar) HİÇ DOKUNMA. Burada clear/read yapmak, sürmekte olan başka bir
+    // denemenin (örn. yarım kalan retry) çevrimdışı resume verisini silebilir/bozabilir.
+    if (isReview) return;
     let cancelled = false;
     void (async () => {
       if ((video.watchedSeconds ?? 0) <= 0 && !video.completed) {
@@ -579,9 +629,19 @@ function VideoBlock({
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, video.id, video.duration, video.watchedSeconds, video.completed, player]);
+  }, [
+    assignmentId,
+    video.id,
+    video.duration,
+    video.watchedSeconds,
+    video.completed,
+    player,
+    isReview,
+  ]);
 
   useEffect(() => {
+    // İnceleme modu: izleme süresi biriktirme / önbellek yazımı / heartbeat POST yok.
+    if (isReview) return;
     const interval = setInterval(() => {
       if (!player.playing) {
         lastTickRef.current = null;
@@ -623,7 +683,7 @@ function VideoBlock({
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [player, assignmentId, video.id, video.duration]);
+  }, [player, assignmentId, video.id, video.duration, isReview]);
 
   const completedRef = useRef(video.completed);
   useEffect(() => {
@@ -634,6 +694,8 @@ function VideoBlock({
   // birikim eşiğini bekler; kullanıcı ekrandan ayrılır veya app background'a
   // geçerse aradaki izleme + son pozisyon kaybolmasın diye eşiksiz kayıt atılır.
   const flushProgress = useCallback(() => {
+    // İnceleme modu: çıkış/arka plan flush'ı yok — sunucuya ilerleme yazılmaz.
+    if (isReview) return;
     if (
       !shouldFlushHeartbeat({
         accumulated: accumulatedRef.current,
@@ -659,7 +721,7 @@ function VideoBlock({
       position,
       watchedTime: watched,
     });
-  }, [player, assignmentId, video.id]);
+  }, [player, assignmentId, video.id, isReview]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -710,6 +772,9 @@ function VideoBlock({
   // İleri sarıp sona gelmek tetiklemez: accumulator şartı her tetikleyicide aranır.
   const tryComplete = useCallback(
     (reachedEnd: boolean) => {
+      // İnceleme modu: tamamlama POST'u YOK (ve önbellek temizliği yok). Sıradaki
+      // içeriğe otomatik geçiş de tetiklenmez (onCompleted çağrılmaz).
+      if (isReview) return;
       if (completionInProgressRef.current) return;
       const accumulated = accumulatedRef.current;
       if (
@@ -755,7 +820,7 @@ function VideoBlock({
         },
       );
     },
-    [player, assignmentId, video.id, video.duration, onCompleted],
+    [player, assignmentId, video.id, video.duration, onCompleted, isReview],
   );
 
   // Doğal bitiş — web'in <video> onEnded sinyalinin RN karşılığı (kanonik tetikleyici).
@@ -768,9 +833,12 @@ function VideoBlock({
   // Güvence tetikleyicisi: kullanıcı %90+ izleyip videoyu sonuna kadar oynatmadan
   // ayrılırsa da tamamlama kaçmasın (reachedEnd=false → accumulated eşiği aranır).
   useEffect(() => {
+    // İnceleme modu: tamamlama güvence tetikleyicisi gereksiz (tryComplete zaten no-op);
+    // boş 2sn interval kurma.
+    if (isReview) return;
     const id = setInterval(() => tryComplete(false), 2000);
     return () => clearInterval(id);
-  }, [tryComplete]);
+  }, [tryComplete, isReview]);
 
   // ── Özel oynatıcı kontrolleri ─────────────────────────────────────────
   // Native kontroller (nativeControls) BİLEREK kapalı: kaydırma çubuğu, 10sn İLERİ
@@ -794,10 +862,11 @@ function VideoBlock({
     player.volume = next ? 0 : 1;
   };
 
-  // Scrubber/dokunma ile konuma git — clampSeekTarget ileri sarmayı no-op'a düşürür
-  // (anti-cheat invariant'ı tek noktada; geri konum serbest).
+  // Scrubber/dokunma ile konuma git. NORMAL akış: clampSeekTarget ileri sarmayı
+  // no-op'a düşürür (anti-cheat invariant'ı tek noktada; geri konum serbest).
+  // İNCELEME modu: serbest konumlanma — ileri-geri sarma açık (sınav zaten bitti).
   const seekTo = (seconds: number) => {
-    player.currentTime = clampSeekTarget(player.currentTime, seconds);
+    player.currentTime = isReview ? seconds : clampSeekTarget(player.currentTime, seconds);
   };
 
   // Yatay tam ekran — expo-screen-orientation ile cihazı döndürür. app.json

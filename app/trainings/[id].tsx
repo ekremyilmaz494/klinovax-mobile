@@ -286,6 +286,24 @@ function Detail({ data }: { data: TrainingDetail }) {
               <VideoRow key={v.id} index={i + 1} video={v} />
             ))}
           </View>
+          {/* Geçmiş eğitim → içeriği serbest sarmayla tekrar izleme (review modu).
+              Web personel detayındaki "tekrar izle" girişinin mobil karşılığı. */}
+          {data.status === 'passed' || data.postExamCompleted ? (
+            <View style={{ marginTop: 12 }}>
+              <Button
+                label="Eğitim içeriğini tekrar izle"
+                variant="outline"
+                size="md"
+                onPress={() =>
+                  router.push({
+                    pathname: '/exam/[assignmentId]/videos',
+                    params: { assignmentId: data.assignmentId, mode: 'review' },
+                  })
+                }
+                fullWidth
+              />
+            </View>
+          ) : null}
         </>
       ) : null}
 
