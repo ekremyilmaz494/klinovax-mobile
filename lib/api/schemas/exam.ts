@@ -25,7 +25,6 @@ export const examStartResponseSchema = z.looseObject({
   status: attemptStatusSchema,
   attemptNumber: z.number(),
   examOnly: z.boolean(),
-  redirectTo: z.literal('post-exam').optional(),
 });
 
 const examOptionSchema = z.looseObject({

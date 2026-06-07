@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { useStartExam } from '@/hooks/use-start-exam';
 import { createAttemptRequest, fetchAttemptRequests } from '@/lib/api/attempt-requests';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { resolveTrainingDetailRoute } from '@/lib/exam/route-guard';
@@ -73,6 +74,51 @@ export default function TrainingDetailScreen() {
 function Detail({ data }: { data: TrainingDetail }) {
   const t = useTheme();
   const action = resolveAction(data);
+
+  // Retry CTA'sı (`start-direct`) POST /start'ı ekran açmadan yerinde çalıştırır.
+  // navigate=push → detay stack'te kalır (videodan geri → detay). Bilinmeyen status'te
+  // zaten detaydayız (no-op). Generic hata: detayın inline hata alanı yok, Alert ile bas.
+  const startExam = useStartExam(data.assignmentId, {
+    navigate: router.push,
+    onUnknownStatus: () => {},
+    onError: (err) =>
+      Alert.alert(
+        'Sınav başlatılamadı',
+        err instanceof ApiError && err.message
+          ? err.message
+          : 'Bağlantını kontrol edip tekrar dene.',
+      ),
+  });
+
+  /**
+   * CTA hedefi route guard'dan gelir. Devam eden attempt'te start ekranı atlanıp
+   * doğrudan kalınan faza gidilir. `start` (fresh ilk deneme) kurallar ekranına; retry
+   * (`start-direct`) ise ekran açmadan POST /start'a gider — ön sınav atlandığından
+   * doğrudan videoya yönlenir (web paritesi), zorunlu feedback 423 gate'i korunur.
+   */
+  const handleCtaPress = () => {
+    const target = resolveTrainingDetailRoute(data);
+    switch (target.kind) {
+      case 'start':
+        router.push(`/exam/${data.assignmentId}/start`);
+        break;
+      case 'start-direct':
+        startExam.start();
+        break;
+      case 'questions':
+        router.push(`/exam/${data.assignmentId}/questions?phase=${target.phase}`);
+        break;
+      case 'videos':
+        router.push(`/exam/${data.assignmentId}/videos`);
+        break;
+      case 'result':
+        router.push(`/exam/${data.assignmentId}/result`);
+        break;
+      case 'training-detail':
+        // Zaten detaydayız — bu durumlarda CTA disabled, pratikte tetiklenmez.
+        break;
+    }
+  };
 
   return (
     // keyboardShouldPersistTaps: AttemptRequestSection'daki TextInput açıkken
@@ -149,7 +195,7 @@ function Detail({ data }: { data: TrainingDetail }) {
             <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
               taşınmaz
             </Text>
-            ; eğitime baştan başlarsın. Kalan deneme:{' '}
+            ; yeni bir denemeye baştan başlarsın. Kalan deneme:{' '}
             <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
               {Math.max(data.maxAttempts - data.currentAttempt, 0)}/{data.maxAttempts}
             </Text>
@@ -258,40 +304,14 @@ function Detail({ data }: { data: TrainingDetail }) {
           label={action.label}
           variant="primary"
           size="lg"
-          disabled={action.disabled}
-          onPress={() => navigateToExamTarget(data)}
+          loading={startExam.isPending}
+          disabled={action.disabled || startExam.isPending}
+          onPress={handleCtaPress}
           fullWidth
         />
       </View>
     </ScrollView>
   );
-}
-
-/**
- * CTA hedefi route guard'dan gelir: devam eden attempt'te start ekranı atlanıp
- * doğrudan kalınan faza gidilir (bir dokunuş tasarrufu). Yeni attempt gereken
- * durumlar (fresh/retry/expired-retryable) start'a gider — POST /start orada
- * attempt yaratır ve zorunlu feedback 423 gate'inden geçirir.
- */
-function navigateToExamTarget(data: TrainingDetail): void {
-  const target = resolveTrainingDetailRoute(data);
-  switch (target.kind) {
-    case 'start':
-      router.push(`/exam/${data.assignmentId}/start`);
-      break;
-    case 'questions':
-      router.push(`/exam/${data.assignmentId}/questions?phase=${target.phase}`);
-      break;
-    case 'videos':
-      router.push(`/exam/${data.assignmentId}/videos`);
-      break;
-    case 'result':
-      router.push(`/exam/${data.assignmentId}/result`);
-      break;
-    case 'training-detail':
-      // Zaten detaydayız — bu durumlarda CTA disabled, pratikte tetiklenmez.
-      break;
-  }
 }
 
 /**

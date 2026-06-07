@@ -1,14 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
-import { ApiError, apiFetch } from '@/lib/api/client';
-import { startExam } from '@/lib/api/exam';
-import { extractPendingFeedbackRoute, resolveStartRoute } from '@/lib/exam/start-routing';
-import { useOnline } from '@/lib/network/use-online';
+import { useStartExam } from '@/hooks/use-start-exam';
+import { apiFetch } from '@/lib/api/client';
 import type { TrainingDetail } from '@/types/staff';
 
 /**
@@ -18,74 +16,10 @@ import type { TrainingDetail } from '@/types/staff';
 export default function ExamStartScreen() {
   const t = useTheme();
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
-  const qc = useQueryClient();
-  const { isOnline } = useOnline();
 
-  const startMutation = useMutation({
-    mutationFn: () => startExam(assignmentId),
-    networkMode: 'online',
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['my-trainings'] });
-      qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
-      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
-      const route = resolveStartRoute(data.status);
-      if (!route) {
-        // Bilinmeyen attempt status (örn. yeni backend sürümü farklı durum döndürdü) —
-        // sessiz no-op kullanıcıyı "Başlatılıyor…" sonrası boşlukta bırakıyordu.
-        console.warn('[exam-start] bilinmeyen attempt status', data.status);
-        Alert.alert(
-          'Sınav durumu alınamadı',
-          'Eğitim sayfasına dönülüyor. Sorun devam ederse uygulamayı güncelleyin veya kurum yöneticinizle iletişime geçin.',
-          [{ text: 'Tamam', onPress: () => router.back() }],
-        );
-        return;
-      }
-      switch (route.kind) {
-        case 'questions':
-          router.replace(`/exam/${assignmentId}/questions?phase=${route.phase}`);
-          break;
-        case 'videos':
-          router.replace(`/exam/${assignmentId}/videos`);
-          break;
-        case 'result':
-          router.replace(`/exam/${assignmentId}/result`);
-          break;
-        case 'detail':
-          router.replace(`/trainings/${assignmentId}`);
-          break;
-      }
-    },
-    onError: (err) => {
-      // Backend 423 + pendingFeedback: kullanıcı başka bir eğitim için zorunlu
-      // geri bildirimi tamamlamadan yeni eğitim başlatamaz. Formu app içinde aç.
-      const pending = extractPendingFeedbackRoute(err);
-      if (pending) {
-        router.push({
-          pathname: '/feedback/[attemptId]',
-          params: { attemptId: pending.attemptId, title: pending.trainingTitle ?? '' },
-        });
-        return;
-      }
-      // attemptId çıkmazsa ama hâlâ 423 ise fallback bilgilendirme. Form otomatik
-      // AÇILAMAZ (hangi attempt'e ait olduğu bilinmiyor) — kullanıcıyı formun
-      // bulunduğu yere yönlendir, "form açılacak" deme.
-      if (err instanceof ApiError && err.status === 423) {
-        Alert.alert(
-          'Geri bildirim bekleniyor',
-          'Bir önceki eğitim için zorunlu geri bildirim formunu doldurman gerekiyor. Formu Eğitimlerim sekmesindeki uyarı kartından açabilirsin.',
-          [
-            { text: 'Kapat', style: 'cancel' },
-            {
-              text: 'Eğitimlerime git',
-              onPress: () => router.replace('/(tabs)/trainings'),
-            },
-          ],
-        );
-        return;
-      }
-      // Diğer hatalar mevcut ScreenError component'inde gösteriliyor (error state).
-    },
-  });
+  // Fresh ilk deneme akışı: kuralları göster, "Sınava başla" butonunda POST /start çağır.
+  // Varsayılan navigate=replace (kurallar ekranını hedefle değiştir), unknown=back.
+  const { start, isPending, isOnline, error } = useStartExam(assignmentId);
 
   // Sınav meta bilgisi — trainings/[id].tsx ile aynı query key (cache paylaşımı):
   // kullanıcı eğitim detayından geldiği için veri çoğunlukla zaten cache'te,
@@ -95,8 +29,6 @@ export default function ExamStartScreen() {
     queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${assignmentId}`),
   });
   const remainingAttempts = detail ? Math.max(detail.maxAttempts - detail.currentAttempt, 0) : null;
-
-  const error = startMutation.error as Error | null;
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
@@ -191,35 +123,19 @@ export default function ExamStartScreen() {
         </View>
 
         {error ? (
-          <ScreenError
-            message={error.message || 'Sınav başlatılamadı.'}
-            onRetry={() => startMutation.mutate()}
-          />
+          <ScreenError message={error.message || 'Sınav başlatılamadı.'} onRetry={start} />
         ) : null}
 
         <View style={{ marginTop: 32 }}>
           <Button
             label={
-              !isOnline
-                ? 'İnternet bekleniyor…'
-                : startMutation.isPending
-                  ? 'Başlatılıyor…'
-                  : 'Sınava başla'
+              !isOnline ? 'İnternet bekleniyor…' : isPending ? 'Başlatılıyor…' : 'Sınava başla'
             }
             variant="primary"
             size="lg"
-            loading={startMutation.isPending}
-            disabled={startMutation.isPending || !isOnline}
-            onPress={() => {
-              if (!isOnline) {
-                Alert.alert(
-                  'İnternet gerekli',
-                  'Sınav başlatmak için internet bağlantısı gerekiyor. Lütfen bağlantınızı kontrol edin.',
-                );
-                return;
-              }
-              startMutation.mutate();
-            }}
+            loading={isPending}
+            disabled={isPending || !isOnline}
+            onPress={start}
             fullWidth
           />
           <View style={{ marginTop: 12 }}>

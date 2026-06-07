@@ -19,8 +19,6 @@ export type ExamStartResponse = {
   status: AttemptStatus;
   attemptNumber: number;
   examOnly: boolean;
-  /** Backend "post-exam" döndürürse mobile post-exam ekranına atlar (examOnly true). */
-  redirectTo?: 'post-exam';
 };
 
 export type ExamOption = {
