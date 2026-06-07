@@ -2,6 +2,7 @@ import type { FeedbackForm } from '@/types/feedback';
 
 import {
   buildFeedbackPayload,
+  countFeedbackProgress,
   isFeedbackComplete,
   YES_PARTIAL_NO_OPTIONS,
 } from '../feedback-payload';
@@ -64,6 +65,32 @@ describe('isFeedbackComplete', () => {
   it('score 0 da geçerli sayısal cevaptır (typeof number)', () => {
     const answers = { 'i-likert': { score: 0 }, 'i-text': { textAnswer: 'x' } };
     expect(isFeedbackComplete(form(), answers)).toBe(true);
+  });
+});
+
+describe('countFeedbackProgress', () => {
+  // form(): i-likert (likert, zorunlu), i-text (text, zorunlu), i-opt (text, opsiyonel) → total 3
+  it('hiç cevap yoksa 0/3', () => {
+    expect(countFeedbackProgress(form(), {})).toEqual({ answered: 0, total: 3 });
+  });
+
+  it('opsiyonel maddeler de toplama ve cevaplanana dahil', () => {
+    const answers = {
+      'i-likert': { score: 4 },
+      'i-text': { textAnswer: 'iyi' },
+      'i-opt': { textAnswer: 'ek görüş' },
+    };
+    expect(countFeedbackProgress(form(), answers)).toEqual({ answered: 3, total: 3 });
+  });
+
+  it('whitespace text cevaplanmış sayılmaz', () => {
+    const answers = { 'i-likert': { score: 4 }, 'i-text': { textAnswer: '   ' } };
+    expect(countFeedbackProgress(form(), answers)).toEqual({ answered: 1, total: 3 });
+  });
+
+  it('score 0 cevaplanmış sayılır (typeof number)', () => {
+    const answers = { 'i-likert': { score: 0 } };
+    expect(countFeedbackProgress(form(), answers)).toEqual({ answered: 1, total: 3 });
   });
 });
 

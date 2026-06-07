@@ -42,6 +42,29 @@ export function isFeedbackComplete(form: FeedbackForm, answers: FeedbackAnswerSt
 }
 
 /**
+ * İlerleme göstergesi için cevaplanan/toplam madde sayısı (zorunlu + opsiyonel HEPSİ).
+ * `isFeedbackComplete` ile AYNI "dolu" semantiği: text → trim edilmiş boş olmayan metin,
+ * diğerleri → sayısal score.
+ *
+ * NOT: Bu submit gating DEĞİLdir. Gösterge tüm maddeleri sayar; submit butonu yalnız
+ * zorunlular dolunca açılır (`isFeedbackComplete`). İkisi aynı per-madde kuralı paylaşır
+ * ki "%100 ama gönder kapalı" çelişkisi oluşmasın.
+ */
+export function countFeedbackProgress(
+  form: FeedbackForm,
+  answers: FeedbackAnswerState,
+): { answered: number; total: number } {
+  const allItems = form.categories.flatMap((c) => c.items);
+  const answered = allItems.filter((it) => {
+    const a = answers[it.id];
+    if (!a) return false;
+    if (it.questionType === 'text') return !!a.textAnswer && a.textAnswer.trim().length > 0;
+    return typeof a.score === 'number';
+  }).length;
+  return { answered, total: allItems.length };
+}
+
+/**
  * Submit payload'u — yalnızca dolu cevaplar gönderilir (opsiyonel boşlar atlanır).
  * score'lu cevap `{ itemId, score }`, metin cevabı `{ itemId, textAnswer }` (trim'li) olur.
  */
