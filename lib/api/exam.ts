@@ -83,9 +83,18 @@ export async function fetchExamResults(assignmentId: string): Promise<ExamResult
 /**
  * Aktif denemenin video listesini çek. Backend `id` parametresini hem
  * assignmentId hem trainingId olarak kabul eder; biz assignmentId yolluyoruz.
+ *
+ * `opts.review`: geçmiş (passed/postExamCompleted) eğitimi tekrar izleme modu.
+ * `?mode=review` ile backend tüm videoları `completed:true`, `attemptStatus:'review'`
+ * döner; ilerleme/tamamlama POST'u 204 no-op'tur. Parametre verilmezse mevcut
+ * normal davranış aynen korunur (geriye uyumlu).
  */
-export async function fetchExamVideos(assignmentId: string): Promise<ExamVideosResponse> {
-  const data = await apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos`);
+export async function fetchExamVideos(
+  assignmentId: string,
+  opts?: { review?: boolean },
+): Promise<ExamVideosResponse> {
+  const qs = opts?.review ? '?mode=review' : '';
+  const data = await apiFetch<ExamVideosResponse>(`/api/exam/${assignmentId}/videos${qs}`);
   return validate(examVideosResponseSchema, data, 'exam.videos');
 }
 

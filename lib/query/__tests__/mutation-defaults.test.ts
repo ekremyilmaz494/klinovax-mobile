@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api/client';
+import { saveVideoProgress } from '@/lib/api/exam';
 
 import {
   isAlreadyProcessedError,
@@ -6,6 +7,28 @@ import {
   shouldRetry,
 } from '../mutation-defaults';
 import { MUTATION_KEYS } from '../mutation-keys';
+
+// mutationFn içini izole test etmek için exam API çağrıları mock'lanır.
+jest.mock('@/lib/api/exam', () => ({
+  saveExamAnswer: jest.fn().mockResolvedValue({ saved: true }),
+  submitExam: jest.fn().mockResolvedValue({}),
+  saveVideoProgress: jest.fn().mockResolvedValue({ progress: true, allVideosCompleted: false }),
+}));
+
+type CapturedConfig = { mutationFn: (vars: never) => unknown };
+
+/** Kayıtlı default config'lerini key→config Map olarak toplayan sahte client.
+ *  MUTATION_KEYS değerleri tuple (array) olduğundan Map (referans eşitliği) kullanılır. */
+function captureDefaults(): Map<unknown, CapturedConfig> {
+  const defaults = new Map<unknown, CapturedConfig>();
+  const client = {
+    setMutationDefaults: (key: unknown, config: CapturedConfig) => {
+      defaults.set(key, config);
+    },
+  } as never;
+  registerMutationDefaults(client);
+  return defaults;
+}
 
 describe('shouldRetry', () => {
   it('4xx ApiError → retry yok (kalıcı hata)', () => {
@@ -62,5 +85,45 @@ describe('registerMutationDefaults', () => {
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.submitExam);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.saveVideoProgress);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.completeVideo);
+  });
+});
+
+describe('completeVideo mutationFn', () => {
+  beforeEach(() => {
+    (saveVideoProgress as jest.Mock).mockClear();
+  });
+
+  it('currentPage verilince saveVideoProgress completed:true + currentPage geçer (PDF)', async () => {
+    const defaults = captureDefaults();
+    await defaults.get(MUTATION_KEYS.completeVideo)!.mutationFn({
+      assignmentId: 'a1',
+      videoId: 'v1',
+      position: 5,
+      watchedTime: 0,
+      currentPage: 5,
+    } as never);
+    expect(saveVideoProgress).toHaveBeenCalledWith('a1', {
+      videoId: 'v1',
+      position: 5,
+      watchedTime: 0,
+      completed: true,
+      currentPage: 5,
+    });
+  });
+
+  it("currentPage yoksa body'de currentPage bulunmaz (video/ses tamamlama)", async () => {
+    const defaults = captureDefaults();
+    await defaults.get(MUTATION_KEYS.completeVideo)!.mutationFn({
+      assignmentId: 'a1',
+      videoId: 'v1',
+      position: 10,
+      watchedTime: 8,
+    } as never);
+    expect(saveVideoProgress).toHaveBeenCalledWith('a1', {
+      videoId: 'v1',
+      position: 10,
+      watchedTime: 8,
+      completed: true,
+    });
   });
 });

@@ -9,9 +9,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
+import { StatCard } from '@/components/ui/StatCard';
 import { Card, Chip, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { fetchPendingFeedback } from '@/lib/api/feedback';
+import { computeAverageScore } from '@/lib/staff/stats';
 import { useAuthStore } from '@/store/auth';
 import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff';
 import type { PendingFeedbackItem } from '@/types/feedback';
@@ -84,6 +86,10 @@ export default function TrainingsScreen() {
 
   const items = useMemo<MyTrainingItem[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
+  // Yüklenmiş eğitimlerin ortalama skoru (web personel paneliyle birebir parite — bkz.
+  // lib/staff/stats.ts). null ise KPI tile gizlenir.
+  const avgScore = useMemo<number | null>(() => computeAverageScore(items), [items]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -143,6 +149,14 @@ export default function TrainingsScreen() {
           />
         ))}
       </Stack>
+
+      {avgScore != null ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <Stack direction="row">
+            <StatCard label="ORTALAMA SKOR" value={`%${avgScore}`} tone="success" />
+          </Stack>
+        </View>
+      ) : null}
 
       {isLoading && items.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -223,11 +237,14 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
         <Text variant="title-3" numberOfLines={2} style={{ flex: 1 }}>
           {item.title}
         </Text>
-        {item.isNotStarted ? (
-          <Badge label="Yakında" tone="info" />
-        ) : (
-          <Badge label={label} tone={tone} />
-        )}
+        <Stack direction="row" gap={1} align="center">
+          {item.isScorm ? <Badge label="SCORM" tone="info" /> : null}
+          {item.isNotStarted ? (
+            <Badge label="Yakında" tone="info" />
+          ) : (
+            <Badge label={label} tone={tone} />
+          )}
+        </Stack>
       </Stack>
 
       {item.isNotStarted ? (

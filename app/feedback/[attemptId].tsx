@@ -5,11 +5,17 @@ import { ActivityIndicator, Alert, ScrollView, Switch, TextInput, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Chip, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchFeedbackForm, submitFeedback } from '@/lib/api/feedback';
-import { buildFeedbackPayload, isFeedbackComplete } from '@/lib/exam/feedback-payload';
+import {
+  buildFeedbackPayload,
+  countFeedbackProgress,
+  isFeedbackComplete,
+  YES_PARTIAL_NO_OPTIONS,
+} from '@/lib/exam/feedback-payload';
 import { useAuthStore } from '@/store/auth';
 import type { FeedbackForm, FeedbackItem } from '@/types/feedback';
 
@@ -166,6 +172,11 @@ function FormBody({
     [form.categories],
   );
 
+  // İlerleme göstergesi — tüm maddeler (zorunlu+opsiyonel). Submit gating'ten bağımsız;
+  // aynı "dolu" semantiğini paylaşır (bkz. countFeedbackProgress).
+  const { answered, total } = useMemo(() => countFeedbackProgress(form, answers), [form, answers]);
+  const progressPct = total ? Math.round((answered / total) * 100) : 0;
+
   return (
     <ScrollView
       contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
@@ -180,6 +191,20 @@ function FormBody({
           {form.description}
         </Text>
       ) : null}
+
+      <View style={{ marginTop: 20 }}>
+        <Stack direction="row" justify="space-between" align="center">
+          <Text variant="overline" tone="tertiary">
+            İLERLEME
+          </Text>
+          <Text variant="footnote" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
+            {answered}/{total}
+          </Text>
+        </Stack>
+        <View style={{ marginTop: 8 }}>
+          <ProgressBar value={progressPct} height={8} />
+        </View>
+      </View>
 
       {categories.map((cat) => {
         const items = [...cat.items].sort((a, b) => a.order - b.order);
@@ -304,12 +329,8 @@ function LikertControl({ value, onScore }: { value?: number; onScore: (s: number
 }
 
 function YesPartialNoControl({ value, onScore }: { value?: number; onScore: (s: number) => void }) {
-  // Backend kodlaması: Evet=3, Kısmen=2, Hayır=1.
-  const options: { label: string; score: number }[] = [
-    { label: 'Evet', score: 3 },
-    { label: 'Kısmen', score: 2 },
-    { label: 'Hayır', score: 1 },
-  ];
+  // Skorlama tek kaynaktan (web kanonik: Evet=1, Kısmen=2, Hayır=3) — bkz. YES_PARTIAL_NO_OPTIONS.
+  const options = YES_PARTIAL_NO_OPTIONS;
   return (
     <Stack direction="row" gap={2}>
       {options.map((opt) => (

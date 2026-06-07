@@ -46,7 +46,7 @@ export type FeedbackFormResponse = {
 
 export type FeedbackAnswer = {
   itemId: string;
-  /** likert_5: 1-5 · yes_partial_no: 1-3 (Evet=3, Kısmen=2, Hayır=1). text tipinde gönderilmez. */
+  /** likert_5: 1-5 · yes_partial_no: 1-3 (Evet=1, Kısmen=2, Hayır=3 — web kanonik). text tipinde gönderilmez. */
   score?: number;
   /** text tipi cevabı, max 2000 karakter. */
   textAnswer?: string;

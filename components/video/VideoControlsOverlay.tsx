@@ -44,6 +44,7 @@ export function VideoControlsOverlay({
   onToggleMute,
   onSeekTo,
   onToggleFullscreen,
+  hideFullscreen = false,
 }: {
   player: VideoPlayer;
   durationSeconds: number;
@@ -55,6 +56,8 @@ export function VideoControlsOverlay({
   onToggleMute: () => void;
   onSeekTo: (seconds: number) => void;
   onToggleFullscreen: () => void;
+  /** Ses içerikte tam ekran anlamsız — butonu gizler. */
+  hideFullscreen?: boolean;
 }) {
   const t = useTheme();
   const reduce = useReducedMotion();
@@ -242,19 +245,21 @@ export function VideoControlsOverlay({
             }}
             t={t}
           />
-          <MediaButton
-            icon={
-              isFullscreen
-                ? 'arrow.down.right.and.arrow.up.left'
-                : 'arrow.up.left.and.arrow.down.right'
-            }
-            label={isFullscreen ? 'Tam ekrandan çık' : 'Tam ekran'}
-            onPress={() => {
-              onToggleFullscreen();
-              keepAlive();
-            }}
-            t={t}
-          />
+          {!hideFullscreen && (
+            <MediaButton
+              icon={
+                isFullscreen
+                  ? 'arrow.down.right.and.arrow.up.left'
+                  : 'arrow.up.left.and.arrow.down.right'
+              }
+              label={isFullscreen ? 'Tam ekrandan çık' : 'Tam ekran'}
+              onPress={() => {
+                onToggleFullscreen();
+                keepAlive();
+              }}
+              t={t}
+            />
+          )}
         </View>
       </Animated.View>
     </View>

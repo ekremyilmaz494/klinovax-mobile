@@ -29,6 +29,8 @@ export type SubmitExamVars = {
   assignmentId: string;
   answers: { questionId: string; selectedOptionId: string }[];
   phase: ExamPhase;
+  /** Anti-cheat telemetri: sınav sırasında uygulamadan kaç kez ayrıldı (arka plan/odak kaybı). */
+  tabSwitchCount?: number;
 };
 
 export type SaveVideoProgressVars = {
@@ -43,6 +45,8 @@ export type CompleteVideoVars = {
   videoId: string;
   position: number;
   watchedTime: number;
+  /** PDF içerik tamamlamasında gönderilen son sayfa (video/ses içerikte undefined). */
+  currentPage?: number;
 };
 
 /**
@@ -76,17 +80,18 @@ export function registerMutationDefaults(client: QueryClient): void {
       saveExamAnswer(assignmentId, { questionId, selectedOptionId, examPhase }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
-    // 423 (post-exam answer locked) ve 429 (rate limit) gibi 4xx'ler
-    // component-level per-call onError'da handle edilir — kullanıcı bildirim
-    // görmeden cevabını değiştirdiğini sanmasın. Cache invalidation YAPMAZ:
-    // exam-questions query'si gcTime: 0 ile her açılışta fresh fetch.
+    // 429 (rate limit) gibi 4xx'ler component-level per-call onError'da handle
+    // edilir — kullanıcı bildirim görmeden cevabını değiştirdiğini sanmasın. (Eski
+    // 30sn post-exam cevap kilidi / 423 backend'de kaldırıldı; save-answer artık
+    // 423 dönmüyor.) Cache invalidation YAPMAZ: exam-questions query'si gcTime: 0
+    // ile her açılışta fresh fetch.
   });
 
   // ─── submitExam ──────────────────────────────────────────────────
   // Sınav teslim. 409/422 (already submitted) durumunda swallow + invalidate.
   client.setMutationDefaults(MUTATION_KEYS.submitExam, {
-    mutationFn: ({ assignmentId, answers, phase }: SubmitExamVars) =>
-      submitExam(assignmentId, { answers, phase }),
+    mutationFn: ({ assignmentId, answers, phase, tabSwitchCount }: SubmitExamVars) =>
+      submitExam(assignmentId, { answers, phase, tabSwitchCount }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
     onSuccess: (_data: ExamSubmitResponse, vars: SubmitExamVars) => {
@@ -124,12 +129,20 @@ export function registerMutationDefaults(client: QueryClient): void {
   // Video tamamlandı POST. Idempotent: aynı videoId ikinci kez geldiğinde
   // backend yine 200 döner.
   client.setMutationDefaults(MUTATION_KEYS.completeVideo, {
-    mutationFn: ({ assignmentId, videoId, position, watchedTime }: CompleteVideoVars) =>
+    mutationFn: ({
+      assignmentId,
+      videoId,
+      position,
+      watchedTime,
+      currentPage,
+    }: CompleteVideoVars) =>
       saveVideoProgress(assignmentId, {
         videoId,
         position,
         watchedTime,
         completed: true,
+        // PDF tamamlamasında sayfa numarası gönderilir; video/ses'te undefined kalır.
+        ...(currentPage !== undefined ? { currentPage } : {}),
       }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
