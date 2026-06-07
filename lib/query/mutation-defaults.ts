@@ -43,6 +43,8 @@ export type CompleteVideoVars = {
   videoId: string;
   position: number;
   watchedTime: number;
+  /** PDF içerik tamamlamasında gönderilen son sayfa (video/ses içerikte undefined). */
+  currentPage?: number;
 };
 
 /**
@@ -124,12 +126,20 @@ export function registerMutationDefaults(client: QueryClient): void {
   // Video tamamlandı POST. Idempotent: aynı videoId ikinci kez geldiğinde
   // backend yine 200 döner.
   client.setMutationDefaults(MUTATION_KEYS.completeVideo, {
-    mutationFn: ({ assignmentId, videoId, position, watchedTime }: CompleteVideoVars) =>
+    mutationFn: ({
+      assignmentId,
+      videoId,
+      position,
+      watchedTime,
+      currentPage,
+    }: CompleteVideoVars) =>
       saveVideoProgress(assignmentId, {
         videoId,
         position,
         watchedTime,
         completed: true,
+        // PDF tamamlamasında sayfa numarası gönderilir; video/ses'te undefined kalır.
+        ...(currentPage !== undefined ? { currentPage } : {}),
       }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,

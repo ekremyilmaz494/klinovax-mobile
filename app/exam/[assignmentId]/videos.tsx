@@ -46,6 +46,11 @@ import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import { useAuthStore } from '@/store/auth';
 import type { ExamVideoItem, ExamVideosResponse, VideoProgressResponse } from '@/types/exam';
 
+// Bir içerik bitince sonraki içeriğe otomatik geçişten önce gösterilen görünür
+// geri sayım (saniye). Web tarafıyla (apps/web .../exam/[id]/videos/page.tsx
+// AUTO_ADVANCE_SECONDS) aynı değer — platformlar arası tutarlı deneyim.
+const AUTO_ADVANCE_SECONDS = 8;
+
 /**
  * Video aşaması ekranı — eğitim videoları sırayla izlenir, her tamamlanma
  * backend'e POST edilir. Tüm zorunlu (non-pdf) videolar bittiğinde backend
@@ -185,36 +190,88 @@ function Body({
   const totalRequired = videos.filter((v) => v.contentType !== 'pdf').length;
   const progressPct = totalRequired === 0 ? 0 : Math.round((completedCount / totalRequired) * 100);
 
+  // Sıralı izleme kilidi: ilk tamamlanmamış zorunlu (non-pdf) içeriğin liste
+  // index'i. Bundan SONRAKİ tamamlanmamış non-pdf içerikler kilitli (web isLocked
+  // paritesi). PDF'ler opsiyonel — hiçbir zaman kilitlenmez.
+  const firstIncompleteMediaIdx = videos.findIndex((v) => v.contentType !== 'pdf' && !v.completed);
+
   const isPdf = activeVideo.contentType === 'pdf';
+
+  // Bir içerik bitince sonraki içeriğe geçişten önce gösterilen geri sayım hedefi
+  // (null = geri sayım kapalı). Web video→video otomatik geçiş paritesi.
+  const [autoAdvanceTarget, setAutoAdvanceTarget] = useState<ExamVideoItem | null>(null);
+
+  // Biten içerik (activeVideo) hariç, sıradaki tamamlanmamış zorunlu (non-pdf)
+  // içeriği bulur. completeMutation refetch'i gelmeden çağrılabildiği için biten
+  // videoyu açıkça eler. Yoksa undefined (son içerikti).
+  const findNextIncomplete = useCallback(
+    () =>
+      videos.find((v) => v.contentType !== 'pdf' && !v.completed && v.id !== activeVideo.id) ??
+      null,
+    [videos, activeVideo.id],
+  );
+
+  // VideoBlock/PdfBlock tamamlandığında ortak karar: tüm zorunlu içerik bittiyse
+  // son sınav modalı; bitmediyse sıradaki içeriğe görünür geri sayımla geçiş.
+  const handleCompleted = useCallback(
+    (allDone: boolean) => {
+      if (allDone) {
+        onAllCompleted();
+        return;
+      }
+      const next = findNextIncomplete();
+      if (next) setAutoAdvanceTarget(next);
+    },
+    [onAllCompleted, findNextIncomplete],
+  );
 
   return (
     <View style={{ flex: 1 }}>
-      {!isPdf ? (
+      {!activeVideo.url ? (
+        // Web Y2 paritesi: backend imzalı URL üretemezse (eksik key / imzalama hatası)
+        // `url` boş gelir; boş kaynakla oynatıcı sessizce ölür. Önce açık hata göster.
+        <View style={{ margin: 16 }}>
+          <EmptyState icon="exclamationmark.triangle.fill" title="İçerik şu anda yüklenemiyor" />
+        </View>
+      ) : !isPdf ? (
         <VideoBlock
           key={`${activeVideo.id}:${token ?? 'public'}`}
           assignmentId={assignmentId}
           token={token}
           video={activeVideo}
-          onCompleted={(allDone) => {
-            if (allDone) onAllCompleted();
-          }}
+          onCompleted={handleCompleted}
         />
       ) : (
-        <PdfBlock token={token} video={activeVideo} />
+        <PdfBlock
+          assignmentId={assignmentId}
+          token={token}
+          video={activeVideo}
+          onCompleted={handleCompleted}
+        />
       )}
 
       <FlatList
         data={videos}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <VideoListItem
-            item={item}
-            index={index}
-            isActive={item.id === activeVideo.id}
-            onPress={() => onSelectVideo(item.id)}
-            t={t}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const isLocked =
+            item.contentType !== 'pdf' &&
+            !item.completed &&
+            firstIncompleteMediaIdx >= 0 &&
+            index > firstIncompleteMediaIdx;
+          return (
+            <VideoListItem
+              item={item}
+              index={index}
+              isActive={item.id === activeVideo.id}
+              isLocked={isLocked}
+              onPress={() => {
+                if (!isLocked) onSelectVideo(item.id);
+              }}
+              t={t}
+            />
+          );
+        }}
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
         windowSize={10}
         initialNumToRender={8}
@@ -259,21 +316,82 @@ function Body({
           ) : null
         }
       />
+
+      {/* Sıradaki içeriğe görünür geri sayımlı otomatik geçiş — mevcut faz-geçiş
+          modalı yeniden kullanılır (geri sayım + "Şimdi geç" CTA + sızıntısız timer).
+          Süre dolunca VEYA kullanıcı butona basınca onContinue → sonraki içerik. */}
+      <PhaseTransitionModal
+        visible={!!autoAdvanceTarget}
+        overline="SIRADAKİ İÇERİK"
+        title={autoAdvanceTarget?.title ?? ''}
+        body="Önceki içeriği tamamladın. Sıradaki içeriğe geçiliyor — beklemeden geçmek istersen alttaki butona dokun."
+        ctaLabel="Şimdi geç"
+        icon="play.fill"
+        tone="clay"
+        durationSeconds={AUTO_ADVANCE_SECONDS}
+        onContinue={() => {
+          const nextId = autoAdvanceTarget?.id;
+          setAutoAdvanceTarget(null);
+          if (nextId) onSelectVideo(nextId);
+        }}
+      />
     </View>
   );
 }
 
-function PdfBlock({ token, video }: { token: string | null; video: ExamVideoItem }) {
+function PdfBlock({
+  assignmentId,
+  token,
+  video,
+  onCompleted,
+}: {
+  assignmentId: string;
+  token: string | null;
+  video: ExamVideoItem;
+  onCompleted: (allDone: boolean) => void;
+}) {
   const t = useTheme();
   const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`;
   const source = token
     ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } }
     : { uri: sourceUrl };
 
+  // PDF tamamlama — backend saveVideoProgress({ currentPage, completed:true }) bekler.
+  // PDF son sınav gating'inde zorunlu DEĞİL (gating non-pdf'e bakar) ama "okundu"
+  // işareti listede/ilerlemede görünür; completeVideo cache invalidation'ı tazeler.
+  const completeMutation = useMutation<VideoProgressResponse, Error, CompleteVideoVars>({
+    mutationKey: MUTATION_KEYS.completeVideo,
+  });
+
+  const markRead = () => {
+    if (completeMutation.isPending || video.completed) return;
+    const lastPage = video.pageCount ?? 1;
+    completeMutation.mutate(
+      {
+        assignmentId,
+        videoId: video.id,
+        position: lastPage,
+        watchedTime: 0,
+        currentPage: lastPage,
+      },
+      {
+        onSuccess: (data) => onCompleted(data.allVideosCompleted),
+        onError: (err) => {
+          // Idempotent replay/duplicate (409/422) hata değil — sessizce geç.
+          if (isAlreadyProcessedError(err)) {
+            onCompleted(false);
+            return;
+          }
+          Alert.alert('Kaydedilemedi', err.message || 'Bağlantını kontrol edip tekrar dene.');
+        },
+      },
+    );
+  };
+
   return (
     <View
       style={{
-        height: 340,
+        height: 380,
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.lg,
         borderWidth: t.hairline,
@@ -313,6 +431,30 @@ function PdfBlock({ token, video }: { token: string | null; video: ExamVideoItem
           </View>
         )}
       />
+      <View
+        style={{
+          padding: 12,
+          borderTopWidth: t.hairline,
+          borderTopColor: t.colors.border.subtle,
+        }}
+      >
+        {video.completed ? (
+          <Stack direction="row" align="center" gap={2}>
+            <IconSymbol name="checkmark.circle.fill" size={18} color={t.colors.status.success} />
+            <Text variant="caption" tone="tertiary">
+              Doküman tamamlandı olarak işaretlendi
+            </Text>
+          </Stack>
+        ) : (
+          <Button
+            label={completeMutation.isPending ? 'Kaydediliyor…' : 'Okudum, tamamla'}
+            variant="primary"
+            size="lg"
+            fullWidth
+            onPress={markRead}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -329,6 +471,9 @@ function VideoBlock({
   onCompleted: (allDone: boolean) => void;
 }) {
   const t = useTheme();
+  // Ses içerik de expo-video player ile oynatılır (aynı izleme/heartbeat/tamamlama
+  // mantığı); yalnız görsel sahne VideoView yerine ses kapağı olur.
+  const isAudio = video.contentType === 'audio';
   const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`;
 
   const source = useMemo(
@@ -347,6 +492,9 @@ function VideoBlock({
 
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
   const { muted } = useEvent(player, 'mutedChange', { muted: player.muted });
+  // Oynatma hatası (ağ/kaynak) — VideoView aksi halde sessizce siyah kalır. Web'in
+  // 'Video yüklenemedi' + Tekrar Dene paritesi için status'ü izle.
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
 
   const lastSavedRef = useRef(0);
   // Kayıtlı mutation (MUTATION_KEYS.saveVideoProgress): çıkış/background flush'ı
@@ -670,26 +818,82 @@ function VideoBlock({
         ...(fullscreen ? { flex: 1 } : { aspectRatio: 16 / 9 }),
       }}
     >
-      <VideoView
-        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-        player={player}
-        nativeControls={false}
-        allowsFullscreen={false}
-        allowsPictureInPicture={false}
-        contentFit="contain"
-      />
-      <VideoControlsOverlay
-        player={player}
-        durationSeconds={video.duration}
-        isPlaying={isPlaying}
-        muted={muted}
-        isFullscreen={fullscreen}
-        onTogglePlay={togglePlay}
-        onSeekBackward={seekBackward}
-        onToggleMute={toggleMute}
-        onSeekTo={seekTo}
-        onToggleFullscreen={fullscreen ? exitFullscreen : enterFullscreen}
-      />
+      {isAudio ? (
+        // Ses içerik — VideoView yerine kapak (siyah video yerine net "sesli içerik"
+        // göstergesi). Player aynı; kontroller (oynat/duraklat/sar/ses) VideoControlsOverlay.
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 14,
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 48,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+            }}
+          >
+            <IconSymbol name="speaker.wave.2.fill" size={48} color="rgba(255,255,255,0.9)" />
+          </View>
+          <Text variant="bodyEmph" style={{ color: '#fff', textAlign: 'center' }} numberOfLines={2}>
+            {video.title}
+          </Text>
+          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Sesli içerik
+          </Text>
+        </View>
+      ) : (
+        <VideoView
+          style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+          player={player}
+          nativeControls={false}
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
+          contentFit="contain"
+        />
+      )}
+      {status === 'error' ? (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            gap: 10,
+            backgroundColor: 'rgba(0,0,0,0.72)',
+          }}
+        >
+          <IconSymbol name="exclamationmark.triangle.fill" size={40} color="#fff" />
+          <Text variant="bodyEmph" style={{ color: '#fff', textAlign: 'center' }}>
+            Video yüklenemedi
+          </Text>
+          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.85)', textAlign: 'center' }}>
+            Bağlantını kontrol edip tekrar dene.
+          </Text>
+          <Button label="Tekrar Dene" variant="primary" onPress={() => player.replace(source)} />
+        </View>
+      ) : (
+        <VideoControlsOverlay
+          player={player}
+          durationSeconds={video.duration}
+          isPlaying={isPlaying}
+          muted={muted}
+          isFullscreen={fullscreen}
+          onTogglePlay={togglePlay}
+          onSeekBackward={seekBackward}
+          onToggleMute={toggleMute}
+          onSeekTo={seekTo}
+          onToggleFullscreen={fullscreen ? exitFullscreen : enterFullscreen}
+          hideFullscreen={isAudio}
+        />
+      )}
     </View>
   );
 
@@ -762,18 +966,22 @@ const VideoListItem = memo(function VideoListItem({
   item,
   index,
   isActive,
+  isLocked,
   onPress,
   t,
 }: {
   item: ExamVideoItem;
   index: number;
   isActive: boolean;
+  isLocked: boolean;
   onPress: () => void;
   t: ReturnType<typeof useTheme>;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={isLocked}
+      accessibilityState={{ disabled: isLocked }}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
@@ -784,7 +992,7 @@ const VideoListItem = memo(function VideoListItem({
         marginBottom: 8,
         borderWidth: isActive ? 2 : t.hairline,
         borderColor: isActive ? t.colors.accent.clay : t.colors.border.subtle,
-        opacity: pressed ? 0.92 : 1,
+        opacity: isLocked ? 0.55 : pressed ? 0.92 : 1,
       })}
     >
       <IconDot
@@ -799,9 +1007,14 @@ const VideoListItem = memo(function VideoListItem({
         <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
           {formatDuration(item.duration)}
           {item.contentType === 'pdf' ? ' · PDF' : ''}
+          {isLocked ? ' · Önceki içerik bitince açılır' : ''}
         </Text>
       </View>
-      {isActive ? <Tag label="Şu an" tone="primary" /> : null}
+      {isActive ? (
+        <Tag label="Şu an" tone="primary" />
+      ) : isLocked ? (
+        <IconSymbol name="lock.fill" size={14} color={t.colors.text.tertiary} />
+      ) : null}
     </Pressable>
   );
 });
