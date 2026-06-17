@@ -26,13 +26,13 @@ export function StatCard({ label, value, tone = 'default', flat = false, style }
             : t.colors.text.primary;
 
   const cardStyle: ViewStyle = flat
-    ? { flex: 1, paddingVertical: 20, paddingHorizontal: 16 }
+    ? { flex: 1, paddingVertical: t.space[5], paddingHorizontal: t.space[4] }
     : {
         flex: 1,
         minWidth: 0,
         borderRadius: t.radius.lg,
-        paddingVertical: 22,
-        paddingHorizontal: 18,
+        paddingVertical: t.space[6],
+        paddingHorizontal: t.space[5],
         backgroundColor: t.colors.surface.primary,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
@@ -40,7 +40,12 @@ export function StatCard({ label, value, tone = 'default', flat = false, style }
 
   return (
     <View style={[cardStyle, style]}>
-      <Text variant="overline" tone="tertiary" numberOfLines={1} style={{ marginBottom: 8 }}>
+      <Text
+        variant="overline"
+        tone="tertiary"
+        numberOfLines={1}
+        style={{ marginBottom: t.space[2] }}
+      >
         {label}
       </Text>
       <Text variant="metric" style={{ color: accent }}>

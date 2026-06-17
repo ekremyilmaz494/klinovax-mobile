@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Switch, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Chip, Stack, Tag, Text, useTheme } from '@/design-system';
+import { Button, Chip, InputField, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchFeedbackForm, submitFeedback } from '@/lib/api/feedback';
 import {
@@ -136,7 +136,7 @@ export default function FeedbackScreen() {
             title="Aktif geri bildirim formu yok"
             description="Şu an doldurman gereken bir form bulunmuyor."
           />
-          <View style={{ paddingHorizontal: 24, marginTop: 8 }}>
+          <View style={{ paddingHorizontal: t.space[6], marginTop: t.space[2] }}>
             <Button label="Geri dön" variant="outline" onPress={() => router.back()} fullWidth />
           </View>
         </View>
@@ -179,20 +179,20 @@ function FormBody({
 
   return (
     <ScrollView
-      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+      contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+      <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
         GERİ BİLDİRİM
       </Text>
       <Text variant="title-1">{form.title}</Text>
       {form.description ? (
-        <Text variant="body" tone="tertiary" style={{ marginTop: 8 }}>
+        <Text variant="body" tone="tertiary" style={{ marginTop: t.space[2] }}>
           {form.description}
         </Text>
       ) : null}
 
-      <View style={{ marginTop: 20 }}>
+      <View style={{ marginTop: t.space[5] }}>
         <Stack direction="row" justify="space-between" align="center">
           <Text variant="overline" tone="tertiary">
             İLERLEME
@@ -201,7 +201,7 @@ function FormBody({
             {answered}/{total}
           </Text>
         </Stack>
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: t.space[2] }}>
           <ProgressBar value={progressPct} height={8} />
         </View>
       </View>
@@ -209,9 +209,9 @@ function FormBody({
       {categories.map((cat) => {
         const items = [...cat.items].sort((a, b) => a.order - b.order);
         return (
-          <View key={cat.id} style={{ marginTop: 32 }}>
+          <View key={cat.id} style={{ marginTop: t.space[8] }}>
             <Text variant="title-3">{cat.name}</Text>
-            <View style={{ marginTop: 16, gap: 24 }}>
+            <View style={{ marginTop: t.space[4], gap: t.space[6] }}>
               {items.map((item) => (
                 <QuestionItem
                   key={item.id}
@@ -229,12 +229,12 @@ function FormBody({
       {/* Anonimlik kontrolü — varsayılan kapalı (anonim). */}
       <View
         style={{
-          marginTop: 32,
+          marginTop: t.space[8],
           backgroundColor: t.colors.surface.primary,
           borderRadius: t.radius.lg,
           borderWidth: t.hairline,
           borderColor: t.colors.border.subtle,
-          padding: 16,
+          padding: t.space[4],
         }}
       >
         <Stack direction="row" align="center" gap={3}>
@@ -248,12 +248,12 @@ function FormBody({
             Adımla gönder
           </Text>
         </Stack>
-        <Text variant="footnote" tone="tertiary" style={{ marginTop: 8 }}>
+        <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
           Kapalıysa geri bildirimin anonim iletilir.
         </Text>
       </View>
 
-      <View style={{ marginTop: 28 }}>
+      <View style={{ marginTop: t.space[8] }}>
         <Button
           label={submitting ? 'Gönderiliyor…' : 'Geri bildirimi gönder'}
           variant="primary"
@@ -264,7 +264,7 @@ function FormBody({
           fullWidth
         />
         {!canSubmit ? (
-          <Text variant="footnote" tone="tertiary" align="center" style={{ marginTop: 10 }}>
+          <Text variant="footnote" tone="tertiary" align="center" style={{ marginTop: t.space[3] }}>
             Göndermeden önce tüm zorunlu soruları cevapla.
           </Text>
         ) : null}
@@ -348,33 +348,16 @@ function YesPartialNoControl({ value, onScore }: { value?: number; onScore: (s: 
 
 function TextControl({ value, onText }: { value: string; onText: (txt: string) => void }) {
   const t = useTheme();
-  const [focused, setFocused] = useState(false);
   return (
     <View>
-      <TextInput
+      <InputField
         value={value}
         onChangeText={onText}
         multiline
         maxLength={TEXT_MAX}
         placeholder="Görüşünü yaz…"
-        placeholderTextColor={t.colors.text.tertiary}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          backgroundColor: t.colors.surface.primary,
-          borderRadius: t.radius.md,
-          paddingHorizontal: 16,
-          paddingVertical: 14,
-          fontSize: 17,
-          color: t.colors.text.primary,
-          fontFamily: 'InterTight_400Regular',
-          minHeight: 96,
-          textAlignVertical: 'top',
-          borderWidth: focused ? 2 : t.hairline,
-          borderColor: focused ? t.colors.border.focus : t.colors.border.default,
-        }}
       />
-      <Text variant="caption" tone="tertiary" align="right" style={{ marginTop: 6 }}>
+      <Text variant="caption" tone="tertiary" align="right" style={{ marginTop: t.space[2] }}>
         {value.length}/{TEXT_MAX}
       </Text>
     </View>

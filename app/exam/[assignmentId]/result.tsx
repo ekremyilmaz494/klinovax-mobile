@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
-import { apiFetch } from '@/lib/api/client';
 import { fetchExamResults } from '@/lib/api/exam';
+import { fetchTrainingDetail } from '@/lib/api/staff';
 import { resolveFeedbackCta } from '@/lib/exam/result-gating';
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam';
 import type { TrainingDetail } from '@/types/staff';
@@ -76,19 +76,19 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
   // invalidation sayesinde deneme sonrası taze canSubmit değeri gelir.
   const { data: detail } = useQuery<TrainingDetail, Error>({
     queryKey: ['training-detail', assignmentId],
-    queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${assignmentId}`),
+    queryFn: () => fetchTrainingDetail(assignmentId),
   });
   const feedbackCta = resolveFeedbackCta(detail);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+    <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
       <View
         style={{
           backgroundColor: heroBg,
           borderRadius: t.radius.xl,
           borderWidth: 1,
           borderColor: heroBorder,
-          padding: 36,
+          padding: t.space[10],
           alignItems: 'center',
         }}
       >
@@ -112,26 +112,26 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             lineHeight: 88,
             letterSpacing: -2,
             color: t.colors.text.primary,
-            marginTop: 8,
+            marginTop: t.space[2],
             fontVariant: ['tabular-nums'],
           }}
         >
           %{Math.round(data.score)}
         </Text>
-        <Text variant="footnote" tone="tertiary" style={{ marginTop: 8 }}>
+        <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
           Geçme barajı:{' '}
-          <Text
-            variant="footnote"
-            style={{ fontFamily: 'InterTight_600SemiBold', color: t.colors.text.primary }}
-          >
+          <Text variant="footnote" weight="semibold" style={{ color: t.colors.text.primary }}>
             %{data.passingScore}
           </Text>
         </Text>
       </View>
 
       {!passed ? (
-        <Card variant="warning" rail style={{ marginTop: 24 }}>
-          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+        <Card variant="warning" rail style={{ marginTop: t.space[6] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+          >
             {data.attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
           </Text>
           <Text variant="body" tone="primary">
@@ -145,10 +145,10 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
 
       {passed && data.results && data.results.length > 0 ? (
         <>
-          <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+          <Text variant="title-3" style={{ marginTop: t.space[8], marginBottom: t.space[3] }}>
             Soru bazlı detay
           </Text>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: t.space[3] }}>
             {data.results.map((r, i) => (
               <ResultRow key={`q-${i}`} index={i + 1} item={r} />
             ))}
@@ -156,7 +156,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
         </>
       ) : null}
 
-      <View style={{ marginTop: 32, gap: 12 }}>
+      <View style={{ marginTop: t.space[8], gap: t.space[3] }}>
         {feedbackCta ? (
           // Zorunlu feedback'i burada doldurtmak, personeli bir sonraki sınav
           // başlangıcındaki 423 kilidine hiç sokmaz (çıkmaz sokak önleme).
@@ -225,18 +225,18 @@ function ResultRow({ index, item }: { index: number; item: ExamResultDetail }) {
         borderColor: t.colors.border.subtle,
         borderLeftWidth: 4,
         borderLeftColor: railColor,
-        padding: 16,
+        padding: t.space[4],
       }}
     >
       <Text variant="overline" tone="tertiary">
         Soru {index}
       </Text>
-      <Text variant="title-3" style={{ marginTop: 6 }}>
+      <Text variant="title-3" maxFontSizeMultiplier={1.6} style={{ marginTop: t.space[2] }}>
         {item.questionText}
       </Text>
 
-      <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: 12 }} wrap>
-        <Text variant="footnote" tone="tertiary" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+      <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: t.space[3] }} wrap>
+        <Text variant="footnote" tone="tertiary" weight="semibold">
           Cevabın:
         </Text>
         <Text
@@ -248,8 +248,8 @@ function ResultRow({ index, item }: { index: number; item: ExamResultDetail }) {
       </Stack>
 
       {!correct && item.correctOptionText ? (
-        <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: 8 }} wrap>
-          <Text variant="footnote" tone="tertiary" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+        <Stack direction="row" align="flex-start" gap={2} style={{ marginTop: t.space[2] }} wrap>
+          <Text variant="footnote" tone="tertiary" weight="semibold">
             Doğrusu:
           </Text>
           <Text variant="footnote" style={{ flex: 1, color: t.colors.status.success }}>

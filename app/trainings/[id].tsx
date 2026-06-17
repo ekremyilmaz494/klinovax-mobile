@@ -1,21 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { Button, Card, IconDot, InputField, Stack, Tag, Text, useTheme } from '@/design-system';
 import { useStartExam } from '@/hooks/use-start-exam';
-import { createAttemptRequest, fetchAttemptRequests } from '@/lib/api/attempt-requests';
-import { ApiError, apiFetch } from '@/lib/api/client';
+import { fetchAttemptRequests } from '@/lib/api/attempt-requests';
+import { ApiError } from '@/lib/api/client';
+import { fetchTrainingDetail } from '@/lib/api/staff';
 import { resolveTrainingDetailRoute } from '@/lib/exam/route-guard';
+import type { CreateAttemptRequestVars } from '@/lib/query/mutation-defaults';
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import { useAuthStore } from '@/store/auth';
 import type {
   AssignmentStatus,
   AttemptRequest,
   AttemptRequestsResponse,
+  CreateAttemptRequestResponse,
   TrainingDetail,
   TrainingFeedbackState,
   TrainingVideo,
@@ -45,7 +49,12 @@ export default function TrainingDetailScreen() {
   const { data, error, isLoading, refetch } = useQuery<TrainingDetail, Error>({
     queryKey: ['training-detail', id],
     enabled: !!user && !!id,
-    queryFn: () => apiFetch<TrainingDetail>(`/api/staff/my-trainings/${id}`),
+    queryFn: () => fetchTrainingDetail(id),
+    // Backend aktif (devam eden) attempt'te `Cache-Control: no-store` döner (N4 fix):
+    // bayat `preExamCompleted:false` CTA'yı tekrar "Ön Sınava Başla" yapıyordu. Faz
+    // geçişinden (video→detay) dönünce her zaman taze çek — global 30sn staleTime'ı ez.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
@@ -143,11 +152,11 @@ function Detail({ data }: { data: TrainingDetail }) {
     // "Ek hak talep et" butonuna ilk dokunuş klavyeyi kapatmakla kalmasın,
     // butonu da bassın (feedback ekranıyla aynı pattern).
     <ScrollView
-      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+      contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
       keyboardShouldPersistTaps="handled"
     >
       {data.category ? (
-        <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
           {data.category}
         </Text>
       ) : null}
@@ -160,19 +169,22 @@ function Detail({ data }: { data: TrainingDetail }) {
       </Stack>
 
       {data.description ? (
-        <Text variant="body" tone="secondary" style={{ marginTop: 14, lineHeight: 24 }}>
+        <Text variant="body" tone="secondary" style={{ marginTop: t.space[4], lineHeight: 24 }}>
           {data.description}
         </Text>
       ) : null}
 
       {data.isNotStarted ? (
-        <Card variant="accent" rail style={{ marginTop: 16 }}>
-          <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 4 }}>
+        <Card variant="accent" rail style={{ marginTop: t.space[4] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.accent.clay, marginBottom: t.space[1] }}
+          >
             HENÜZ AÇILMADI
           </Text>
           <Text variant="body" tone="primary">
             Bu eğitim{' '}
-            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+            <Text variant="body" weight="semibold">
               {data.startDate ?? '—'}
             </Text>{' '}
             tarihinde açılacak.{data.deadline ? ` Tamamlanma süresi: ${data.deadline}.` : ''}
@@ -181,8 +193,11 @@ function Detail({ data }: { data: TrainingDetail }) {
       ) : null}
 
       {data.status === 'locked' ? (
-        <Card variant="danger" rail style={{ marginTop: 16 }}>
-          <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
+        <Card variant="danger" rail style={{ marginTop: t.space[4] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.danger, marginBottom: t.space[1] }}
+          >
             EĞİTİM KİLİTLENDİ
           </Text>
           <Text variant="body" tone="primary">
@@ -193,8 +208,11 @@ function Detail({ data }: { data: TrainingDetail }) {
       ) : null}
 
       {data.isExpired && !data.isExpiredRetryable ? (
-        <Card variant="danger" rail style={{ marginTop: 16 }}>
-          <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
+        <Card variant="danger" rail style={{ marginTop: t.space[4] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.danger, marginBottom: t.space[1] }}
+          >
             SÜRE DOLDU
           </Text>
           <Text variant="body" tone="primary">
@@ -204,17 +222,20 @@ function Detail({ data }: { data: TrainingDetail }) {
       ) : null}
 
       {data.isExpiredRetryable ? (
-        <Card variant="warning" rail style={{ marginTop: 16 }}>
-          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+        <Card variant="warning" rail style={{ marginTop: t.space[4] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+          >
             ÖNCEKİ DENEME SÜRESİ DOLDU
           </Text>
           <Text variant="body" tone="primary">
             Yarım kalan denemenin süresi doldu. İlerlemen{' '}
-            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+            <Text variant="body" weight="semibold">
               taşınmaz
             </Text>
             ; yeni bir denemeye baştan başlarsın. Kalan deneme:{' '}
-            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+            <Text variant="body" weight="semibold">
               {Math.max(data.maxAttempts - data.currentAttempt, 0)}/{data.maxAttempts}
             </Text>
             .
@@ -223,14 +244,17 @@ function Detail({ data }: { data: TrainingDetail }) {
       ) : null}
 
       {data.needsRetry && !data.isExpired && !data.isExpiredRetryable ? (
-        <Card variant="warning" rail style={{ marginTop: 16 }}>
-          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+        <Card variant="warning" rail style={{ marginTop: t.space[4] }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+          >
             YENİDEN DENENEBİLİR
           </Text>
           <Text variant="body" tone="primary">
             Son denemede %{data.lastAttemptScore ?? 0} aldınız. Geçme barajı %{data.passingScore}.
             Kalan deneme:{' '}
-            <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+            <Text variant="body" weight="semibold">
               {Math.max(data.maxAttempts - data.currentAttempt, 0)}/{data.maxAttempts}
             </Text>
             .
@@ -242,7 +266,7 @@ function Detail({ data }: { data: TrainingDetail }) {
         style={{
           flexDirection: 'row',
           flexWrap: 'wrap',
-          marginTop: 24,
+          marginTop: t.space[6],
           backgroundColor: t.colors.surface.primary,
           borderRadius: t.radius.lg,
           borderWidth: t.hairline,
@@ -266,8 +290,8 @@ function Detail({ data }: { data: TrainingDetail }) {
       </View>
 
       {data.isScorm ? (
-        <Card style={{ marginTop: 24 }}>
-          <Text variant="overline" tone="tertiary" style={{ marginBottom: 6 }}>
+        <Card style={{ marginTop: t.space[6] }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
             SCORM İÇERİK
           </Text>
           <Text variant="body" tone="primary">
@@ -277,10 +301,10 @@ function Detail({ data }: { data: TrainingDetail }) {
         </Card>
       ) : (
         <>
-          <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+          <Text variant="title-3" style={{ marginTop: t.space[8], marginBottom: t.space[3] }}>
             İlerleme
           </Text>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: t.space[3] }}>
             {!data.examOnly && (
               <Step
                 n={1}
@@ -310,10 +334,10 @@ function Detail({ data }: { data: TrainingDetail }) {
 
       {!data.isScorm && data.videos.length > 0 && !data.examOnly ? (
         <>
-          <Text variant="title-3" style={{ marginTop: 28, marginBottom: 12 }}>
+          <Text variant="title-3" style={{ marginTop: t.space[8], marginBottom: t.space[3] }}>
             Videolar ({data.videos.length})
           </Text>
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: t.space[2] }}>
             {data.videos.map((v, i) => (
               <VideoRow key={v.id} index={i + 1} video={v} />
             ))}
@@ -321,7 +345,7 @@ function Detail({ data }: { data: TrainingDetail }) {
           {/* Geçmiş eğitim → içeriği serbest sarmayla tekrar izleme (review modu).
               Web personel detayındaki "tekrar izle" girişinin mobil karşılığı. */}
           {data.status === 'passed' || data.postExamCompleted ? (
-            <View style={{ marginTop: 12 }}>
+            <View style={{ marginTop: t.space[3] }}>
               <Button
                 label="Eğitim içeriğini tekrar izle"
                 variant="outline"
@@ -345,7 +369,7 @@ function Detail({ data }: { data: TrainingDetail }) {
         <FeedbackSection feedback={data.feedback} trainingTitle={data.title} />
       ) : null}
 
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: t.space[8] }}>
         <Button
           label={action.label}
           variant="primary"
@@ -381,18 +405,21 @@ function FeedbackSection({
   const attemptId = feedback.attemptId;
 
   return (
-    <View style={{ marginTop: 28 }}>
-      <Text variant="title-3" style={{ marginBottom: 4 }}>
+    <View style={{ marginTop: t.space[8] }}>
+      <Text variant="title-3" style={{ marginBottom: t.space[1] }}>
         Geri bildirim
       </Text>
-      <Text variant="footnote" tone="tertiary" style={{ marginBottom: 12 }}>
+      <Text variant="footnote" tone="tertiary" style={{ marginBottom: t.space[3] }}>
         Eğitim değerlendirme formu · EY.FR.40
       </Text>
 
       {feedback.submitted ? (
         // (a) Gönderildi
         <Card variant="success" rail>
-          <Text variant="overline" style={{ color: t.colors.status.success, marginBottom: 4 }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.success, marginBottom: t.space[1] }}
+          >
             GERİ BİLDİRİM ALINDI
           </Text>
           <Text variant="body" tone="primary">
@@ -402,7 +429,8 @@ function FeedbackSection({
             <Text
               variant="footnote"
               tone="tertiary"
-              style={{ marginTop: 8, fontFamily: 'InterTight_600SemiBold' }}
+              weight="semibold"
+              style={{ marginTop: t.space[2] }}
             >
               Gönderim · {feedback.submittedAt}
             </Text>
@@ -412,11 +440,14 @@ function FeedbackSection({
         // (b) Doldurulabilir
         <Card variant={feedback.mandatory ? 'warning' : 'default'} rail={feedback.mandatory}>
           {feedback.mandatory ? (
-            <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+            <Text
+              variant="overline"
+              style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+            >
               ZORUNLU GERİ BİLDİRİM
             </Text>
           ) : null}
-          <Text variant="body" tone="primary" style={{ marginBottom: 12 }}>
+          <Text variant="body" tone="primary" style={{ marginBottom: t.space[3] }}>
             {feedback.mandatory
               ? 'Bu eğitim için geri bildirim formu doldurman zorunlu. Doldurmadan yeni bir eğitim başlatamazsın.'
               : 'Bu eğitim hakkında geri bildirim verebilirsin. Görüşlerin eğitim kalitesini artırır.'}
@@ -437,7 +468,7 @@ function FeedbackSection({
       ) : (
         // (c) Henüz açık değil
         <Card variant="default">
-          <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[1] }}>
             GERİ BİLDİRİM
           </Text>
           <Text variant="body" tone="primary">
@@ -469,42 +500,46 @@ function AttemptRequestSection({ data }: { data: TrainingDetail }) {
   // (assignmentId değil — backend response'unda training kimliği `id` alanında).
   const existing = findLatestRequest(requestsData?.requests, data.id);
 
-  const submitMutation = useMutation({
-    mutationFn: () => createAttemptRequest({ trainingId: data.id, reason: reason.trim() }),
-    onSuccess: () => {
-      setReason('');
-      void qc.invalidateQueries({ queryKey: ['attempt-requests'] });
-      Alert.alert(
-        'Talebin alındı',
-        'Ek deneme hakkı talebin yöneticine iletildi. Sonuçlandığında bildirim alacaksın.',
-      );
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.status === 409) {
-        // Yarış durumu: başka cihazdan/önceki denemeden bekleyen talep var.
+  // mutationKey ile offline-resume registry'ye bağlı (mutation-defaults): offline
+  // basılırsa paused yazılır, online dönünce replay olur — talep kaybolmaz.
+  const submitMutation = useMutation<CreateAttemptRequestResponse, Error, CreateAttemptRequestVars>(
+    {
+      mutationKey: MUTATION_KEYS.createAttemptRequest,
+      onSuccess: () => {
+        setReason('');
         void qc.invalidateQueries({ queryKey: ['attempt-requests'] });
-        Alert.alert('Bekleyen talep var', 'Bu eğitim için zaten incelenen bir talebin var.');
-        return;
-      }
-      if (err instanceof ApiError && err.status === 429) {
-        Alert.alert('Çok sık denedin', 'Kısa bir süre bekleyip tekrar talep gönderebilirsin.');
-        return;
-      }
-      Alert.alert(
-        'Talep gönderilemedi',
-        err instanceof ApiError && err.message
-          ? err.message
-          : 'Bağlantını kontrol edip tekrar dene.',
-      );
+        Alert.alert(
+          'Talebin alındı',
+          'Ek deneme hakkı talebin yöneticine iletildi. Sonuçlandığında bildirim alacaksın.',
+        );
+      },
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 409) {
+          // Yarış durumu: başka cihazdan/önceki denemeden bekleyen talep var.
+          void qc.invalidateQueries({ queryKey: ['attempt-requests'] });
+          Alert.alert('Bekleyen talep var', 'Bu eğitim için zaten incelenen bir talebin var.');
+          return;
+        }
+        if (err instanceof ApiError && err.status === 429) {
+          Alert.alert('Çok sık denedin', 'Kısa bir süre bekleyip tekrar talep gönderebilirsin.');
+          return;
+        }
+        Alert.alert(
+          'Talep gönderilemedi',
+          err instanceof ApiError && err.message
+            ? err.message
+            : 'Bağlantını kontrol edip tekrar dene.',
+        );
+      },
     },
-  });
+  );
 
   const trimmed = reason.trim();
   const reasonTooShort = trimmed.length < 10;
 
   return (
-    <View style={{ marginTop: 28 }}>
-      <Text variant="title-3" style={{ marginBottom: 12 }}>
+    <View style={{ marginTop: t.space[8] }}>
+      <Text variant="title-3" style={{ marginBottom: t.space[3] }}>
         Ek deneme hakkı
       </Text>
 
@@ -514,14 +549,17 @@ function AttemptRequestSection({ data }: { data: TrainingDetail }) {
         </Card>
       ) : existing?.status === 'pending' ? (
         <Card variant="warning" rail>
-          <Text variant="overline" style={{ color: t.colors.status.warning, marginBottom: 4 }}>
+          <Text
+            variant="overline"
+            style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+          >
             TALEBİN İNCELENİYOR
           </Text>
           <Text variant="body" tone="primary">
             Ek deneme hakkı talebin yönetici onayı bekliyor. Sonuçlandığında bildirim alacaksın.
           </Text>
           {existing.reason ? (
-            <Text variant="footnote" tone="tertiary" style={{ marginTop: 8 }}>
+            <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
               Gerekçen: {existing.reason}
             </Text>
           ) : null}
@@ -529,8 +567,11 @@ function AttemptRequestSection({ data }: { data: TrainingDetail }) {
       ) : (
         <>
           {existing?.status === 'rejected' ? (
-            <Card variant="danger" rail style={{ marginBottom: 12 }}>
-              <Text variant="overline" style={{ color: t.colors.status.danger, marginBottom: 4 }}>
+            <Card variant="danger" rail style={{ marginBottom: t.space[3] }}>
+              <Text
+                variant="overline"
+                style={{ color: t.colors.status.danger, marginBottom: t.space[1] }}
+              >
                 ÖNCEKİ TALEBİN REDDEDİLDİ
               </Text>
               <Text variant="body" tone="primary">
@@ -542,33 +583,25 @@ function AttemptRequestSection({ data }: { data: TrainingDetail }) {
           ) : null}
 
           <Card>
-            <Text variant="body" tone="secondary" style={{ marginBottom: 12 }}>
+            <Text variant="body" tone="secondary" style={{ marginBottom: t.space[3] }}>
               Deneme hakların bitti. Yöneticinden ek hak talep edebilirsin — kısa bir gerekçe yaz
               (en az 10 karakter).
             </Text>
-            <TextInput
-              style={{
-                backgroundColor: t.colors.surface.canvas,
-                borderRadius: t.radius.md,
-                borderWidth: StyleSheet.hairlineWidth,
-                borderColor: t.colors.border.default,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                fontSize: 17,
-                color: t.colors.text.primary,
-                fontFamily: 'InterTight_400Regular',
-                minHeight: 96,
-                textAlignVertical: 'top',
-              }}
+            <InputField
+              surface="canvas"
               value={reason}
               onChangeText={setReason}
               placeholder="Örn. Sınav sırasında bağlantım koptu, yeniden denemek istiyorum."
-              placeholderTextColor={t.colors.text.tertiary}
               multiline
               maxLength={1000}
               editable={!submitMutation.isPending}
             />
-            <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
+            <Stack
+              direction="row"
+              justify="space-between"
+              align="center"
+              style={{ marginTop: t.space[2] }}
+            >
               <Text variant="caption" tone="tertiary">
                 {reasonTooShort ? `En az 10 karakter (${trimmed.length}/10)` : ' '}
               </Text>
@@ -576,13 +609,15 @@ function AttemptRequestSection({ data }: { data: TrainingDetail }) {
                 {trimmed.length}/1000
               </Text>
             </Stack>
-            <View style={{ marginTop: 12 }}>
+            <View style={{ marginTop: t.space[3] }}>
               <Button
                 label={submitMutation.isPending ? 'Gönderiliyor…' : 'Ek hak talep et'}
                 variant="primary"
                 size="md"
                 disabled={reasonTooShort || submitMutation.isPending}
-                onPress={() => submitMutation.mutate()}
+                onPress={() =>
+                  submitMutation.mutate({ trainingId: data.id, reason: reason.trim() })
+                }
                 fullWidth
               />
             </View>
@@ -628,15 +663,15 @@ function MetaCell({
     <View
       style={{
         width: '50%',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: t.space[4],
+        paddingVertical: t.space[4],
         borderTopWidth: top ? 0 : t.hairline,
         borderTopColor: t.colors.border.subtle,
         borderRightWidth: side === 'left' ? t.hairline : 0,
         borderRightColor: t.colors.border.subtle,
       }}
     >
-      <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+      <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[1] }}>
         {label}
       </Text>
       <Text variant="bodyEmph" tone="primary">
@@ -680,12 +715,12 @@ function Step({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
+        gap: t.space[4],
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.lg,
         borderWidth: current ? 1.5 : t.hairline,
         borderColor: current ? t.colors.accent.clay : t.colors.border.subtle,
-        padding: 14,
+        padding: t.space[4],
       }}
     >
       <IconDot
@@ -719,12 +754,12 @@ function VideoRow({ index, video }: { index: number; video: TrainingVideo }) {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: t.space[3],
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.md,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
-        padding: 12,
+        padding: t.space[3],
       }}
     >
       <IconDot

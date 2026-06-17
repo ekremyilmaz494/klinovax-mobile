@@ -34,12 +34,12 @@ export default function ExamStartScreen() {
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ExpoStack.Screen options={{ title: 'Sınav başlat', headerBackTitle: 'Geri' }} />
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-        <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
           SINAV
         </Text>
         <Text variant="title-1">Başlamadan önce</Text>
-        <Text variant="body" tone="tertiary" style={{ marginTop: 8 }}>
+        <Text variant="body" tone="tertiary" style={{ marginTop: t.space[2] }}>
           Sınava başlamadan önce aşağıdaki kuralları okuyun.
         </Text>
 
@@ -49,7 +49,7 @@ export default function ExamStartScreen() {
             style={{
               flexDirection: 'row',
               flexWrap: 'wrap',
-              marginTop: 20,
+              marginTop: t.space[5],
               backgroundColor: t.colors.surface.primary,
               borderRadius: t.radius.lg,
               borderWidth: t.hairline,
@@ -79,10 +79,10 @@ export default function ExamStartScreen() {
         ) : null}
 
         {remainingAttempts === 1 ? (
-          <Card variant="warning" rail style={{ marginTop: 12 }}>
+          <Card variant="warning" rail style={{ marginTop: t.space[3] }}>
             <Text variant="body" tone="primary">
               Bu{' '}
-              <Text variant="body" style={{ fontFamily: 'InterTight_600SemiBold' }}>
+              <Text variant="body" weight="semibold">
                 son deneme hakkın
               </Text>
               . Başarısız olursan yöneticinden ek deneme hakkı talep etmen gerekir.
@@ -92,13 +92,13 @@ export default function ExamStartScreen() {
 
         <View
           style={{
-            marginTop: 28,
+            marginTop: t.space[8],
             backgroundColor: t.colors.surface.primary,
             borderRadius: t.radius.lg,
             borderWidth: t.hairline,
             borderColor: t.colors.border.subtle,
-            padding: 18,
-            gap: 14,
+            padding: t.space[5],
+            gap: t.space[4],
           }}
         >
           <Rule n={1} text="Sınava başladığınızda süreniz işlemeye başlar." />
@@ -126,7 +126,7 @@ export default function ExamStartScreen() {
           <ScreenError message={error.message || 'Sınav başlatılamadı.'} onRetry={start} />
         ) : null}
 
-        <View style={{ marginTop: 32 }}>
+        <View style={{ marginTop: t.space[8] }}>
           <Button
             label={
               !isOnline ? 'İnternet bekleniyor…' : isPending ? 'Başlatılıyor…' : 'Sınava başla'
@@ -138,7 +138,7 @@ export default function ExamStartScreen() {
             onPress={start}
             fullWidth
           />
-          <View style={{ marginTop: 12 }}>
+          <View style={{ marginTop: t.space[3] }}>
             <Button label="Vazgeç" variant="ghost" onPress={() => router.back()} fullWidth />
           </View>
         </View>
@@ -165,15 +165,15 @@ function InfoCell({
     <View
       style={{
         width: '50%',
-        paddingHorizontal: 14,
-        paddingVertical: 14,
+        paddingHorizontal: t.space[4],
+        paddingVertical: t.space[4],
         borderRightWidth: divider ? t.hairline : 0,
         borderRightColor: t.colors.border.subtle,
         borderTopWidth: borderTop ? t.hairline : 0,
         borderTopColor: t.colors.border.subtle,
       }}
     >
-      <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+      <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[1] }}>
         {label}
       </Text>
       <Text variant="bodyEmph" tone="primary" style={{ fontVariant: ['tabular-nums'] }}>

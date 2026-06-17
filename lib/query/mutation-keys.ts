@@ -14,13 +14,17 @@ export const MUTATION_KEYS = {
   submitExam: ['exam', 'submit'] as const,
   saveVideoProgress: ['exam', 'video-progress'] as const,
   completeVideo: ['exam', 'video-complete'] as const,
+  createAttemptRequest: ['attempt-request', 'create'] as const,
+  patchScorm: ['scorm', 'patch'] as const,
 } as const;
 
 export type MutationKey =
   | typeof MUTATION_KEYS.saveAnswer
   | typeof MUTATION_KEYS.submitExam
   | typeof MUTATION_KEYS.saveVideoProgress
-  | typeof MUTATION_KEYS.completeVideo;
+  | typeof MUTATION_KEYS.completeVideo
+  | typeof MUTATION_KEYS.createAttemptRequest
+  | typeof MUTATION_KEYS.patchScorm;
 
 /**
  * Persist edilmesi GEREKEN key'lerin set'i. `shouldDehydrateMutation`
@@ -32,6 +36,8 @@ export const PERSISTED_MUTATION_KEYS: ReadonlySet<string> = new Set([
   MUTATION_KEYS.submitExam.join('/'),
   MUTATION_KEYS.saveVideoProgress.join('/'),
   MUTATION_KEYS.completeVideo.join('/'),
+  MUTATION_KEYS.createAttemptRequest.join('/'),
+  MUTATION_KEYS.patchScorm.join('/'),
 ]);
 
 export function isPersistedMutationKey(key: readonly unknown[] | undefined): boolean {

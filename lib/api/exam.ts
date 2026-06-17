@@ -3,6 +3,7 @@ import {
   examQuestionsResponseSchema,
   examResultsResponseSchema,
   examStartResponseSchema,
+  examStateResponseSchema,
   examSubmitResponseSchema,
   examTimerResponseSchema,
   examVideosResponseSchema,
@@ -15,6 +16,7 @@ import type {
   ExamQuestionsResponse,
   ExamResultsResponse,
   ExamStartResponse,
+  ExamStateResponse,
   ExamSubmitResponse,
   ExamVideosResponse,
   VideoProgressResponse,
@@ -111,6 +113,14 @@ export async function saveVideoProgress(
     position?: number;
     completed?: boolean;
     currentPage?: number;
+    /**
+     * Oynatıcının ölçtüğü gerçek video süresi (saniye). Backend N2 fix: DB
+     * `durationSeconds` transcode kırpması yüzünden gerçek videodan büyükse,
+     * %90 tamamlama tabanı `min(DB, clientDuration)` üzerinden hesaplanır
+     * (alt clamp DB*0.6 — sahte küçük süre engellenir). Gönderilmezse video
+     * sonuna kadar izlense bile şişmiş DB süresi yüzünden tamamlama reddedilebilir.
+     */
+    clientDuration?: number;
   },
 ): Promise<VideoProgressResponse> {
   const data = await apiFetch<VideoProgressResponse>(`/api/exam/${assignmentId}/videos`, {
@@ -139,4 +149,18 @@ export async function fetchExamTimer(assignmentId: string): Promise<{
     method: 'POST',
   });
   return validate(examTimerResponseSchema, data, 'exam.timer');
+}
+
+/**
+ * Sunucu-otoriteli faz durumu. `from` = kullanıcının şu an bulunduğu route; backend
+ * uyuşmazsa `redirect`'te doğru route'u döner (uyuşuyorsa null). Foreground'a dönüşte
+ * (AppState 'active') çağrılır — uzun arka plan sonrası faz ilerlemiş/expired ise
+ * kullanıcıyı bayat ekranda bırakmadan doğru faza sıçratmak için.
+ */
+export async function fetchExamState(
+  assignmentId: string,
+  from: 'pre-exam' | 'videos' | 'post-exam',
+): Promise<ExamStateResponse> {
+  const data = await apiFetch<ExamStateResponse>(`/api/exam/${assignmentId}/state?from=${from}`);
+  return validate(examStateResponseSchema, data, 'exam.state');
 }

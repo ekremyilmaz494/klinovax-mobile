@@ -36,3 +36,24 @@ export const feedbackFormResponseSchema = z.looseObject({
   // Kurumun aktif formu yoksa null (200 döner, 404 değil).
   form: feedbackFormSchema.nullable(),
 });
+
+export const feedbackSubmitResponseSchema = z.looseObject({
+  success: z.literal(true),
+  responseId: z.string(),
+  submittedAt: z.string(),
+});
+
+const pendingFeedbackItemSchema = z.looseObject({
+  trainingId: z.string(),
+  trainingTitle: z.string(),
+  attemptId: z.string(),
+  // true ise bu eğitim için geri bildirim yeni eğitim başlatmayı bloklar (start 423).
+  isMandatory: z.boolean(),
+  postExamCompletedAt: z.string().nullable(),
+});
+
+export const pendingFeedbackResponseSchema = z.looseObject({
+  items: z.array(pendingFeedbackItemSchema),
+  // Kurumda aktif form yoksa false — banner gösterilmez.
+  formActive: z.boolean(),
+});

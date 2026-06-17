@@ -124,3 +124,18 @@ export const videoProgressResponseSchema = z.looseObject({
   // allVideosCompleted: tüm zorunlu video bitti → status post_exam'a geçer. Kritik.
   allVideosCompleted: z.boolean(),
 });
+
+/**
+ * GET /api/exam/[id]/state — foreground faz re-sync. `redirect` (gidilecek route) ve
+ * `stage` mobil yönlendirmeyi belirler; enum dışı değer gelirse drift sinyali (loglanır).
+ */
+export const examStateResponseSchema = z.looseObject({
+  stage: z.enum(['pre_exam', 'watching_videos', 'post_exam', 'completed', 'expired', 'none']),
+  attemptId: z.string().nullable(),
+  attemptNumber: z.number().nullable(),
+  assignmentId: z.string().nullable(),
+  redirect: z
+    .enum(['pre-exam', 'videos', 'post-exam', 'my-training-detail', 'my-trainings'])
+    .nullable(),
+  noRequiredVideos: z.boolean(),
+});

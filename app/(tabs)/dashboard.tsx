@@ -7,12 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AgendaPreview } from '@/components/dashboard/AgendaPreview';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
+import { MandatoryFeedbackBanner } from '@/components/feedback/MandatoryFeedbackBanner';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
-import { ApiError, apiFetch } from '@/lib/api/client';
+import { ApiError } from '@/lib/api/client';
+import { fetchDashboard, fetchStaffProfile } from '@/lib/api/staff';
 import { monthParam } from '@/lib/calendar/agenda';
 import { useAuthStore } from '@/store/auth';
 import type {
@@ -40,7 +42,7 @@ export default function DashboardScreen() {
 
   const { data, isLoading, error, refetch } = useQuery<DashboardResponse, Error>({
     queryKey: ['staff-dashboard'],
-    queryFn: () => apiFetch<DashboardResponse>('/api/staff/dashboard'),
+    queryFn: fetchDashboard,
     enabled: !!user,
   });
 
@@ -48,7 +50,7 @@ export default function DashboardScreen() {
   const { data: profile } = useQuery<StaffProfile, Error>({
     queryKey: ['staff', 'profile'],
     enabled: !!user,
-    queryFn: () => apiFetch<StaffProfile>('/api/staff/profile'),
+    queryFn: fetchStaffProfile,
   });
   const firstName = profile?.firstName?.trim() ?? '';
   // Profesyonel bağlam: unvan · departman (varsa) — daha önce kullanılmıyordu.
@@ -110,6 +112,8 @@ export default function DashboardScreen() {
 
         {data ? (
           <View style={{ gap: t.space[6] }}>
+            {/* Zorunlu geri bildirim engeli — ana ekranda proaktif uyarı (start 423'üne çarpmadan). */}
+            <MandatoryFeedbackBanner />
             {data.urgentTraining ? <UrgentCard item={data.urgentTraining} /> : null}
 
             <StatsGrid stats={data.stats} />
@@ -175,13 +179,18 @@ function UrgentCard({ item }: { item: UrgentTraining }) {
       style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
     >
       <Card variant="accent" rail>
-        <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: 6 }}>
+        <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: t.space[2] }}>
           ACİL EĞİTİM
         </Text>
         <Text variant="title-3" numberOfLines={2}>
           {item.title}
         </Text>
-        <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 8 }}>
+        <Stack
+          direction="row"
+          justify="space-between"
+          align="center"
+          style={{ marginTop: t.space[2] }}
+        >
           <Badge label={`${item.daysLeft} gün kaldı`} tone="danger" />
           <Text variant="subhead" style={{ color: t.colors.accent.clay }}>
             Eğitime git →
@@ -205,7 +214,14 @@ function ActivityItem({
   const variant =
     item.type === 'success' ? 'success' : item.type === 'error' ? 'danger' : 'neutral';
   return (
-    <View style={{ flexDirection: 'row', paddingVertical: 12, paddingRight: 14, gap: 12 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        paddingVertical: t.space[3],
+        paddingRight: t.space[4],
+        gap: t.space[3],
+      }}
+    >
       {/* Timeline rail */}
       <View style={{ width: 22, alignItems: 'center' }}>
         {!isFirst ? (
@@ -231,7 +247,7 @@ function ActivityItem({
           />
         ) : null}
       </View>
-      <View style={{ flex: 1, paddingTop: 12 }}>
+      <View style={{ flex: 1, paddingTop: t.space[3] }}>
         <Text variant="body" numberOfLines={2}>
           {item.text}
         </Text>

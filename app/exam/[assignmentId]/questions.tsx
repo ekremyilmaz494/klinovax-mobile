@@ -104,14 +104,14 @@ export default function ExamQuestionsScreen() {
         <ExpoStack.Screen
           options={{ title: 'Sınav', headerBackVisible: false, headerLeft: () => null }}
         />
-        <View style={{ flex: 1, padding: 24, justifyContent: 'center' }}>
+        <View style={{ flex: 1, padding: t.space[6], justifyContent: 'center' }}>
           <Text variant="title-2" align="center">
             {copy.title}
           </Text>
-          <Text variant="body" tone="secondary" align="center" style={{ marginTop: 10 }}>
+          <Text variant="body" tone="secondary" align="center" style={{ marginTop: t.space[3] }}>
             {copy.body}
           </Text>
-          <View style={{ marginTop: 28 }}>
+          <View style={{ marginTop: t.space[8] }}>
             <Button label={copy.cta} variant="primary" size="lg" onPress={go} fullWidth />
           </View>
         </View>
@@ -189,9 +189,15 @@ function QuestionsView({
   // guard + header back kapalı) ama home tuşu/gelen çağrı gibi arka plana geçişler
   // buradan sayılır. Web post-exam'deki sekme-değişim sayacının mobil karşılığı.
   const tabSwitchRef = useRef(0);
+  // Foreground'a dönünce timer'ı sunucu otoritesiyle tazele: uzun arka plan sonrası
+  // backend attempt'i auto-complete edip `expired:true` döndürebilir → aşağıdaki expired
+  // effect oto-submit'i tetikler. Görsel sayaç ExamTimer endRef ile sabit (sıçramaz);
+  // yalnız `expired` bayrağı önemli. Ref pattern: listener timerQuery'den önce kuruluyor.
+  const refetchTimerRef = useRef<() => void>(() => {});
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') tabSwitchRef.current += 1;
+      if (state === 'active') refetchTimerRef.current();
+      else if (state === 'background' || state === 'inactive') tabSwitchRef.current += 1;
     });
     return () => sub.remove();
   }, []);
@@ -213,6 +219,8 @@ function QuestionsView({
     staleTime: Infinity,
     gcTime: 0,
   });
+  // AppState listener'ın çağıracağı refetch'i güncel tut (manuel refetch staleTime'ı ezer).
+  refetchTimerRef.current = () => void timerQuery.refetch();
 
   const [preDoneModal, setPreDoneModal] = useState<{
     score: number;
@@ -386,17 +394,22 @@ function QuestionsView({
 
       <View
         style={{
-          paddingHorizontal: 20,
-          paddingVertical: 14,
+          paddingHorizontal: t.space[5],
+          paddingVertical: t.space[4],
           backgroundColor: t.colors.surface.primary,
           borderBottomColor: t.colors.border.subtle,
           borderBottomWidth: t.hairline,
         }}
       >
-        <Text variant="subhead" tone="tertiary" numberOfLines={1}>
+        <Text variant="subhead" tone="tertiary" numberOfLines={1} maxFontSizeMultiplier={1.4}>
           {data.trainingTitle}
         </Text>
-        <Stack direction="row" justify="space-between" align="center" style={{ marginTop: 6 }}>
+        <Stack
+          direction="row"
+          justify="space-between"
+          align="center"
+          style={{ marginTop: t.space[2] }}
+        >
           {/* Timer query settle olmadan ExamTimer mount edilmez: ExamTimer bitiş
               zamanını ilk render'da sabitler; sunucu expiresAt'i gelmeden mount
               edersek fallback (tam süre) kalıcı olur ve kill/reopen sonrası
@@ -424,16 +437,24 @@ function QuestionsView({
               --:--
             </Text>
           )}
-          <Text variant="subhead" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
+          <Text
+            variant="subhead"
+            tone="tertiary"
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.4}
+            style={{ fontVariant: ['tabular-nums'] }}
+          >
             Soru {currentIdx + 1} / {totalQuestions}
           </Text>
         </Stack>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
-        <Text variant="title-2">{question.text}</Text>
+      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[8] }}>
+        <Text variant="title-2" maxFontSizeMultiplier={1.6}>
+          {question.text}
+        </Text>
 
-        <View style={{ marginTop: 20, gap: 10 }}>
+        <View style={{ marginTop: t.space[5], gap: t.space[3] }}>
           {question.options.map((opt) => {
             const selected = answers.get(question.questionId) === opt.optionId;
             return (
@@ -443,12 +464,12 @@ function QuestionsView({
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   backgroundColor: selected ? t.colors.accent.clayMuted : t.colors.surface.primary,
-                  padding: 14,
+                  padding: t.space[4],
                   borderRadius: t.radius.md,
                   borderWidth: selected ? 2 : t.hairline,
                   borderColor: selected ? t.colors.accent.clay : t.colors.border.default,
                   alignItems: 'center',
-                  gap: 12,
+                  gap: t.space[3],
                   minHeight: 60,
                   opacity: pressed ? 0.92 : 1,
                 })}
@@ -475,10 +496,11 @@ function QuestionsView({
                 </View>
                 <Text
                   variant="body"
+                  weight={selected ? 'medium' : 'regular'}
+                  maxFontSizeMultiplier={1.6}
                   style={{
                     flex: 1,
                     color: selected ? t.colors.text.primary : t.colors.text.secondary,
-                    fontFamily: selected ? 'InterTight_500Medium' : 'InterTight_400Regular',
                   }}
                 >
                   {opt.text}
@@ -492,16 +514,16 @@ function QuestionsView({
             gezinmeye izin verir (web'deki tek-yön kilit YOK), tüm hücreler tıklanır. */}
         <View
           style={{
-            marginTop: 28,
+            marginTop: t.space[8],
             borderTopWidth: t.hairline,
             borderTopColor: t.colors.border.subtle,
-            paddingTop: 16,
+            paddingTop: t.space[4],
           }}
         >
-          <Text variant="overline" tone="tertiary" style={{ marginBottom: 12 }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[3] }}>
             SORU HARİTASI
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.space[2] }}>
             {data.questions.map((q, i) => {
               const isAnswered = answers.has(q.questionId);
               const isCurrent = i === safeIdx;
@@ -525,10 +547,8 @@ function QuestionsView({
                 >
                   <Text
                     variant="caption"
-                    style={{
-                      fontFamily: 'InterTight_600SemiBold',
-                      color: isAnswered ? t.colors.accent.clay : t.colors.text.tertiary,
-                    }}
+                    weight="semibold"
+                    style={{ color: isAnswered ? t.colors.accent.clay : t.colors.text.tertiary }}
                   >
                     {i + 1}
                   </Text>
@@ -536,13 +556,13 @@ function QuestionsView({
               );
             })}
           </View>
-          <Stack direction="row" gap={4} style={{ marginTop: 14 }}>
+          <Stack direction="row" gap={4} style={{ marginTop: t.space[4] }}>
             <Stack direction="row" align="center" gap={2}>
               <View
                 style={{
                   width: 14,
                   height: 14,
-                  borderRadius: 4,
+                  borderRadius: t.radius.xs,
                   backgroundColor: t.colors.accent.clayMuted,
                   borderWidth: t.hairline,
                   borderColor: t.colors.accent.clay,
@@ -557,7 +577,7 @@ function QuestionsView({
                 style={{
                   width: 14,
                   height: 14,
-                  borderRadius: 4,
+                  borderRadius: t.radius.xs,
                   backgroundColor: t.colors.surface.primary,
                   borderWidth: t.hairline,
                   borderColor: t.colors.border.default,
@@ -574,8 +594,8 @@ function QuestionsView({
       <View
         style={{
           flexDirection: 'row',
-          padding: 16,
-          gap: 12,
+          padding: t.space[4],
+          gap: t.space[3],
           backgroundColor: t.colors.surface.primary,
           borderTopWidth: t.hairline,
           borderTopColor: t.colors.border.subtle,

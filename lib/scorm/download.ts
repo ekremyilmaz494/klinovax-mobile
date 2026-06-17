@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { ApiError, apiRequest } from '@/lib/api/client';
 import { scormContentPath } from '@/lib/api/scorm';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -42,11 +43,24 @@ export async function downloadScormPackage(opts: {
   if (baseDir.exists) baseDir.delete();
   baseDir.create({ intermediates: true, idempotent: true });
 
-  // 1) Manifest'i indir + oku.
-  const manifestUrl = `${API_BASE_URL}${scormContentPath(trainingId, MANIFEST)}`;
+  // 1) Manifest'i apiRequest ile al — File.downloadFileAsync 403/404'te status'süz
+  //    generic Error fırlatıyordu; ekran `err instanceof ApiError` ile kalıcı/geçici
+  //    ayrımı yaptığından erişim hatası (IDOR=403, paket yok=404) yanlışça "tekrar dene"
+  //    gösteriliyordu. apiRequest doğru status'lü ApiError + 401 refresh sağlar.
+  const manifestRes = await apiRequest(scormContentPath(trainingId, MANIFEST));
+  if (!manifestRes.ok) {
+    const retryAfter = Number(manifestRes.headers.get('retry-after')) || null;
+    throw new ApiError(
+      manifestRes.status,
+      { error: `SCORM içeriğine erişilemedi (HTTP ${manifestRes.status})` },
+      retryAfter,
+    );
+  }
+  const xml = await manifestRes.text();
+  // Diske de yaz: nadiren paket içeriği imsmanifest.xml'i relative referanslayabilir.
   const manifestFile = new File(baseDir, MANIFEST);
-  await File.downloadFileAsync(manifestUrl, manifestFile, { headers });
-  const xml = await manifestFile.text();
+  manifestFile.create();
+  manifestFile.write(xml);
 
   // 2) İndirilecek dosya listesi — entry point garanti listede.
   const files = parseScormFilePaths(xml);

@@ -1,14 +1,16 @@
+import { apiFetch } from './client';
+import { createKvkkRequestResponseSchema, kvkkRequestsResponseSchema } from './schemas/kvkk';
+import { validate } from './schemas/index';
 import type {
   CreateKvkkRequestBody,
   CreateKvkkRequestResponse,
   KvkkRequestsResponse,
 } from '@/types/kvkk';
 
-import { apiFetch } from './client';
-
 /** Kullanıcının KVKK hak taleplerini listeler. */
-export function fetchKvkkRequests(): Promise<KvkkRequestsResponse> {
-  return apiFetch<KvkkRequestsResponse>('/api/staff/kvkk-requests');
+export async function fetchKvkkRequests(): Promise<KvkkRequestsResponse> {
+  const data = await apiFetch<KvkkRequestsResponse>('/api/staff/kvkk-requests');
+  return validate(kvkkRequestsResponseSchema, data, 'staff.kvkkRequests');
 }
 
 /**
@@ -16,9 +18,12 @@ export function fetchKvkkRequests(): Promise<KvkkRequestsResponse> {
  * türde bekleyen talep varsa 409, rate-limit'te (5/300sn) 429 döner — çağıran
  * bunları kullanıcıya özel mesajla gösterir.
  */
-export function createKvkkRequest(body: CreateKvkkRequestBody): Promise<CreateKvkkRequestResponse> {
-  return apiFetch<CreateKvkkRequestResponse>('/api/staff/kvkk-requests', {
+export async function createKvkkRequest(
+  body: CreateKvkkRequestBody,
+): Promise<CreateKvkkRequestResponse> {
+  const data = await apiFetch<CreateKvkkRequestResponse>('/api/staff/kvkk-requests', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  return validate(createKvkkRequestResponseSchema, data, 'staff.createKvkkRequest');
 }

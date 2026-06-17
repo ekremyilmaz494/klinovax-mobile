@@ -1,8 +1,12 @@
 import { type QueryClient } from '@tanstack/react-query';
 
+import { createAttemptRequest } from '@/lib/api/attempt-requests';
 import { ApiError } from '@/lib/api/client';
 import { saveExamAnswer, saveVideoProgress, submitExam } from '@/lib/api/exam';
+import { patchScormAttempt } from '@/lib/api/scorm';
 import type { ExamPhase, ExamSubmitResponse, VideoProgressResponse } from '@/types/exam';
+import type { ScormAttempt, ScormTrackingPatch } from '@/types/scorm';
+import type { CreateAttemptRequestResponse } from '@/types/staff';
 
 import { MUTATION_KEYS } from './mutation-keys';
 
@@ -47,6 +51,18 @@ export type CompleteVideoVars = {
   watchedTime: number;
   /** PDF içerik tamamlamasında gönderilen son sayfa (video/ses içerikte undefined). */
   currentPage?: number;
+  /** Oynatıcının ölçtüğü gerçek süre (sn) — şişmiş DB duration'lı videoda %90 tabanını düzeltir (backend N2). */
+  clientDuration?: number;
+};
+
+export type CreateAttemptRequestVars = {
+  trainingId: string;
+  reason: string;
+};
+
+export type PatchScormVars = {
+  trainingId: string;
+  patch: ScormTrackingPatch;
 };
 
 /**
@@ -135,6 +151,7 @@ export function registerMutationDefaults(client: QueryClient): void {
       position,
       watchedTime,
       currentPage,
+      clientDuration,
     }: CompleteVideoVars) =>
       saveVideoProgress(assignmentId, {
         videoId,
@@ -143,6 +160,8 @@ export function registerMutationDefaults(client: QueryClient): void {
         completed: true,
         // PDF tamamlamasında sayfa numarası gönderilir; video/ses'te undefined kalır.
         ...(currentPage !== undefined ? { currentPage } : {}),
+        // Oynatıcı gerçek süresi — şişmiş DB duration'lı videoda tamamlama tabanını düzeltir.
+        ...(clientDuration !== undefined ? { clientDuration } : {}),
       }),
     networkMode: 'offlineFirst',
     retry: shouldRetry,
@@ -155,6 +174,50 @@ export function registerMutationDefaults(client: QueryClient): void {
     onError: (error: unknown, vars: CompleteVideoVars) => {
       if (isAlreadyProcessedError(error)) {
         void client.invalidateQueries({ queryKey: ['exam-videos', vars.assignmentId] });
+      }
+    },
+  });
+
+  // ─── createAttemptRequest ────────────────────────────────────────
+  // Ek deneme hakkı talebi. Offline iken basılırsa paused yazılır, online
+  // dönünce replay olur (kaybolmasın). 409 (bekleyen talep) idempotent kabul:
+  // backend zaten bir talep tutuyor, listeyi tazele.
+  client.setMutationDefaults(MUTATION_KEYS.createAttemptRequest, {
+    mutationFn: ({ trainingId, reason }: CreateAttemptRequestVars) =>
+      createAttemptRequest({ trainingId, reason }),
+    networkMode: 'offlineFirst',
+    retry: shouldRetry,
+    onSuccess: (_data: CreateAttemptRequestResponse) => {
+      void client.invalidateQueries({ queryKey: ['attempt-requests'] });
+    },
+    onError: (error: unknown) => {
+      if (isAlreadyProcessedError(error)) {
+        void client.invalidateQueries({ queryKey: ['attempt-requests'] });
+      }
+    },
+  });
+
+  // ─── patchScorm ──────────────────────────────────────────────────
+  // SCORM tracking PATCH. KRİTİK: tamamlama PATCH'i (lessonStatus passed/completed)
+  // backend'de sertifikayı üretir — offline/app-kill'de kaybolursa kullanıcı SCORM'u
+  // bitirir ama sertifika oluşmaz, atama in_progress'te kalır. Bu yüzden best-effort
+  // değil offline-resume: offline iken paused yazılır, online dönünce replay olur.
+  // PATCH idempotent (yalnız gönderilen alanlar) + last-write-wins; FIFO replay'de son
+  // yazım kazanır, cert "yoksa oluştur" guard'lı → replay güvenli (çift sertifika yok).
+  client.setMutationDefaults(MUTATION_KEYS.patchScorm, {
+    mutationFn: ({ trainingId, patch }: PatchScormVars) => patchScormAttempt(trainingId, patch),
+    networkMode: 'offlineFirst',
+    retry: shouldRetry,
+    onSuccess: (_data: ScormAttempt, vars: PatchScormVars) => {
+      // Tamamlama replay'i sonrası liste/sertifika/dashboard senkron olsun.
+      void client.invalidateQueries({ queryKey: ['my-trainings'] });
+      void client.invalidateQueries({ queryKey: ['training-detail', vars.trainingId] });
+      void client.invalidateQueries({ queryKey: ['certificates'] });
+      void client.invalidateQueries({ queryKey: ['staff-dashboard'] });
+    },
+    onError: (error: unknown, vars: PatchScormVars) => {
+      if (isAlreadyProcessedError(error)) {
+        void client.invalidateQueries({ queryKey: ['training-detail', vars.trainingId] });
       }
     },
   });

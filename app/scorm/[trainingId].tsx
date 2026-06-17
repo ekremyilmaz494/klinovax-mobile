@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
@@ -10,7 +10,9 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
-import { createScormAttempt, fetchScormAttempt, patchScormAttempt } from '@/lib/api/scorm';
+import { createScormAttempt, fetchScormAttempt } from '@/lib/api/scorm';
+import type { PatchScormVars } from '@/lib/query/mutation-defaults';
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import {
   buildScormApiInjection,
   buildSeedCmi,
@@ -54,6 +56,15 @@ export default function ScormScreen() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelRef = useRef<DownloadSignal>({ cancelled: false });
 
+  // SCORM tracking PATCH offline-resume registry üzerinden. Online'da anında fire
+  // (bugünkü davranış); offline iken paused yazılır, online dönünce replay olur.
+  // KRİTİK: tamamlama PATCH'i (lessonStatus passed/completed) backend'de sertifikayı
+  // üretir — eskiden best-effort olduğu için offline/kill'de kaybolup sertifika
+  // oluşmayabiliyordu. `mutate` referansı stabil → flushPatch identity'si sabit kalır.
+  const { mutate: mutateScormPatch } = useMutation<ScormAttempt, Error, PatchScormVars>({
+    mutationKey: MUTATION_KEYS.patchScorm,
+  });
+
   // ── PATCH flush (debounce + commit/finish + unmount/background) ──
   const flushPatch = useCallback(() => {
     if (debounceRef.current) {
@@ -63,10 +74,10 @@ export default function ScormScreen() {
     const data = pendingPatch.current;
     if (Object.keys(data).length === 0) return;
     pendingPatch.current = {};
-    // Best-effort (web ile aynı): tracking PATCH başarısızsa sessizce geç —
-    // kullanıcı içeriği oynamaya devam etsin, sonraki commit yeniden dener.
-    void patchScormAttempt(trainingId, data).catch(() => {});
-  }, [trainingId]);
+    // Hata yönetimi registry default'unda: isAlreadyProcessedError yutulur, 5xx/ağ
+    // retry edilir, offline iken paused+persist → online replay. (Web best-effort'tan iyi.)
+    mutateScormPatch({ trainingId, patch: data });
+  }, [trainingId, mutateScormPatch]);
 
   const markCompleted = useCallback(() => {
     // Tamamlama backend'de sertifikayı tetikledi (lessonStatus passed/completed PATCH'i);
@@ -145,11 +156,18 @@ export default function ScormScreen() {
         // 403 (atama yok) / 404 (içerik yok) kalıcı; diğerleri geçici (tekrar dene).
         const is4xx = err instanceof ApiError && (err.status === 403 || err.status === 404);
         setPermanent(is4xx);
-        setErrorMsg(
-          err instanceof ApiError && err.message
-            ? err.message
-            : 'SCORM içerik başlatılamadı. Bağlantını kontrol edip tekrar dene.',
-        );
+        // 429 (rate-limit): geçici ama "tekrar dene" hemen yine 429 olur — Retry-After'a saygı.
+        if (err instanceof ApiError && err.status === 429) {
+          const wait =
+            err.retryAfter && err.retryAfter > 0 ? ` ${err.retryAfter} saniye` : ' kısa bir süre';
+          setErrorMsg(`Çok fazla istek gönderildi. Lütfen${wait} sonra tekrar dene.`);
+        } else {
+          setErrorMsg(
+            err instanceof ApiError && err.message
+              ? err.message
+              : 'SCORM içerik başlatılamadı. Bağlantını kontrol edip tekrar dene.',
+          );
+        }
         setPhase('error');
       }
     })();
@@ -178,10 +196,19 @@ export default function ScormScreen() {
 
       {phase === 'loading' ? (
         <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: t.space[8],
+          }}
         >
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
-          <Text variant="callout" tone="secondary" style={{ marginTop: 20, marginBottom: 12 }}>
+          <Text
+            variant="callout"
+            tone="secondary"
+            style={{ marginTop: t.space[5], marginBottom: t.space[3] }}
+          >
             İçerik hazırlanıyor…
           </Text>
           <View style={{ width: '100%', maxWidth: 280 }}>
@@ -209,17 +236,22 @@ export default function ScormScreen() {
         />
       ) : phase === 'completed' ? (
         <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: t.space[8],
+          }}
         >
           <IconSymbol name="checkmark.circle.fill" size={64} color={t.colors.status.success} />
-          <Text variant="title-2" align="center" style={{ marginTop: 16 }}>
+          <Text variant="title-2" align="center" style={{ marginTop: t.space[4] }}>
             Eğitim tamamlandı
           </Text>
-          <Text variant="body" tone="tertiary" align="center" style={{ marginTop: 8 }}>
+          <Text variant="body" tone="tertiary" align="center" style={{ marginTop: t.space[2] }}>
             “{headerTitle}” içeriğini başarıyla bitirdin. Sertifikan hazırlanıyorsa sertifikalarında
             görünür.
           </Text>
-          <View style={{ marginTop: 28, width: '100%', maxWidth: 320 }}>
+          <View style={{ marginTop: t.space[8], width: '100%', maxWidth: 320 }}>
             <Button
               label="Eğitimlerime dön"
               variant="primary"

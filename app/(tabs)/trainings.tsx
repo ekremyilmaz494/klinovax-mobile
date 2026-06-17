@@ -1,22 +1,22 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MandatoryFeedbackBanner } from '@/components/feedback/MandatoryFeedbackBanner';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { StatCard } from '@/components/ui/StatCard';
-import { Card, Chip, Stack, Text, useTheme } from '@/design-system';
-import { ApiError, apiFetch } from '@/lib/api/client';
-import { fetchPendingFeedback } from '@/lib/api/feedback';
+import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { ApiError } from '@/lib/api/client';
+import { fetchMyTrainings } from '@/lib/api/staff';
 import { computeAverageScore } from '@/lib/staff/stats';
 import { useAuthStore } from '@/store/auth';
 import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff';
-import type { PendingFeedbackItem } from '@/types/feedback';
 
 const PAGE_SIZE = 20;
 
@@ -58,13 +58,12 @@ export default function TrainingsScreen() {
       queryKey: ['my-trainings', filter],
       enabled: !!user,
       initialPageParam: 1,
-      queryFn: ({ pageParam }) => {
-        const params = new URLSearchParams();
-        params.set('page', String(pageParam));
-        params.set('limit', String(PAGE_SIZE));
-        if (filter !== 'all') params.set('status', filter);
-        return apiFetch<MyTrainingsResponse>(`/api/staff/my-trainings?${params.toString()}`);
-      },
+      queryFn: ({ pageParam }) =>
+        fetchMyTrainings({
+          page: Number(pageParam),
+          limit: PAGE_SIZE,
+          status: filter === 'all' ? undefined : filter,
+        }),
       getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     });
 
@@ -72,19 +71,13 @@ export default function TrainingsScreen() {
     if (error instanceof ApiError && error.status === 401) void logout();
   }, [error, logout]);
 
-  // Zorunlu geri bildirim banner'ı — bu form doldurulmadan yeni eğitim başlatılamaz.
-  const { data: pendingFeedback } = useQuery({
-    queryKey: ['pending-feedback'],
-    enabled: !!user,
-    queryFn: fetchPendingFeedback,
-  });
-
-  const mandatoryFeedback = useMemo<PendingFeedbackItem | null>(() => {
-    if (!pendingFeedback?.formActive) return null;
-    return pendingFeedback.items.find((it) => it.isMandatory) ?? null;
-  }, [pendingFeedback]);
-
   const items = useMemo<MyTrainingItem[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+
+  // Boş liste sebebi son sayfanın meta'sından — "aktif dönem yok" ≠ "bu filtrede yok".
+  const emptyReason = useMemo(() => {
+    const pages = data?.pages;
+    return pages && pages.length > 0 ? pages[pages.length - 1]?.meta?.reason : undefined;
+  }, [data]);
 
   // Yüklenmiş eğitimlerin ortalama skoru (web personel paneliyle birebir parite — bkz.
   // lib/staff/stats.ts). null ise KPI tile gizlenir.
@@ -107,38 +100,19 @@ export default function TrainingsScreen() {
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
-      {mandatoryFeedback ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/feedback/[attemptId]',
-                params: {
-                  attemptId: mandatoryFeedback.attemptId,
-                  title: mandatoryFeedback.trainingTitle,
-                },
-              })
-            }
-            style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
-          >
-            <Card variant="warning" rail>
-              <Text variant="overline" style={{ color: t.colors.status.warning }}>
-                ZORUNLU GERİ BİLDİRİM
-              </Text>
-              <Text variant="body" style={{ marginTop: 6 }}>
-                “{mandatoryFeedback.trainingTitle}” eğitimi için geri bildirim formunu doldurmadan
-                yeni eğitim başlatamazsın.
-              </Text>
-            </Card>
-          </Pressable>
-        </View>
-      ) : null}
+      <MandatoryFeedbackBanner
+        containerStyle={{ paddingHorizontal: t.space[4], paddingTop: t.space[3] }}
+      />
 
       <Stack
         direction="row"
         gap={2}
         wrap
-        style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}
+        style={{
+          paddingHorizontal: t.space[4],
+          paddingTop: t.space[3],
+          paddingBottom: t.space[2],
+        }}
       >
         {FILTERS.map((f) => (
           <Chip
@@ -151,7 +125,7 @@ export default function TrainingsScreen() {
       </Stack>
 
       {avgScore != null ? (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: t.space[4], paddingBottom: t.space[2] }}>
           <Stack direction="row">
             <StatCard label="ORTALAMA SKOR" value={`%${avgScore}`} tone="success" />
           </Stack>
@@ -172,18 +146,38 @@ export default function TrainingsScreen() {
           data={items}
           keyExtractor={(it) => it.id}
           renderItem={({ item }) => <TrainingCard item={item} />}
-          contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="book.fill"
-              title="Bu filtrede eğitim yok"
-              description="Farklı bir filtre seçmeyi deneyebilirsin."
-            />
+            emptyReason === 'no_active_period' ? (
+              <EmptyState
+                icon="calendar"
+                title="Şu an aktif eğitim dönemi yok"
+                description="Yeni eğitim dönemi başladığında atanan eğitimlerin burada görünecek."
+              />
+            ) : emptyReason === 'period_not_found' ? (
+              <EmptyState
+                icon="calendar"
+                title="Eğitim dönemi bulunamadı"
+                description="Seçili dönem geçersiz görünüyor. Lütfen daha sonra tekrar dene."
+              />
+            ) : filter === 'all' ? (
+              <EmptyState
+                icon="book.fill"
+                title="Henüz atanmış eğitimin yok"
+                description="Sana eğitim atandığında burada görünecek."
+              />
+            ) : (
+              <EmptyState
+                icon="book.fill"
+                title="Bu filtrede eğitim yok"
+                description="Farklı bir filtre seçmeyi deneyebilirsin."
+              />
+            )
           }
           ListFooterComponent={
             isFetchingNextPage ? (
-              <View style={{ paddingVertical: 16 }}>
+              <View style={{ paddingVertical: t.space[4] }}>
                 <ActivityIndicator color={t.colors.accent.clay} />
               </View>
             ) : null
@@ -211,7 +205,6 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
   const t = useTheme();
   const tone = STATUS_TONE[item.status];
   const label = STATUS_LABEL[item.status];
-  const isOverdue = item.daysLeft === 0 && item.status !== 'passed';
 
   return (
     <Pressable
@@ -221,14 +214,19 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
           borderRadius: t.radius.lg,
           borderWidth: t.hairline,
           borderColor: t.colors.border.subtle,
-          padding: 18,
+          padding: t.space[5],
           opacity: pressed ? 0.92 : item.isNotStarted ? 0.78 : 1,
         },
       ]}
       onPress={() => router.push(`/trainings/${item.id}`)}
     >
       {item.category ? (
-        <Text variant="overline" tone="tertiary" style={{ marginBottom: 6 }} numberOfLines={1}>
+        <Text
+          variant="overline"
+          tone="tertiary"
+          style={{ marginBottom: t.space[2] }}
+          numberOfLines={1}
+        >
           {item.category}
         </Text>
       ) : null}
@@ -250,39 +248,46 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
       {item.isNotStarted ? (
         // Henüz açılmamış eğitim: tarih bilgisi + kilitli görünüm. Backend exam start
         // endpoint'i de 403 ile reddediyor (defense-in-depth).
-        <Stack direction="row" gap={2} align="center" style={{ marginTop: 14 }}>
+        <Stack direction="row" gap={2} align="center" style={{ marginTop: t.space[4] }}>
           <IconSymbol name="lock.fill" size={14} color={t.colors.text.tertiary} />
           <Text variant="footnote" tone="tertiary">
             {item.startDate ? `${item.startDate} tarihinde açılacak` : 'Henüz açılmadı'}
           </Text>
         </Stack>
       ) : (
-        <Stack direction="row" justify="space-between" style={{ marginTop: 14 }}>
+        <Stack direction="row" justify="space-between" style={{ marginTop: t.space[4] }}>
           <Text variant="footnote" tone="tertiary">
             Son tarih:{' '}
-            <Text
-              variant="footnote"
-              style={{ color: t.colors.text.primary, fontFamily: 'InterTight_600SemiBold' }}
-            >
+            <Text variant="footnote" weight="semibold" style={{ color: t.colors.text.primary }}>
               {item.deadline || '—'}
             </Text>
           </Text>
           {typeof item.daysLeft === 'number' && item.deadline ? (
-            <Text variant="footnote" tone={isOverdue ? 'danger' : 'tertiary'}>
-              {isOverdue ? 'Süresi doldu' : `${item.daysLeft} gün kaldı`}
-            </Text>
+            // Web personel paneli paritesi: daysLeft<=3 "urgent" → danger/kırmızı.
+            // daysLeft===0 bucket'ı backend'de hem "bugün son" hem "süresi dolmuş"u
+            // kapsayabilir (route'ta endDate filtresi yok) — bu yüzden "son gün" iddiası
+            // yerine ACİLİYET (danger) gösteriyoruz; web aynı belirsizliği aynı şekilde ele alıyor.
+            item.daysLeft <= 3 && item.status !== 'passed' ? (
+              <Text variant="footnote" style={{ color: t.colors.status.danger }}>
+                {item.daysLeft === 0 ? 'Bugün son' : `Son ${item.daysLeft}g`}
+              </Text>
+            ) : (
+              <Text variant="footnote" tone="tertiary">
+                {item.daysLeft} gün kaldı
+              </Text>
+            )
           ) : null}
         </Stack>
       )}
 
       {!item.isNotStarted ? (
-        <View style={{ marginTop: 12 }}>
+        <View style={{ marginTop: t.space[3] }}>
           <ProgressBar value={item.progress} height={6} />
         </View>
       ) : null}
 
       {!item.isNotStarted ? (
-        <Stack direction="row" justify="space-between" style={{ marginTop: 12 }}>
+        <Stack direction="row" justify="space-between" style={{ marginTop: t.space[3] }}>
           <Text variant="footnote" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
             Deneme: {item.attempt}/{item.maxAttempts}
           </Text>
@@ -291,11 +296,8 @@ const TrainingCard = memo(function TrainingCard({ item }: { item: MyTrainingItem
               Skor:{' '}
               <Text
                 variant="footnote"
-                style={{
-                  color: t.colors.text.primary,
-                  fontFamily: 'InterTight_600SemiBold',
-                  fontVariant: ['tabular-nums'],
-                }}
+                weight="semibold"
+                style={{ color: t.colors.text.primary, fontVariant: ['tabular-nums'] }}
               >
                 %{item.score}
               </Text>

@@ -1,6 +1,10 @@
-import { feedbackFormResponseSchema } from './schemas/feedback';
-import { validate } from './schemas/index';
 import { apiFetch } from './client';
+import {
+  feedbackFormResponseSchema,
+  feedbackSubmitResponseSchema,
+  pendingFeedbackResponseSchema,
+} from './schemas/feedback';
+import { validate } from './schemas/index';
 import type {
   FeedbackFormResponse,
   FeedbackSubmitBody,
@@ -20,13 +24,15 @@ export async function fetchFeedbackForm(): Promise<FeedbackFormResponse> {
   return validate(feedbackFormResponseSchema, data, 'feedback.form');
 }
 
-export function submitFeedback(body: FeedbackSubmitBody): Promise<FeedbackSubmitResponse> {
-  return apiFetch<FeedbackSubmitResponse>('/api/feedback/submit', {
+export async function submitFeedback(body: FeedbackSubmitBody): Promise<FeedbackSubmitResponse> {
+  const data = await apiFetch<FeedbackSubmitResponse>('/api/feedback/submit', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  return validate(feedbackSubmitResponseSchema, data, 'feedback.submit');
 }
 
-export function fetchPendingFeedback(): Promise<PendingFeedbackResponse> {
-  return apiFetch<PendingFeedbackResponse>('/api/staff/feedback/pending');
+export async function fetchPendingFeedback(): Promise<PendingFeedbackResponse> {
+  const data = await apiFetch<PendingFeedbackResponse>('/api/staff/feedback/pending');
+  return validate(pendingFeedbackResponseSchema, data, 'feedback.pending');
 }

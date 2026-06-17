@@ -32,7 +32,9 @@ export function OfflineBanner() {
       : 'İnternet bağlantısı yok — kayıtlı veriler gösteriliyor';
 
   const bg = t.colors.status.warning;
-  const fg = '#FFFFFF';
+  // onAccent zemine göre flip eder (light: açık metin / dark: koyu metin) — dark temada
+  // warning açık amber olduğu için sabit beyaz düşük kontrasttı.
+  const fg = t.colors.text.onAccent;
 
   return (
     <SafeAreaView
