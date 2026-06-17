@@ -17,21 +17,21 @@
 
 ## Stack
 
-| Katman        | Seçim                                                                                          |
-| ------------- | ---------------------------------------------------------------------------------------------- |
-| Runtime       | React Native 0.81 + Expo SDK 54 + React 19 + new architecture                                  |
-| Routing       | Expo Router 6 (file-based, typed routes)                                                       |
-| Diller        | TypeScript 5 (strict), JSX                                                                     |
-| State         | Zustand (`store/auth.ts` — tek store, sadece auth)                                             |
-| Server state  | TanStack Query v5 + AsyncStorage persistence + paused mutations                                |
-| Auth          | Custom JWT (access+refresh) → `expo-secure-store`, biometrik kilit `expo-local-authentication` |
-| Push          | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz)                          |
-| Media         | `expo-video` (yeni player API), `react-native-webview` (PDF)                                   |
-| Animasyon     | `react-native-reanimated` v4 (worklets, UI thread)                                             |
-| Fontlar       | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir)      |
-| Test          | jest-expo + `@testing-library/react-native` — `__tests__/` klasörleri, CI'da zorunlu           |
-| Hata yakalama | `RouterErrorBoundary` (kök + exam) + Sentry (`lib/sentry.ts`, DSN ile aktive olur)             |
-| Validasyon    | zod v4 (`lib/api/schemas/` — graceful: mismatch loglanır, app kırılmaz)                        |
+| Katman        | Seçim                                                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime       | React Native 0.81 + Expo SDK 54 + React 19 + new architecture                                                                           |
+| Routing       | Expo Router 6 (file-based, typed routes)                                                                                                |
+| Diller        | TypeScript 5 (strict), JSX                                                                                                              |
+| State         | Zustand (`store/auth.ts` — tek store, sadece auth)                                                                                      |
+| Server state  | TanStack Query v5 + AsyncStorage persistence + paused mutations                                                                         |
+| Auth          | Backend JWT (Supabase Auth kaynaklı) access+refresh → `expo-secure-store` (Bearer header), biyometrik kilit `expo-local-authentication` |
+| Push          | `expo-notifications` (development build gerekli, Expo Go'da çalışmaz)                                                                   |
+| Media         | `expo-video` (yeni player API), `react-native-webview` (PDF + SCORM 1.2 oynatıcı), `expo-file-system` (SCORM indirme)                   |
+| Animasyon     | `react-native-reanimated` v4 (worklets, UI thread)                                                                                      |
+| Fontlar       | `@expo-google-fonts/fraunces` + `@expo-google-fonts/inter-tight` (expo-font ile yüklenir)                                               |
+| Test          | jest-expo + `@testing-library/react-native` — `__tests__/` klasörleri, CI'da zorunlu                                                    |
+| Hata yakalama | `RouterErrorBoundary` (kök + exam) + Sentry (`lib/sentry.ts`, DSN ile aktive olur)                                                      |
+| Validasyon    | zod v4 (`lib/api/schemas/` — graceful: mismatch loglanır, app kırılmaz)                                                                 |
 
 ---
 
@@ -114,9 +114,10 @@ import {
 
 ```
 app/
-├── _layout.tsx                # font + NavigationTheme + Stack defaults + AuthGate + LockOverlay + BadgeSync
+├── _layout.tsx                # PersistQueryClientProvider + ThemePreferenceProvider + NavigationTheme + font + Stack + AuthGate + LockOverlay + BadgeSync + OfflineBanner; Sentry.wrap'lı
 ├── index.tsx                  # boş redirect target
 ├── (auth)/
+│   ├── _layout.tsx            # auth grubu Stack (header gizli)
 │   └── login.tsx              # email + password + biometric offer + AuroraBackground
 ├── (tabs)/
 │   ├── _layout.tsx            # tab bar (Warm Editorial: hairline top, clay active)
@@ -124,26 +125,31 @@ app/
 │   ├── trainings.tsx          # filter chips + training kartları
 │   ├── certificates.tsx       # letterhead kart + mono cert kodu
 │   ├── notifications.tsx      # filter (Tümü/Okunmamış) + read/unread + mark all
-│   └── profile.tsx            # avatar (initials), stats, biometric toggle, logout
+│   └── profile.tsx            # avatar (initials), stats, tema tercihi (system/light/dark), biometric toggle, logout
 ├── trainings/[id].tsx         # eğitim detay + step listesi + durum makinesi (expired-retryable, exhausted, ek hak talebi)
+├── scorm/[trainingId].tsx     # SCORM 1.2 oynatıcı (indir-ve-oynat): paket indir → WebView file:// + window.API köprüsü
 ├── exam/[assignmentId]/
 │   ├── _layout.tsx            # nested Stack + exam'a özel ErrorBoundary
 │   ├── start.tsx              # sınav öncesi onay + kurallar + 423 → feedback yönlendirme
-│   ├── questions.tsx          # timer + options + auto-submit (pre VE post)
-│   ├── videos.tsx             # video player + heartbeat + PDF + completion (%90 + playToEnd)
+│   ├── questions.tsx          # timer + options + auto-submit (pre VE post) + 423 rollback
+│   ├── videos.tsx             # video player + heartbeat + PDF + completion (%90 + playToEnd); ileri-sarma yasak (no-seek)
 │   └── result.tsx             # dramatik yüzde + başarı/başarısızlık + feedback/ek hak CTA
 ├── feedback/[attemptId].tsx   # EY.FR.40 geri bildirim formu (likert/yes-partial-no/text)
 ├── certificates/[id]/preview.tsx  # PDF WebView modal
+├── calendar.tsx               # eğitim/sınav son tarihleri ajanda/ay görünümü (dashboard header kısayolu)
+├── kvkk.tsx                   # KVKK aydınlatma metni + açık rıza ekranı
 └── legal/[slug].tsx           # gizlilik/şartlar WebView
 
 components/
 ├── auth/                      # BiometricLockScreen, AuroraBackground
+├── exam/                      # PhaseTransitionModal (faz geçiş ekranı: pre→video→post)
 ├── network/                   # OfflineBanner
 ├── notifications/             # NotificationCard, NotificationTypeIcon
 └── ui/                        # StatCard, Badge (=Tag alias), ProgressBar, EmptyState, ScreenError, IconSymbol,
-                               #   RouterErrorBoundary (kök + route boundary), ExamErrorBoundary, collapsible
+                               #   HeaderBackButton, RouterErrorBoundary (kök + route boundary), ExamErrorBoundary, collapsible
 
 design-system/
+├── index.ts                  # barrel export (primitives, theme, tokens, typography, fonts)
 ├── tokens.ts                  # Palette, Radius, Space, Hairline, Motion
 ├── theme.ts                   # SemanticColors, lightTheme, darkTheme, useTheme()
 ├── typography.ts              # Type variants
@@ -153,17 +159,27 @@ design-system/
 
 lib/
 ├── api/
-│   ├── client.ts              # apiFetch + apiRequest + 401 refresh + setOnAuthFailure
+│   ├── client.ts              # apiFetch + apiRequest + loginRequest + 401 refresh + setOnAuthFailure + setAccessTokenListener
 │   ├── exam.ts                # exam endpoint helper'ları (zod validate ile sarılı)
 │   ├── feedback.ts            # EY.FR.40 form/submit/pending endpoint'leri
 │   ├── attempt-requests.ts    # ek deneme hakkı talebi endpoint'leri
+│   ├── calendar.ts            # takvim/ajanda (eğitim+sınav son tarihleri) endpoint'leri
+│   ├── kvkk.ts                # KVKK metin + rıza durumu/onay endpoint'leri
+│   ├── scorm.ts               # SCORM attempt/tracking + content path endpoint'leri (zod ile sarılı)
 │   ├── schemas/               # zod yanıt şemaları + validate() (graceful pass-through, throw etmez)
 │   ├── cert-download.ts       # sertifika PDF paylaşımı
+│   ├── transcript-download.ts # transkript/karne PDF paylaşımı
 │   └── notifications.ts       # bildirim endpoint'leri
-├── exam/                      # SAF exam mantığı (test edilen): video-completion (%90 eşik),
-│   │                          #   timer, start-routing, result-gating, feedback-payload,
+├── exam/                      # SAF exam mantığı (test edilen): video-completion (%90 eşik), video-seek (no-seek clamp),
+│   │                          #   video-progress-cache (offline izleme birikimi), timer, start-routing, route-guard, phase-redirect (403→faz), result-gating, feedback-payload,
 │   │                          #   state-machine (web'den port — web kaynağı tek doğru kaynak)
 │   └── __tests__/             # exam mantığı test suite'i
+├── calendar/agenda.ts         # SAF ajanda gruplama/sıralama mantığı (+ __tests__)
+├── scorm/                     # SCORM 1.2 indir-ve-oynat: manifest.ts (imsmanifest.xml ayrıştır + dosya listesi),
+│   │                          #   download.ts (manifestteki dosyaları authed indir → file://), bridge.ts (window.API
+│   │                          #   shim → cmiSetValueToPatch tracking) — saf mantık, (+ __tests__)
+├── legal/                     # legal-url + open-legal (yasal metin URL çözümü + açma)
+├── theme/use-theme-preference.tsx  # tema tercihi (system/light/dark) provider + AsyncStorage persist
 ├── sentry.ts                  # initSentry (DSN yoksa no-op) + captureBoundaryError
 ├── auth/
 │   ├── secure-token.ts        # SecureStore session CRUD
@@ -183,10 +199,11 @@ lib/
 ├── format/time-ago.ts         # Türkçe relative time
 └── config.ts                  # API_BASE_URL resolution
 
-store/auth.ts                  # Zustand: user, hydrated, unlocked, hydrate/setSession/lock/unlock/logout
+store/auth.ts                  # Zustand: user, accessToken (memory cache), hydrated, unlocked, hydrate/setSession/setAccessToken/lock/unlock/logout
 
 hooks/
-├── use-color-scheme.{ts,web.ts}
+├── use-color-scheme.{ts,web.ts}  # tema tercihi → efektif light/dark
+├── use-android-back-guard.ts     # Android donanım geri tuşu davranışı (guard)
 ├── use-notifications.ts       # useNotifications, useUnreadCount, useMarkAllAsRead
 └── use-pending-mutation-count.ts
 ```
@@ -264,7 +281,7 @@ Bu sayede client.ts UI/store'u bilmez; bridge tek noktadan. Yeni `apiFetch` call
 
 - Türkçe UI metinleri (TR), İngilizce kod (EN). Comment'ler karma — tercihen TR (kullanıcı TR konuşuyor).
 - Ekran component'i default export, alt component'ler named export değil — local function declaration.
-- Type'lar: `types/` altında merkezi (`staff.ts`, `notifications.ts`, `exam.ts`).
+- Type'lar: `types/` altında merkezi (`staff.ts`, `notifications.ts`, `exam.ts`, `feedback.ts`, `calendar.ts`, `kvkk.ts`).
 
 ### Stil
 
@@ -435,8 +452,10 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 - **Reanimated worklets**: `useAnimatedStyle` callback'inde `'worklet'` direktifi opsiyonel ama ileride Math fonksiyonları için ekle.
 - **`fontVariant: ['tabular-nums']` Fraunces'te**: tnum OpenType feature yok, iOS sessizce yok sayar. Inter Tight'ta çalışır. Timer'da minor jitter normal.
 - **NewArch enabled**: `app.json:newArchEnabled=true` — Fabric/TurboModules. Eski paketleri eklerken uyumluluk kontrol et.
+- **SCORM yalnız manifest dosyaları**: `lib/scorm/manifest.ts` yalnız `imsmanifest.xml`'de listelenen dosyaları indirir; JS ile runtime'da üretilen dinamik URL'ler `file://` altında bulunmaz. Authoring tool tüm asset'leri manifest'e koymalı. WebView içeriği `file://` yüklenir → alt-kaynaklar yerelden (auth header taşınmaz, bu yüzden indir-ve-oynat).
 - **Sentry production'da SESSİZ**: `@sentry/react-native` plugin kurulu ama `EXPO_PUBLIC_SENTRY_DSN` EAS env'de set değil → `Sentry.init({ dsn: undefined })` no-op'a dönüşür, hata fırlatmaz. Prod'da crash event'i gelmiyorsa şaşırma; "Henüz aktive edilmemiş" bölümündeki adımları izle.
 - **iOS submit aktif değil**: `eas.json` → `submit.production.ios` placeholder'lar (`<<KULLANICI_APPLE_ID>>` vb.) hâlâ duruyor. `eas submit --platform ios` çağrılırsa hata verir. Apple Developer hesabı gelince "Henüz aktive edilmemiş" bölümünden doldur.
+- **Kullanılmayan bağımlılıklar**: `@supabase/supabase-js` ve `react-hook-form` `package.json`'da kurulu ama kaynak kodda **hiç import edilmiyor** (auth token'ları backend'den opak gelir; formlar düz state ile yazılmış). Bundle'ı şişirir. Kaldırmadan önce sahiden kullanılmadığını grep ile doğrula; kaldırma native değişiklik → yeni EAS build gerektirir (OTA çözmez).
 
 ---
 
@@ -448,13 +467,20 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 - `design-system/theme.ts` + `tokens.ts` — renk/spacing/radius
 - `design-system/primitives/Card.tsx` + `Button.tsx` + `Text.tsx` — en kritik primitives
 - `app/exam/[assignmentId]/questions.tsx` — sınav UX (timer, options, submit)
-- `app/exam/[assignmentId]/videos.tsx` — video player + heartbeat + completion
+- `app/exam/[assignmentId]/videos.tsx` — video player + heartbeat + completion + no-seek
+- `app/trainings/[id].tsx` — eğitim detay + durum makinesi + "Başla/Devam" route'lama
+- `lib/exam/route-guard.ts` + `state-machine.ts` — faz/route mantığı (web ile bit-bit aynı tutulur)
+- `app/scorm/[trainingId].tsx` + `lib/scorm/bridge.ts` — SCORM oynatıcı + window.API köprüsü
 
 ---
 
 ## Referans / external
 
 - Backend repo: `../hospital-lms` (Next.js + Drizzle + Supabase)
+- **Repo içi dokümanlar (`docs/`)**:
+  - `web-personel-egitim-akisi-haritasi.md` — web personel paneli + eğitim/sınav akışının kod-seviyesi haritası + iki state machine. **Beklenen davranışın doğru kaynağı**; §11 mobil boşluk analizi. Akış/mantık değişince burayı da güncelle.
+  - `mobil-sikiilastirma-yol-haritasi.md` — test / ErrorBoundary / Sentry sıkılaştırma yol haritası + bilinen riskler ve milestone durumu.
+  - `play-store/` — mağaza listeleme materyalleri (listing, form cevapları, asset'ler).
 - Memory dosyaları (Claude'un user memory'sinde): `~/.claude/projects/-Users-ekremyilmaz-code/memory/klinovax-mobile.md`
 - Design inspiration: `https://github.com/rohitg00/awesome-claude-design` (Warm Editorial ailesi)
 - Plan dosyası (geçici, tamamlandı): `~/.claude/plans/https-github-com-rohitg00-awesome-claude-joyful-quill.md`
