@@ -48,3 +48,6 @@ app-example
 
 # Claude Code lokal çalışma dosyaları (worktree, lock, lokal ayarlar)
 .claude/
+
+# Yerel EAS build çıktıları
+.build-artifacts/

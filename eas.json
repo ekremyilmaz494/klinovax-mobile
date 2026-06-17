@@ -22,6 +22,12 @@
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
+    "development-simulator": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      }
+    },
     "preview": {
       "extends": "base",
       "distribution": "internal",
