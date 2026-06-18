@@ -111,3 +111,34 @@ export type VideoProgressResponse = {
   /** Tüm zorunlu (non-pdf) videolar tamamlandığında true; backend status post_exam'a geçer. */
   allVideosCompleted: boolean;
 };
+
+/**
+ * `GET /api/exam/[id]/state` — sunucu-otoriteli faz çözücü (`resolveExamFlowState`).
+ * Mobil foreground'a dönünce (AppState 'active') çağırır: backend kullanıcının olması
+ * gereken route'u `redirect`'te döner, mevcut `from` ile uyuşuyorsa `redirect: null`.
+ */
+export type ExamStage =
+  | 'pre_exam'
+  | 'watching_videos'
+  | 'post_exam'
+  | 'completed'
+  | 'expired'
+  | 'none';
+
+/** Backend'in döndürebileceği kanonik route adları (mobil route'a `examStateRedirectTarget` ile eşlenir). */
+export type ExamStateRedirect =
+  | 'pre-exam'
+  | 'videos'
+  | 'post-exam'
+  | 'my-training-detail'
+  | 'my-trainings';
+
+export type ExamStateResponse = {
+  stage: ExamStage;
+  attemptId: string | null;
+  attemptNumber: number | null;
+  assignmentId: string | null;
+  /** Doğru route ile uyuşuyorsa null; aksi halde gidilmesi gereken kanonik route. */
+  redirect: ExamStateRedirect | null;
+  noRequiredVideos: boolean;
+};

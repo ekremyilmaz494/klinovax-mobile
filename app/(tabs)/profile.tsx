@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
-import { apiFetch } from '@/lib/api/client';
+import { fetchStaffProfile } from '@/lib/api/staff';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
 import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
 import { isBiometricAvailable, promptBiometric } from '@/lib/auth/biometric';
@@ -39,7 +39,7 @@ export default function ProfileScreen() {
   const { data: profile, isLoading: profileLoading } = useQuery<StaffProfile, Error>({
     queryKey: ['staff', 'profile'],
     enabled: !!user,
-    queryFn: () => apiFetch<StaffProfile>('/api/staff/profile'),
+    queryFn: fetchStaffProfile,
   });
 
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
       Alert.alert(
         'Biyometrik kullanılamıyor',
         Platform.OS === 'ios'
-          ? 'Cihazında Face ID veya Touch ID kayıtlı değil.\n\n• Gerçek cihaz: Ayarlar > Face ID ve Parola üzerinden kayıt yap.\n• Simulator: üst menü → Features > Face ID > Enrolled işaretli olmalı.'
+          ? 'Cihazında Face ID veya Touch ID kayıtlı değil.\n\n– Gerçek cihaz: Ayarlar > Face ID ve Parola üzerinden kayıt yap.\n– Simulator: üst menü → Features > Face ID > Enrolled işaretli olmalı.'
           : 'Cihazında parmak izi veya yüz tanıma kayıtlı değil. Ayarlar > Güvenlik üzerinden kayıt yap.',
       );
       setToggling(false);
@@ -128,10 +128,10 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
         showsVerticalScrollIndicator={false}
       >
-        <Stack direction="row" align="center" gap={4} style={{ marginBottom: 24 }}>
+        <Stack direction="row" align="center" gap={4} style={{ marginBottom: t.space[6] }}>
           <View
             style={{
               width: 64,
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
             </Text>
             <Text variant="subhead" tone="tertiary" numberOfLines={1}>
               {profile?.title || roleLabel}
-              {profile?.hospital ? ` · ${profile.hospital}` : ''}
+              {profile?.organization ? ` · ${profile.organization}` : ''}
             </Text>
           </View>
         </Stack>
@@ -171,7 +171,7 @@ export default function ProfileScreen() {
               borderRadius: t.radius.lg,
               borderWidth: t.hairline,
               borderColor: t.colors.border.subtle,
-              paddingVertical: 28,
+              paddingVertical: t.space[8],
               alignItems: 'center',
             }}
           >
@@ -185,7 +185,7 @@ export default function ProfileScreen() {
               borderRadius: t.radius.lg,
               borderWidth: t.hairline,
               borderColor: t.colors.border.subtle,
-              paddingVertical: 18,
+              paddingVertical: t.space[5],
             }}
           >
             <StatCol label="Atama" value={profile.stats.assignments} />
@@ -212,7 +212,12 @@ export default function ProfileScreen() {
         <SectionTitle>Güvenlik</SectionTitle>
         <Card>
           <View
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: t.space[4],
+              gap: t.space[3],
+            }}
           >
             <View style={{ flex: 1 }}>
               <Text variant="bodyEmph">Biyometrik ile giriş</Text>
@@ -234,7 +239,7 @@ export default function ProfileScreen() {
 
         <SectionTitle>Görünüm</SectionTitle>
         <Card>
-          <View style={{ paddingVertical: 14, gap: 12 }}>
+          <View style={{ paddingVertical: t.space[4], gap: t.space[3] }}>
             <View>
               <Text variant="bodyEmph">Tema</Text>
               <Text variant="footnote" tone="tertiary" style={{ marginTop: 2 }}>
@@ -262,7 +267,7 @@ export default function ProfileScreen() {
           <InfoRow label="Sürüm" value={`${appVersion}`} last />
         </Card>
 
-        <View style={{ marginTop: 24 }}>
+        <View style={{ marginTop: t.space[6] }}>
           <Button
             label="Çıkış Yap"
             variant="outline"
@@ -321,7 +326,7 @@ function Card({ children }: { children: React.ReactNode }) {
         borderRadius: t.radius.lg,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
-        paddingHorizontal: 16,
+        paddingHorizontal: t.space[4],
       }}
     >
       {children}
@@ -332,7 +337,7 @@ function Card({ children }: { children: React.ReactNode }) {
 function StatCol({ label, value }: { label: string; value: number }) {
   const t = useTheme();
   return (
-    <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+    <View style={{ flex: 1, alignItems: 'center', gap: t.space[2] }}>
       <Text
         style={{
           fontFamily: 'Fraunces_700Bold',
@@ -359,10 +364,10 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 13,
+        paddingVertical: t.space[3],
         borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: t.colors.border.subtle,
-        gap: 12,
+        gap: t.space[3],
       }}
     >
       <Text variant="subhead" tone="tertiary">
@@ -403,8 +408,8 @@ function TranscriptRow() {
         {
           flexDirection: 'row',
           alignItems: 'center',
-          paddingVertical: 14,
-          gap: 12,
+          paddingVertical: t.space[4],
+          gap: t.space[3],
           opacity: pressed || sharing ? 0.5 : 1,
         },
       ]}
@@ -432,7 +437,7 @@ function LinkRow({ label, onPress, last }: { label: string; onPress: () => void;
         {
           flexDirection: 'row',
           alignItems: 'center',
-          paddingVertical: 14,
+          paddingVertical: t.space[4],
           borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
           borderBottomColor: t.colors.border.subtle,
           opacity: pressed ? 0.5 : 1,

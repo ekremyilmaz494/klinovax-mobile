@@ -1,4 +1,4 @@
-import type { AttemptStatus } from '@/types/exam';
+import type { AttemptStatus, ExamStateRedirect } from '@/types/exam';
 import type { TrainingDetail } from '@/types/staff';
 
 /**
@@ -22,7 +22,9 @@ export type ExamRouteTarget =
   | { kind: 'questions'; phase: 'pre' | 'post' }
   | { kind: 'videos' }
   | { kind: 'result' }
-  | { kind: 'training-detail' };
+  | { kind: 'training-detail' }
+  /** Eğitim listesine dön (atama bulunamadı / dönem dışı) — /exam/state `redirect:'my-trainings'`. */
+  | { kind: 'trainings-list' };
 
 export type CurrentExamRoute = { kind: 'questions'; phase: 'pre' | 'post' } | { kind: 'videos' };
 
@@ -43,6 +45,36 @@ export function resolveAttemptStatusRoute(
     case 'expired':
       return { kind: 'training-detail' };
     default:
+      return null;
+  }
+}
+
+/**
+ * `GET /api/exam/[id]/state` `redirect` alanı → mobil route hedefi.
+ *
+ * Backend tek otoriteli faz çözücüsü (`resolveExamFlowState`) kullanıcının olması
+ * gereken route'u döndürür; `from` ile uyuşuyorsa `redirect: null` (aksiyon yok).
+ * Mobil bunu foreground'a dönüşte çağırıp bayat ekrandan doğru faza sıçramak için
+ * kullanır. `resolveAttemptStatusRoute` ile aynı hedef uzayına eşlenir — stage↔redirect
+ * tutarlılığı `state-machine-bridge` testinde kilitli (`completed`/`expired` → detail,
+ * web'de ayrı bir "result" route'u yok).
+ */
+export function examStateRedirectTarget(
+  redirect: ExamStateRedirect | null | undefined,
+): ExamRouteTarget | null {
+  switch (redirect) {
+    case 'pre-exam':
+      return { kind: 'questions', phase: 'pre' };
+    case 'post-exam':
+      return { kind: 'questions', phase: 'post' };
+    case 'videos':
+      return { kind: 'videos' };
+    case 'my-training-detail':
+      return { kind: 'training-detail' };
+    case 'my-trainings':
+      return { kind: 'trainings-list' };
+    default:
+      // null (zaten doğru faz) veya bilinmeyen değer → aksiyon yok.
       return null;
   }
 }

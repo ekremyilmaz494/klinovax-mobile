@@ -26,8 +26,13 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
-import { fetchExamVideos } from '@/lib/api/exam';
-import { resolveAttemptStatusRoute, shouldRedirectExamRoute } from '@/lib/exam/route-guard';
+import { fetchExamState, fetchExamVideos } from '@/lib/api/exam';
+import {
+  examStateRedirectTarget,
+  resolveAttemptStatusRoute,
+  shouldRedirectExamRoute,
+  type ExamRouteTarget,
+} from '@/lib/exam/route-guard';
 import {
   buildCompletionWatchedTime,
   shouldCompleteVideo,
@@ -92,6 +97,33 @@ export default function VideosScreen() {
   // yönlendir. PhaseTransitionModal açıkken devreye girmez — modal aynı geçişi
   // geri sayımla zaten yapıyor; ikisi birden tetiklenirse modal yarıda kesilir.
   const redirectedRef = useRef(false);
+  // Hedef route'a git — hem data-bazlı guard hem foreground /state senkronu kullanır.
+  const goToExamTarget = useCallback(
+    (target: ExamRouteTarget) => {
+      switch (target.kind) {
+        case 'questions':
+          router.replace(`/exam/${assignmentId}/questions?phase=${target.phase}`);
+          break;
+        case 'result':
+          router.replace(`/exam/${assignmentId}/result`);
+          break;
+        case 'training-detail':
+          router.replace(`/trainings/${assignmentId}`);
+          break;
+        case 'trainings-list':
+          router.replace('/(tabs)/trainings');
+          break;
+        case 'start':
+        case 'start-direct':
+          router.replace(`/exam/${assignmentId}/start`);
+          break;
+        case 'videos':
+          break; // zaten buradayız
+      }
+    },
+    [assignmentId],
+  );
+
   useEffect(() => {
     // İnceleme modunda ASLA yönlendirme: attemptStatus 'review' →
     // resolveAttemptStatusRoute 'result' döner; bu guard olmadan kullanıcı ekranı
@@ -100,21 +132,36 @@ export default function VideosScreen() {
     const expected = resolveAttemptStatusRoute(data.attemptStatus);
     if (!shouldRedirectExamRoute({ kind: 'videos' }, expected)) return;
     redirectedRef.current = true;
-    switch (expected.kind) {
-      case 'questions':
-        router.replace(`/exam/${assignmentId}/questions?phase=${expected.phase}`);
-        break;
-      case 'result':
-        router.replace(`/exam/${assignmentId}/result`);
-        break;
-      case 'training-detail':
-        router.replace(`/trainings/${assignmentId}`);
-        break;
-      case 'start':
-        router.replace(`/exam/${assignmentId}/start`);
-        break;
-    }
-  }, [data, postExamModal, assignmentId, isReview]);
+    goToExamTarget(expected);
+  }, [data, postExamModal, isReview, goToExamTarget]);
+
+  // Foreground re-sync: arka plandan dönünce sunucu-otoriteli faz durumunu sor.
+  // data-bazlı guard yalnız query refetch'inde tetiklenir; bu effect AppState 'active'te
+  // açıkça /exam/state'i çağırır → faz ilerlemiş veya attempt expired ise kullanıcıyı
+  // bayat video ekranında bırakmadan doğru faza sıçratır. (questions.tsx'te karşılığı
+  // timer foreground refetch'i; orada faz yalnız expiry ile değişebilir, onu timer çözer.)
+  const stateSyncingRef = useRef(false);
+  useEffect(() => {
+    if (isReview) return;
+    const sub = AppState.addEventListener('change', (appState) => {
+      if (appState !== 'active' || stateSyncingRef.current || redirectedRef.current) return;
+      stateSyncingRef.current = true;
+      void fetchExamState(assignmentId, 'videos')
+        .then((state) => {
+          const target = examStateRedirectTarget(state.redirect);
+          if (!shouldRedirectExamRoute({ kind: 'videos' }, target)) return;
+          redirectedRef.current = true;
+          goToExamTarget(target);
+        })
+        .catch(() => {
+          // Ağ/abort — sessiz geç; sonraki foreground veya query tazelemesi yakalar.
+        })
+        .finally(() => {
+          stateSyncingRef.current = false;
+        });
+    });
+    return () => sub.remove();
+  }, [assignmentId, isReview, goToExamTarget]);
 
   useEffect(() => {
     if (!data || activeVideoId) return;
@@ -263,7 +310,7 @@ function Body({
       {!activeVideo.url ? (
         // Web Y2 paritesi: backend imzalı URL üretemezse (eksik key / imzalama hatası)
         // `url` boş gelir; boş kaynakla oynatıcı sessizce ölür. Önce açık hata göster.
-        <View style={{ margin: 16 }}>
+        <View style={{ margin: t.space[4] }}>
           <EmptyState icon="exclamationmark.triangle.fill" title="İçerik şu anda yüklenemiyor" />
         </View>
       ) : !isPdf ? (
@@ -311,7 +358,7 @@ function Body({
             />
           );
         }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
         windowSize={10}
         initialNumToRender={8}
         maxToRenderPerBatch={5}
@@ -319,11 +366,11 @@ function Body({
         ListHeaderComponent={
           <>
             {isReview ? (
-              <View style={{ marginBottom: 20, marginTop: 4 }}>
+              <View style={{ marginBottom: t.space[5], marginTop: t.space[1] }}>
                 <Stack direction="row" align="center">
                   <Tag label="İnceleme Modu" tone="primary" />
                 </Stack>
-                <Text variant="caption" tone="tertiary" style={{ marginTop: 10 }}>
+                <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[3] }}>
                   Bu eğitimi tamamladın. İçeriği serbestçe ileri-geri sararak tekrar izleyebilirsin;
                   ilerleme kaydedilmez.
                 </Text>
@@ -334,7 +381,7 @@ function Body({
                   direction="row"
                   justify="space-between"
                   align="center"
-                  style={{ marginBottom: 8, marginTop: 4 }}
+                  style={{ marginBottom: t.space[2], marginTop: t.space[1] }}
                 >
                   <Text variant="overline" tone="tertiary">
                     İLERLEME
@@ -350,7 +397,7 @@ function Body({
                 <ProgressBar value={progressPct} height={8} />
               </>
             )}
-            <Text variant="title-3" style={{ marginTop: 24, marginBottom: 12 }}>
+            <Text variant="title-3" style={{ marginTop: t.space[6], marginBottom: t.space[3] }}>
               Tüm videolar
             </Text>
           </>
@@ -358,7 +405,7 @@ function Body({
         ListFooterComponent={
           // İnceleme modunda "Son sınava geç" yok — sınav zaten tamamlandı.
           !isReview && totalRequired > 0 && completedCount >= totalRequired ? (
-            <View style={{ marginTop: 24 }}>
+            <View style={{ marginTop: t.space[6] }}>
               <Button
                 label="Son sınava geç"
                 variant="primary"
@@ -407,7 +454,12 @@ function PdfBlock({
   onCompleted: (allDone: boolean) => void;
 }) {
   const t = useTheme();
-  const sourceUrl = video.url.startsWith('http') ? video.url : `${API_BASE_URL}${video.url}`;
+  // Web paritesi: PdfViewer DAİMA `url` ile beslenir. PdfBlock'a yalnız `url` dolu
+  // iken ulaşılır (üstteki `!activeVideo.url` guard'ı boş url'i EmptyState'e düşürür),
+  // bu yüzden documentUrl fallback'i hem ölü hem de web sözleşmesinin tersi olurdu.
+  // `documentUrl` yalnız audio içeriğin yan-PDF eki içindir ve audio PdfBlock'a gelmez.
+  const rawUrl = video.url;
+  const sourceUrl = rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl}`;
   const source = token
     ? { uri: sourceUrl, headers: { Authorization: `Bearer ${token}` } }
     : { uri: sourceUrl };
@@ -453,7 +505,7 @@ function PdfBlock({
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
         overflow: 'hidden',
-        margin: 16,
+        margin: t.space[4],
       }}
     >
       <Stack
@@ -461,7 +513,7 @@ function PdfBlock({
         align="center"
         gap={3}
         style={{
-          padding: 12,
+          padding: t.space[3],
           borderBottomWidth: t.hairline,
           borderBottomColor: t.colors.border.subtle,
         }}
@@ -489,7 +541,7 @@ function PdfBlock({
       />
       <View
         style={{
-          padding: 12,
+          padding: t.space[3],
           borderTopWidth: t.hairline,
           borderTopColor: t.colors.border.subtle,
         }}
@@ -795,6 +847,9 @@ function VideoBlock({
           videoId: video.id,
           position: Math.floor(player.currentTime),
           watchedTime: buildCompletionWatchedTime(accumulated, video.duration),
+          // Oynatıcının ölçtüğü gerçek süre — DB duration şişikse (transcode kırpması)
+          // backend %90 tabanını min(DB, clientDuration) ile düzeltir. Metadata yoksa DB'ye düş.
+          clientDuration: Math.round(player.duration > 0 ? player.duration : video.duration),
         },
         {
           onSuccess: (data) => {
@@ -902,7 +957,7 @@ function VideoBlock({
       style={{
         position: 'relative',
         width: '100%',
-        backgroundColor: '#000',
+        backgroundColor: t.colors.media.background,
         ...(fullscreen ? { flex: 1 } : { aspectRatio: 16 / 9 }),
       }}
     >
@@ -914,8 +969,8 @@ function VideoBlock({
             ...StyleSheet.absoluteFillObject,
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 14,
-            paddingHorizontal: 24,
+            gap: t.space[4],
+            paddingHorizontal: t.space[6],
           }}
         >
           <View
@@ -925,21 +980,25 @@ function VideoBlock({
               borderRadius: 48,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: t.colors.media.surfaceVeil,
             }}
           >
-            <IconSymbol name="speaker.wave.2.fill" size={48} color="rgba(255,255,255,0.9)" />
+            <IconSymbol name="speaker.wave.2.fill" size={48} color={t.colors.media.control} />
           </View>
-          <Text variant="bodyEmph" style={{ color: '#fff', textAlign: 'center' }} numberOfLines={2}>
+          <Text
+            variant="bodyEmph"
+            style={{ color: t.colors.media.control, textAlign: 'center' }}
+            numberOfLines={2}
+          >
             {video.title}
           </Text>
-          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <Text variant="caption" style={{ color: t.colors.media.controlMuted }}>
             Sesli içerik
           </Text>
         </View>
       ) : (
         <VideoView
-          style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+          style={{ width: '100%', height: '100%', backgroundColor: t.colors.media.background }}
           player={player}
           nativeControls={false}
           allowsFullscreen={false}
@@ -953,16 +1012,23 @@ function VideoBlock({
             ...StyleSheet.absoluteFillObject,
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 24,
-            gap: 10,
-            backgroundColor: 'rgba(0,0,0,0.72)',
+            padding: t.space[6],
+            gap: t.space[3],
+            backgroundColor: t.colors.media.scrimStrong,
           }}
         >
-          <IconSymbol name="exclamationmark.triangle.fill" size={40} color="#fff" />
-          <Text variant="bodyEmph" style={{ color: '#fff', textAlign: 'center' }}>
+          <IconSymbol
+            name="exclamationmark.triangle.fill"
+            size={40}
+            color={t.colors.media.control}
+          />
+          <Text variant="bodyEmph" style={{ color: t.colors.media.control, textAlign: 'center' }}>
             Video yüklenemedi
           </Text>
-          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.85)', textAlign: 'center' }}>
+          <Text
+            variant="caption"
+            style={{ color: t.colors.media.controlMuted, textAlign: 'center' }}
+          >
             Bağlantını kontrol edip tekrar dene.
           </Text>
           <Button label="Tekrar Dene" variant="primary" onPress={() => player.replace(source)} />
@@ -988,17 +1054,19 @@ function VideoBlock({
   return (
     <View
       style={{
-        backgroundColor: '#000',
+        backgroundColor: t.colors.media.background,
         borderRadius: t.radius.lg,
         overflow: 'hidden',
-        margin: 16,
-        marginBottom: 16,
+        margin: t.space[4],
+        marginBottom: t.space[4],
       }}
     >
       {/* Fullscreen'deyken inline alanı siyah placeholder tutar — player tek yerde
           (modal'da) mount kalsın diye; layout zıplamasın. */}
       {isFullscreen ? (
-        <View style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }} />
+        <View
+          style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: t.colors.media.background }}
+        />
       ) : (
         stage(false)
       )}
@@ -1009,8 +1077,8 @@ function VideoBlock({
         align="center"
         gap={3}
         style={{
-          padding: 14,
-          paddingTop: 10,
+          padding: t.space[4],
+          paddingTop: t.space[3],
           backgroundColor: t.colors.surface.secondary,
           borderTopWidth: t.hairline,
           borderTopColor: t.colors.border.subtle,
@@ -1020,7 +1088,7 @@ function VideoBlock({
           <Text variant="bodyEmph" numberOfLines={2}>
             {video.title}
           </Text>
-          <Stack direction="row" align="center" gap={2} style={{ marginTop: 4 }}>
+          <Stack direction="row" align="center" gap={2} style={{ marginTop: t.space[1] }}>
             <IconSymbol
               name={isPlaying ? 'play.fill' : 'pause.fill'}
               size={12}
@@ -1041,7 +1109,7 @@ function VideoBlock({
         supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}
         onRequestClose={exitFullscreen}
       >
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <View style={{ flex: 1, backgroundColor: t.colors.media.background }}>
           {isFullscreen ? <StatusBar hidden /> : null}
           {isFullscreen ? stage(true) : null}
         </View>
@@ -1073,11 +1141,11 @@ const VideoListItem = memo(function VideoListItem({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: t.space[3],
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.md,
-        padding: 12,
-        marginBottom: 8,
+        padding: t.space[3],
+        marginBottom: t.space[2],
         borderWidth: isActive ? 2 : t.hairline,
         borderColor: isActive ? t.colors.accent.clay : t.colors.border.subtle,
         opacity: isLocked ? 0.55 : pressed ? 0.92 : 1,

@@ -66,8 +66,8 @@ export default function CalendarScreen() {
         justify="space-between"
         gap={3}
         style={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
+          paddingHorizontal: t.space[4],
+          paddingVertical: t.space[3],
           backgroundColor: t.colors.surface.primary,
           borderBottomWidth: t.hairline,
           borderBottomColor: t.colors.border.subtle,
@@ -109,9 +109,9 @@ export default function CalendarScreen() {
               variant="overline"
               tone="tertiary"
               style={{
-                paddingHorizontal: 20,
-                paddingTop: 18,
-                paddingBottom: 8,
+                paddingHorizontal: t.space[5],
+                paddingTop: t.space[5],
+                paddingBottom: t.space[2],
                 backgroundColor: t.colors.surface.canvas,
               }}
             >
@@ -119,7 +119,7 @@ export default function CalendarScreen() {
             </Text>
           )}
           renderItem={({ item }) => <EventCard event={item} t={t} />}
-          contentContainerStyle={{ paddingBottom: 48, flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: t.space[12], flexGrow: 1 }}
           ListEmptyComponent={
             <EmptyState
               icon="calendar"
@@ -180,17 +180,22 @@ function EventCard({ event, t }: { event: CalendarEvent; t: ReturnType<typeof us
       accessibilityRole="button"
       accessibilityLabel={`${EVENT_TYPE[event.eventType] ?? 'Eğitim'}: ${event.title}`}
       style={({ pressed }) => ({
-        marginHorizontal: 16,
-        marginBottom: 10,
+        marginHorizontal: t.space[4],
+        marginBottom: t.space[3],
         backgroundColor: t.colors.surface.primary,
         borderRadius: t.radius.lg,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
-        padding: 16,
+        padding: t.space[4],
         opacity: pressed ? 0.92 : 1,
       })}
     >
-      <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 6 }}>
+      <Stack
+        direction="row"
+        justify="space-between"
+        align="center"
+        style={{ marginBottom: t.space[2] }}
+      >
         <Text variant="overline" tone="tertiary">
           {EVENT_TYPE[event.eventType] ?? 'Eğitim'}
         </Text>
@@ -200,7 +205,7 @@ function EventCard({ event, t }: { event: CalendarEvent; t: ReturnType<typeof us
         {event.title}
       </Text>
       {event.category ? (
-        <Text variant="footnote" tone="tertiary" style={{ marginTop: 4 }}>
+        <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[1] }}>
           {event.category}
         </Text>
       ) : null}

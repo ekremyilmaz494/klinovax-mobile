@@ -20,10 +20,10 @@ export function ScreenError({ message, onRetry, title, action }: Props) {
   return (
     <View
       style={{
-        paddingVertical: 48,
-        paddingHorizontal: 24,
+        paddingVertical: t.space[12],
+        paddingHorizontal: t.space[6],
         alignItems: 'center',
-        gap: 12,
+        gap: t.space[3],
       }}
     >
       <View
@@ -34,7 +34,7 @@ export function ScreenError({ message, onRetry, title, action }: Props) {
           backgroundColor: t.colors.status.dangerBg,
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 4,
+          marginBottom: t.space[1],
         }}
       >
         <IconSymbol name="exclamationmark.triangle.fill" size={28} color={t.colors.status.danger} />
@@ -46,11 +46,11 @@ export function ScreenError({ message, onRetry, title, action }: Props) {
         {message}
       </Text>
       {onRetry ? (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: t.space[2] }}>
           <Button label="Tekrar dene" variant="primary" onPress={onRetry} />
         </View>
       ) : action ? (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: t.space[2] }}>
           <Button label={action.label} variant="primary" onPress={action.onPress} />
         </View>
       ) : null}

@@ -44,8 +44,8 @@ export default function NotificationsScreen() {
             disabled={markAllPending}
             hitSlop={8}
             style={({ pressed }) => ({
-              paddingHorizontal: 12,
-              paddingVertical: 6,
+              paddingHorizontal: t.space[3],
+              paddingVertical: t.space[2],
               minHeight: 36,
               justifyContent: 'center',
               opacity: pressed ? 0.6 : 1,
@@ -55,10 +55,8 @@ export default function NotificationsScreen() {
           >
             <Text
               variant="subhead"
-              style={{
-                color: markAllPending ? t.colors.text.tertiary : t.colors.accent.clay,
-                fontFamily: 'InterTight_600SemiBold',
-              }}
+              weight="semibold"
+              style={{ color: markAllPending ? t.colors.text.tertiary : t.colors.accent.clay }}
             >
               {markAllPending ? '…' : 'Tümü Okundu'}
             </Text>
@@ -113,7 +111,11 @@ export default function NotificationsScreen() {
       <Stack
         direction="row"
         gap={2}
-        style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}
+        style={{
+          paddingHorizontal: t.space[4],
+          paddingTop: t.space[3],
+          paddingBottom: t.space[1],
+        }}
       >
         <Chip
           label={`Tümü${(data?.notifications.length ?? 0) > 0 ? `  ·  ${data?.notifications.length}` : ''}`}
@@ -131,7 +133,11 @@ export default function NotificationsScreen() {
         data={items}
         keyExtractor={(n) => n.id}
         renderItem={({ item }) => <NotificationCard item={item} />}
-        contentContainerStyle={{ padding: 16, paddingTop: 8, paddingBottom: 48 }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingTop: t.space[2],
+          paddingBottom: t.space[12],
+        }}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
           filter === 'unread' && (data?.notifications.length ?? 0) > 0 ? (

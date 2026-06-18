@@ -1,10 +1,13 @@
 import { isPersistedMutationKey, MUTATION_KEYS } from '../mutation-keys';
 
 describe('isPersistedMutationKey', () => {
-  it('3 persist key için true', () => {
+  it('persist key için true', () => {
     expect(isPersistedMutationKey(MUTATION_KEYS.saveAnswer)).toBe(true);
     expect(isPersistedMutationKey(MUTATION_KEYS.submitExam)).toBe(true);
     expect(isPersistedMutationKey(MUTATION_KEYS.completeVideo)).toBe(true);
+    expect(isPersistedMutationKey(MUTATION_KEYS.createAttemptRequest)).toBe(true);
+    // SCORM tamamlama PATCH'i offline-resume için persist edilmeli (sertifika kaybolmasın).
+    expect(isPersistedMutationKey(MUTATION_KEYS.patchScorm)).toBe(true);
   });
 
   it('bilinmeyen key için false', () => {
@@ -26,5 +29,6 @@ describe('MUTATION_KEYS literal sabitleri', () => {
     expect(MUTATION_KEYS.saveAnswer).toEqual(['exam', 'save-answer']);
     expect(MUTATION_KEYS.submitExam).toEqual(['exam', 'submit']);
     expect(MUTATION_KEYS.completeVideo).toEqual(['exam', 'video-complete']);
+    expect(MUTATION_KEYS.patchScorm).toEqual(['scorm', 'patch']);
   });
 });

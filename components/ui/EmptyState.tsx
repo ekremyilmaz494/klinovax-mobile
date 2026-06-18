@@ -13,10 +13,10 @@ export function EmptyState({ title, description, icon = 'tray' }: Props) {
   return (
     <View
       style={{
-        paddingVertical: 64,
-        paddingHorizontal: 24,
+        paddingVertical: t.space[16],
+        paddingHorizontal: t.space[6],
         alignItems: 'center',
-        gap: 12,
+        gap: t.space[3],
       }}
     >
       <View
@@ -27,7 +27,7 @@ export function EmptyState({ title, description, icon = 'tray' }: Props) {
           backgroundColor: t.colors.surface.secondary,
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 4,
+          marginBottom: t.space[1],
         }}
       >
         <IconSymbol name={icon} size={28} color={t.colors.text.tertiary} />

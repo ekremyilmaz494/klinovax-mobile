@@ -1,4 +1,6 @@
 import { apiFetch } from './client';
+import { attemptRequestsResponseSchema, createAttemptRequestResponseSchema } from './schemas/staff';
+import { validate } from './schemas/index';
 import type { AttemptRequestsResponse, CreateAttemptRequestResponse } from '@/types/staff';
 
 /**
@@ -11,16 +13,18 @@ import type { AttemptRequestsResponse, CreateAttemptRequestResponse } from '@/ty
  *   - reason verilirse min 10 / max 1000 karakter; rate limit 5 talep / 5 dk (429).
  */
 
-export function fetchAttemptRequests(): Promise<AttemptRequestsResponse> {
-  return apiFetch<AttemptRequestsResponse>('/api/staff/attempt-requests');
+export async function fetchAttemptRequests(): Promise<AttemptRequestsResponse> {
+  const data = await apiFetch<AttemptRequestsResponse>('/api/staff/attempt-requests');
+  return validate(attemptRequestsResponseSchema, data, 'staff.attemptRequests');
 }
 
-export function createAttemptRequest(body: {
+export async function createAttemptRequest(body: {
   trainingId: string;
   reason: string;
 }): Promise<CreateAttemptRequestResponse> {
-  return apiFetch<CreateAttemptRequestResponse>('/api/staff/attempt-requests', {
+  const data = await apiFetch<CreateAttemptRequestResponse>('/api/staff/attempt-requests', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  return validate(createAttemptRequestResponseSchema, data, 'staff.createAttemptRequest');
 }

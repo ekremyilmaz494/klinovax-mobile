@@ -48,8 +48,8 @@ export const NotificationCard = memo(function NotificationCard({
           borderRadius: t.radius.lg,
           borderWidth: t.hairline,
           borderColor: item.isRead ? t.colors.border.subtle : t.colors.accent.clayMuted,
-          padding: 14,
-          gap: 12,
+          padding: t.space[4],
+          gap: t.space[3],
           alignItems: 'flex-start',
           opacity: pressed ? 0.7 : 1,
         },
@@ -83,11 +83,11 @@ export const NotificationCard = memo(function NotificationCard({
         <NotificationTypeIcon type={item.type} size={38} />
       </View>
 
-      <View style={{ flex: 1, gap: 4 }}>
+      <View style={{ flex: 1, gap: t.space[1] }}>
         <Text
           numberOfLines={2}
+          weight={item.isRead ? 'medium' : 'semibold'}
           style={{
-            fontFamily: item.isRead ? 'InterTight_500Medium' : 'InterTight_600SemiBold',
             fontSize: 15,
             lineHeight: 20,
             color: t.colors.text.primary,

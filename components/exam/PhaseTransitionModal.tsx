@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -54,6 +55,7 @@ export function PhaseTransitionModal({
 }: PhaseTransitionModalProps) {
   const t = useTheme();
   const reducedMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
   const [remaining, setRemaining] = useState(durationSeconds);
   const firedRef = useRef(false);
   // onContinue ref ile capture edilir: çağıranlar inline arrow geçiyor (her render
@@ -128,10 +130,14 @@ export function PhaseTransitionModal({
       <View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.55)',
+          backgroundColor: t.colors.overlay.scrim,
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 20,
+          // Dynamic Island / home indicator altında kalmasın: büyük Dynamic Type'ta
+          // kart kenara dayanırsa güvenli alanı koru.
+          paddingHorizontal: t.space[5],
+          paddingTop: Math.max(t.space[5], insets.top),
+          paddingBottom: Math.max(t.space[5], insets.bottom),
         }}
       >
         <Pressable
@@ -152,9 +158,9 @@ export function PhaseTransitionModal({
             <View
               style={{
                 backgroundColor: accentBg,
-                paddingTop: 28,
-                paddingBottom: 22,
-                paddingHorizontal: 24,
+                paddingTop: t.space[8],
+                paddingBottom: t.space[6],
+                paddingHorizontal: t.space[6],
                 alignItems: 'center',
                 borderBottomWidth: t.hairline,
                 borderBottomColor: t.colors.border.subtle,
@@ -171,7 +177,7 @@ export function PhaseTransitionModal({
                     borderColor: accent,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: 14,
+                    marginBottom: t.space[4],
                   },
                   pulseStyle,
                 ]}
@@ -192,13 +198,17 @@ export function PhaseTransitionModal({
               <Text
                 italic
                 variant="title-1"
-                style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 8 }}
+                style={{
+                  marginTop: t.space[2],
+                  textAlign: 'center',
+                  paddingHorizontal: t.space[2],
+                }}
               >
                 {title}
               </Text>
 
               {typeof score === 'number' ? (
-                <Stack direction="row" align="baseline" gap={2} style={{ marginTop: 16 }}>
+                <Stack direction="row" align="baseline" gap={2} style={{ marginTop: t.space[4] }}>
                   <Text variant="footnote" tone="tertiary">
                     Skorunuz
                   </Text>
@@ -220,18 +230,18 @@ export function PhaseTransitionModal({
             </View>
 
             {/* Gövde */}
-            <View style={{ padding: 24 }}>
+            <View style={{ padding: t.space[6] }}>
               <Text variant="body" tone="secondary" style={{ textAlign: 'center', lineHeight: 22 }}>
                 {body}
               </Text>
 
               {/* Geri sayım */}
-              <View style={{ marginTop: 24 }}>
+              <View style={{ marginTop: t.space[6] }}>
                 <Stack
                   direction="row"
                   justify="space-between"
                   align="center"
-                  style={{ marginBottom: 8 }}
+                  style={{ marginBottom: t.space[2] }}
                 >
                   <Stack direction="row" align="center" gap={2}>
                     <IconSymbol name="clock.fill" size={12} color={t.colors.text.tertiary} />
@@ -255,13 +265,13 @@ export function PhaseTransitionModal({
                 <Text
                   variant="caption"
                   tone="tertiary"
-                  style={{ marginTop: 10, textAlign: 'center' }}
+                  style={{ marginTop: t.space[3], textAlign: 'center' }}
                 >
                   Süre dolunca otomatik olarak devam edilecek.
                 </Text>
               </View>
 
-              <View style={{ marginTop: 22 }}>
+              <View style={{ marginTop: t.space[6] }}>
                 <Button
                   label={ctaLabel}
                   variant="primary"

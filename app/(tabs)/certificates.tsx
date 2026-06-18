@@ -11,7 +11,8 @@ import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Stack, Text, useTheme } from '@/design-system';
 import { shareCertificatePdf } from '@/lib/api/cert-download';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
-import { ApiError, apiFetch } from '@/lib/api/client';
+import { ApiError } from '@/lib/api/client';
+import { fetchCertificates } from '@/lib/api/staff';
 import { useAuthStore } from '@/store/auth';
 import type { Certificate, CertificatesResponse } from '@/types/staff';
 
@@ -24,7 +25,7 @@ export default function CertificatesScreen() {
   const { data, error, isLoading, refetch } = useQuery<CertificatesResponse, Error>({
     queryKey: ['certificates'],
     enabled: !!user,
-    queryFn: () => apiFetch<CertificatesResponse>('/api/staff/certificates?page=1&limit=50'),
+    queryFn: () => fetchCertificates(),
   });
 
   useEffect(() => {
@@ -75,16 +76,16 @@ export default function CertificatesScreen() {
         data={items}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <CertificateCard cert={item} />}
-        contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
         ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
         ListHeaderComponent={
           items.length > 0 ? (
-            <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
-              <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+            <View style={{ marginBottom: t.space[4], paddingHorizontal: t.space[1] }}>
+              <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[1] }}>
                 {data?.total ?? items.length} SERTİFİKA
               </Text>
               <Text variant="title-2">Başarımların</Text>
-              <View style={{ marginTop: 14 }}>
+              <View style={{ marginTop: t.space[4] }}>
                 <TranscriptButton />
               </View>
             </View>
@@ -195,7 +196,7 @@ const CertificateCard = memo(function CertificateCard({ cert }: { cert: Certific
           borderRadius: t.radius.lg,
           borderWidth: t.hairline,
           borderColor: t.colors.border.subtle,
-          padding: 22,
+          padding: t.space[6],
           opacity: pressed ? 0.92 : 1,
         },
       ]}
@@ -203,7 +204,7 @@ const CertificateCard = memo(function CertificateCard({ cert }: { cert: Certific
       accessibilityLabel={`${cert.training.title} sertifikasını önizle`}
     >
       {cert.training.category ? (
-        <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
           {cert.training.category}
         </Text>
       ) : null}
@@ -222,8 +223,8 @@ const CertificateCard = memo(function CertificateCard({ cert }: { cert: Certific
       <View
         style={{
           flexDirection: 'row',
-          marginTop: 18,
-          paddingVertical: 14,
+          marginTop: t.space[5],
+          paddingVertical: t.space[4],
           borderTopWidth: t.hairline,
           borderBottomWidth: t.hairline,
           borderColor: t.colors.border.subtle,
@@ -240,18 +241,18 @@ const CertificateCard = memo(function CertificateCard({ cert }: { cert: Certific
         variant="mono"
         tone="tertiary"
         selectable
-        style={{ marginTop: 12, fontVariant: ['tabular-nums'] }}
+        style={{ marginTop: t.space[3], fontVariant: ['tabular-nums'] }}
       >
         {cert.certificateCode}
       </Text>
 
       {cert.training.isArchived ? (
-        <Text variant="caption" tone="tertiary" italic style={{ marginTop: 6 }}>
+        <Text variant="caption" tone="tertiary" italic style={{ marginTop: t.space[2] }}>
           Bu eğitim arşivlenmiş.
         </Text>
       ) : null}
 
-      <Stack direction="row" gap={3} style={{ marginTop: 18 }}>
+      <Stack direction="row" gap={3} style={{ marginTop: t.space[5] }}>
         <View style={{ flex: 1 }}>
           <Button
             label="Önizle"

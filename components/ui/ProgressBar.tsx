@@ -47,7 +47,9 @@ export function ProgressBar({ value, height = 8, color }: Props) {
             height,
             borderRadius: height / 2,
             backgroundColor: color ?? t.colors.accent.clay,
-            minWidth: 2,
+            // %0'da hiç dolgu gösterme (yuvarlak köşeyle benek bırakıyordu); küçük
+            // pozitif değerlerde ince sliver görünür kalsın.
+            minWidth: clamped > 0 ? 2 : 0,
           },
           fillStyle,
         ]}

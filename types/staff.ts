@@ -57,7 +57,8 @@ export type StaffProfile = {
   lastName: string;
   email: string;
   phone: string;
-  hospital: string;
+  /** Backend `profile.organization?.name` — kurum adı. (Eski isim `hospital` idi; backend `organization` döndürüyor.) */
+  organization: string;
   department: string;
   title: string;
   avatarUrl: string;
@@ -92,6 +93,12 @@ export type MyTrainingsResponse = {
   limit: number;
   totalCount: number;
   totalPages: number;
+  /**
+   * Boş liste sebebi — UI doğru mesajı göstersin diye. Backend dönem-scoped:
+   * aktif TrainingPeriod yoksa `no_active_period`, geçersiz periodId istenirse
+   * `period_not_found`. Atama yoksa meta hiç gelmez (gerçekten boş).
+   */
+  meta?: { reason: 'no_active_period' | 'period_not_found' };
 };
 
 export type TrainingVideo = {

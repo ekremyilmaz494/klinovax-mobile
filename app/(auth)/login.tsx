@@ -1,17 +1,9 @@
 import { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Switch,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
-import { Button, Card, FontFamily, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, FontFamily, InputField, Stack, Text, useTheme } from '@/design-system';
 import { ApiError, loginRequest } from '@/lib/api/client';
 import { isBiometricAvailable } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
@@ -31,7 +23,6 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
   const setSession = useAuthStore((s) => s.setSession);
 
   const onSubmit = async () => {
@@ -78,17 +69,6 @@ export default function LoginScreen() {
     }
   };
 
-  const inputBase = {
-    backgroundColor: t.colors.surface.primary,
-    borderRadius: t.radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 17,
-    color: t.colors.text.primary,
-    fontFamily: 'InterTight_400Regular',
-    minHeight: 52,
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <AuroraBackground />
@@ -97,9 +77,9 @@ export default function LoginScreen() {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={{ flex: 1, padding: 24, justifyContent: 'center' }}>
-            <View style={{ alignItems: 'center', marginBottom: 32 }}>
-              <Text variant="overline" tone="tertiary" style={{ marginBottom: 8 }}>
+          <View style={{ flex: 1, padding: t.space[6], justifyContent: 'center' }}>
+            <View style={{ alignItems: 'center', marginBottom: t.space[8] }}>
+              <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
                 KLINOVAX
               </Text>
               <Text
@@ -115,66 +95,49 @@ export default function LoginScreen() {
               >
                 Klinovax
               </Text>
-              <Text variant="subhead" tone="tertiary" align="center" style={{ marginTop: 8 }}>
+              <Text
+                variant="subhead"
+                tone="tertiary"
+                align="center"
+                style={{ marginTop: t.space[2] }}
+              >
                 Hastane Personel Eğitim Platformu
               </Text>
             </View>
 
-            <View style={{ gap: 4 }}>
-              <Text variant="caption" tone="tertiary" style={{ marginTop: 8 }}>
+            <View style={{ gap: t.space[1] }}>
+              <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
                 E-POSTA
               </Text>
-              <TextInput
-                style={[
-                  inputBase,
-                  {
-                    borderWidth: focused === 'email' ? 2 : StyleSheet.hairlineWidth,
-                    borderColor:
-                      focused === 'email' ? t.colors.border.focus : t.colors.border.default,
-                    marginTop: 4,
-                  },
-                ]}
+              <InputField
                 value={email}
                 onChangeText={setEmail}
                 placeholder="ad@hastane.com"
-                placeholderTextColor={t.colors.text.tertiary}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
                 autoComplete="email"
                 textContentType="username"
                 editable={!loading}
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
+                inputStyle={{ marginTop: t.space[1] }}
               />
 
-              <Text variant="caption" tone="tertiary" style={{ marginTop: 14 }}>
+              <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[4] }}>
                 ŞİFRE
               </Text>
-              <TextInput
-                style={[
-                  inputBase,
-                  {
-                    borderWidth: focused === 'password' ? 2 : StyleSheet.hairlineWidth,
-                    borderColor:
-                      focused === 'password' ? t.colors.border.focus : t.colors.border.default,
-                    marginTop: 4,
-                  },
-                ]}
+              <InputField
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor={t.colors.text.tertiary}
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="password"
                 textContentType="password"
                 editable={!loading}
-                onFocus={() => setFocused('password')}
-                onBlur={() => setFocused(null)}
+                inputStyle={{ marginTop: t.space[1] }}
               />
 
-              <Stack direction="row" align="center" gap={3} style={{ marginTop: 16 }}>
+              <Stack direction="row" align="center" gap={3} style={{ marginTop: t.space[4] }}>
                 <Switch
                   value={rememberMe}
                   onValueChange={setRememberMe}
@@ -188,16 +151,16 @@ export default function LoginScreen() {
               </Stack>
 
               {error ? (
-                <Text variant="footnote" tone="danger" style={{ marginTop: 12 }}>
+                <Text variant="footnote" tone="danger" style={{ marginTop: t.space[3] }}>
                   {error}
                 </Text>
               ) : null}
 
               {isLocalDevApi ? (
-                <Card variant="warning" rail padding={3} style={{ marginTop: 16 }}>
+                <Card variant="warning" rail padding={3} style={{ marginTop: t.space[4] }}>
                   <Text
                     variant="overline"
-                    style={{ color: t.colors.status.warning, marginBottom: 4 }}
+                    style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
                   >
                     DEV — Backend kontrol
                   </Text>
@@ -219,7 +182,7 @@ export default function LoginScreen() {
                 </Card>
               ) : null}
 
-              <View style={{ marginTop: 24 }}>
+              <View style={{ marginTop: t.space[6] }}>
                 <Button
                   label="Giriş Yap"
                   variant="primary"

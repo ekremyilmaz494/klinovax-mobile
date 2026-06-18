@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
+import { Button, Chip, InputField, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { createKvkkRequest, fetchKvkkRequests } from '@/lib/api/kvkk';
 import { useAuthStore } from '@/store/auth';
@@ -146,7 +145,7 @@ export default function KvkkScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
@@ -157,14 +156,18 @@ export default function KvkkScreen() {
           </Text>
 
           {/* ── Yeni talep formu ── */}
-          <Text variant="overline" tone="tertiary" style={{ marginTop: 24, marginBottom: 10 }}>
+          <Text
+            variant="overline"
+            tone="tertiary"
+            style={{ marginTop: t.space[6], marginBottom: t.space[3] }}
+          >
             YENİ TALEP
           </Text>
 
-          <Text variant="subhead" tone="tertiary" style={{ marginBottom: 8 }}>
+          <Text variant="subhead" tone="tertiary" style={{ marginBottom: t.space[2] }}>
             Talep türü
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.space[2] }}>
             {TYPE_ORDER.map((type) => (
               <Chip
                 key={type}
@@ -176,31 +179,22 @@ export default function KvkkScreen() {
             ))}
           </View>
 
-          <Text variant="subhead" tone="tertiary" style={{ marginTop: 18, marginBottom: 8 }}>
+          <Text
+            variant="subhead"
+            tone="tertiary"
+            style={{ marginTop: t.space[5], marginBottom: t.space[2] }}
+          >
             Açıklama
           </Text>
-          <TextInput
+          <InputField
             value={description}
             onChangeText={setDescription}
             multiline
             maxLength={MAX_DESC}
             placeholder="Talebini ayrıntılı açıkla (en az 10 karakter)…"
-            placeholderTextColor={t.colors.text.tertiary}
-            textAlignVertical="top"
-            style={{
-              minHeight: 120,
-              backgroundColor: t.colors.surface.primary,
-              borderRadius: t.radius.md,
-              borderWidth: t.hairline,
-              borderColor: t.colors.border.default,
-              padding: 14,
-              color: t.colors.text.primary,
-              fontFamily: 'InterTight_400Regular',
-              fontSize: 15,
-              lineHeight: 22,
-            }}
+            inputStyle={{ minHeight: 120, fontSize: 15, lineHeight: 22 }}
           />
-          <Stack direction="row" justify="space-between" style={{ marginTop: 6 }}>
+          <Stack direction="row" justify="space-between" style={{ marginTop: t.space[2] }}>
             <Text variant="caption" tone="tertiary">
               {trimmedLen < MIN_DESC ? `En az ${MIN_DESC} karakter` : ' '}
             </Text>
@@ -209,7 +203,7 @@ export default function KvkkScreen() {
             </Text>
           </Stack>
 
-          <View style={{ marginTop: 14 }}>
+          <View style={{ marginTop: t.space[4] }}>
             <Button
               label={mutation.isPending ? 'Gönderiliyor…' : 'Talep oluştur'}
               variant="primary"
@@ -222,7 +216,11 @@ export default function KvkkScreen() {
           </View>
 
           {/* ── Talep listesi ── */}
-          <Text variant="overline" tone="tertiary" style={{ marginTop: 32, marginBottom: 10 }}>
+          <Text
+            variant="overline"
+            tone="tertiary"
+            style={{ marginTop: t.space[8], marginBottom: t.space[3] }}
+          >
             TALEPLERİM
           </Text>
           {requests.length === 0 ? (
@@ -232,7 +230,7 @@ export default function KvkkScreen() {
               description="Yukarıdan yeni bir KVKK hak talebi oluşturabilirsin."
             />
           ) : (
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: t.space[3] }}>
               {requests.map((req) => (
                 <RequestCard key={req.id} req={req} t={t} />
               ))}
@@ -258,7 +256,7 @@ function RequestCard({ req, t }: { req: KvkkRequest; t: ReturnType<typeof useThe
         borderRadius: t.radius.lg,
         borderWidth: t.hairline,
         borderColor: t.colors.border.subtle,
-        padding: 16,
+        padding: t.space[4],
       }}
     >
       <Stack direction="row" justify="space-between" align="center" gap={3}>
@@ -267,22 +265,22 @@ function RequestCard({ req, t }: { req: KvkkRequest; t: ReturnType<typeof useThe
         </Text>
         <Badge label={status.label} tone={status.tone} />
       </Stack>
-      <Text variant="caption" tone="tertiary" style={{ marginTop: 4 }}>
+      <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[1] }}>
         {created}
       </Text>
-      <Text variant="footnote" tone="secondary" style={{ marginTop: 10 }}>
+      <Text variant="footnote" tone="secondary" style={{ marginTop: t.space[3] }}>
         {req.description}
       </Text>
       {req.responseNote ? (
         <View
           style={{
-            marginTop: 12,
+            marginTop: t.space[3],
             backgroundColor: t.colors.surface.secondary,
             borderRadius: t.radius.md,
-            padding: 12,
+            padding: t.space[3],
           }}
         >
-          <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
+          <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[1] }}>
             KURUM YANITI
           </Text>
           <Text variant="footnote" tone="secondary">
