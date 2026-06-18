@@ -10,8 +10,27 @@
 > - Mobil: `/Users/ekremyilmaz/code/klinovax-mobile` (Expo Router)
 > - **Ortak backend:** mobil, web ile **aynı** `/api/*` endpoint'lerini çağırır.
 >
-> Doküman tarihi: 2026-05-31 · **Yeniden doğrulandı: 2026-06-02** (4 agent güncel kodla; web PR #175,
-> mobil PR #12-14 sonrası). Web ref'leri `apps/web/src/...`, mobil ref'leri `klinovax-mobile/...`.
+> Doküman tarihi: 2026-05-31 · Yeniden doğrulandı: 2026-06-02 · **Parite tamamlandı: 2026-06-18**
+> (completeness audit — bkz. §0). Web ref'leri `apps/web/src/...`, mobil ref'leri `klinovax-mobile/...`.
+
+---
+
+## 0. Güncel Durum (2026-06-18) — Parite Tamamlandı
+
+> **Faz 1–3C mobil tarafta uygulandı ve `main`'e merge edildi.** Çok-ajanlı completeness audit
+> (2026-06-18) backend'in **tüm personel-facing yüzeyini** (≈42 endpoint/sayfa) taradı: her staff
+> endpoint'inin bir mobil fetcher + ekran karşılığı var. **Buildable, personel-facing bir mobil boşluğu YOK.**
+>
+> - **Merge edilen PR'lar:** #49 (görsel kalite + web paritesi + akış dayanıklılığı, Faz 1–3B/1) ·
+>   #50 (dönem seçici, işlem geçmişi, profil düzenleme/şifre) · #51 (SMG/CPD) · #52 (360° yetkinlik).
+> - **Tek açık kalem:** profil **avatar yükleme** — backend'de personel-facing upload/presign endpoint'i
+>   olmadığı için `needs-backend` (mobil tarafta yapılacak iş değil; web personeli de yükleyemiyor).
+>   Backend `POST /api/staff/avatar/presign` (withStaffRoute) eklenince `expo-image-picker` ile bağlanır.
+> - **Bilinçli kapsam dışı:** dijital imza (`exam/[id]/sign` — web'de 0 mount, ölü kod), web-push
+>   (mobil Expo push karşılığı var), admin SMG kategori POST (personel dışı), feedback/status &
+>   pending-mandatory-feedback (mobilde result-gating + feedback/pending ile fonksiyonel eşdeğer).
+>
+> Aşağıdaki §8 / §11 boşluk analizleri **tarihsel kayıttır**; güncel doğru kaynak bu bölümdür.
 
 ---
 
@@ -215,12 +234,12 @@ Sidebar: `apps/web/src/components/layouts/sidebar/sidebar-config.ts` (`staffNav`
 | Eğitim detay            | `/staff/my-trainings/[id]`      | `GET /api/staff/my-trainings/[id]`                         | ✅              |
 | Sertifikalarım          | `/staff/certificates`           | `GET /api/staff/certificates`, `.../pdf`, `transcript/pdf` | ✅              |
 | Bildirimler             | `/staff/notifications`          | `GET/PATCH/DELETE /api/staff/notifications`                | ✅              |
-| Profil                  | `/staff/profile` (+`/activity`) | `GET/PATCH /api/staff/profile`, `audit-logs/me`            | ✅ (kısmi)      |
-| Takvim                  | `/staff/calendar`               | `GET /api/staff/calendar`                                  | ❌              |
-| Geri Bildirimler        | `/staff/feedback`               | `GET /api/staff/feedback/pending`                          | ❌              |
-| Değerlendirmeler (360°) | `/staff/evaluations` (+`[id]`)  | `GET/POST /api/staff/evaluations*`                         | ❌              |
-| Yetkinlik Sonuçları     | `/staff/competency`             | `GET /api/staff/competency/me`                             | ❌              |
-| SMG Puanları (sağlık)   | `/staff/smg`                    | `GET /api/staff/smg/my-points`, `POST .../activities`      | ❌              |
+| Profil                  | `/staff/profile` (+`/activity`) | `GET/PATCH /api/staff/profile`, `audit-logs/me`            | ✅              |
+| Takvim                  | `/staff/calendar`               | `GET /api/staff/calendar`                                  | ✅              |
+| Geri Bildirimler        | `/staff/feedback`               | `GET /api/staff/feedback/pending`                          | ✅              |
+| Değerlendirmeler (360°) | `/staff/evaluations` (+`[id]`)  | `GET/POST /api/staff/evaluations*`                         | ✅ (#52)        |
+| Yetkinlik Sonuçları     | `/staff/competency`             | `GET /api/staff/competency/me`                             | ✅ (#52)        |
+| SMG Puanları (sağlık)   | `/staff/smg`                    | `GET /api/staff/smg/my-points`, `POST .../activities`      | ✅ (#51)        |
 
 **Push:** Expo → `POST /api/staff/push/expo/register|unregister` (`{ token, platform, deviceName }`).
 Web push → `subscribe|unsubscribe`. **Realtime bildirim:** Supabase Realtime kanalı
@@ -371,7 +390,7 @@ K4 ekran-görüntüsü/kopya engeli yok. Bunlar v1 personel kapsamı kararıyla 
 | 4   | No-seek                                     | engellenir                             | serbest (nötralize) | ⚠️ Kısmi (accumulator telafi ediyor) | 🟡      |
 | 5   | Retry/ek-hak durumları                      | zengin                                 | tam durum makinesi  | ✅ Düzeltildi (#9)                   | —       |
 | 6   | Certificate sign                            | var (opsiyonel)                        | yok                 | ⚪ Opsiyonel teyit edildi            | —       |
-| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | yok                 | ⚪ kapsam dışı?                      | ⚪      |
+| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | tam karşılık        | ✅ Yapıldı (#50–#52)                 | —       |
 | —   | start/questions/timer/submit/results/videos | —                                      | ✅ çalışıyor        | ✅                                   | —       |
 
 ---
