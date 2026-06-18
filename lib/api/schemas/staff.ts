@@ -206,3 +206,21 @@ export const createAttemptRequestResponseSchema = z.looseObject({
     createdAt: z.string(),
   }),
 });
+
+// ─── Training Periods (dönem seçici) ────────────────────────────────
+export const trainingPeriodsResponseSchema = z.looseObject({
+  periods: z.array(
+    z.looseObject({
+      id: z.string(),
+      label: z.string(),
+      year: z.number(),
+      status: z.string(),
+      isDefault: z.boolean(),
+    }),
+  ),
+});
+
+// ─── Profil güncelleme yanıtı ───────────────────────────────────────
+export const profileUpdateResponseSchema = z.looseObject({
+  success: z.literal(true),
+});

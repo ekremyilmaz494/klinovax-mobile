@@ -214,3 +214,25 @@ export type CreateAttemptRequestResponse = {
   message: string;
   request: { id: string; status: AttemptRequestStatus; createdAt: string };
 };
+
+/** Eğitim dönemi — `GET /api/staff/training-periods` (year DESC sıralı). */
+export type TrainingPeriod = {
+  id: string;
+  label: string;
+  year: number;
+  status: string;
+  isDefault: boolean;
+};
+
+export type TrainingPeriodsResponse = {
+  periods: TrainingPeriod[];
+};
+
+/** `PATCH /api/staff/profile` gövdesi — yalnız gönderilen alanlar yazılır (avatar mobilde yok). */
+export type StaffProfileUpdate = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
