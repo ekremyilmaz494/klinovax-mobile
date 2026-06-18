@@ -207,6 +207,7 @@ export default function ProfileScreen() {
         <SectionTitle>Hesabım</SectionTitle>
         <Card>
           <LinkRow label="Profili Düzenle" onPress={() => router.push('/profile/edit')} />
+          <LinkRow label="SMG Puanlarım" onPress={() => router.push('/smg')} />
           <LinkRow label="İşlem Geçmişim" onPress={() => router.push('/activity')} last />
         </Card>
 
