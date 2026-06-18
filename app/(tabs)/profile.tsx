@@ -204,6 +204,12 @@ export default function ProfileScreen() {
           <InfoRow label="Unvan" value={profile?.title || roleLabel} last />
         </Card>
 
+        <SectionTitle>Hesabım</SectionTitle>
+        <Card>
+          <LinkRow label="Profili Düzenle" onPress={() => router.push('/profile/edit')} />
+          <LinkRow label="İşlem Geçmişim" onPress={() => router.push('/activity')} last />
+        </Card>
+
         <SectionTitle>Belgelerim</SectionTitle>
         <Card>
           <TranscriptRow />

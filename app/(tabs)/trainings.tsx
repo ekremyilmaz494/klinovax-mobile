@@ -1,7 +1,14 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MandatoryFeedbackBanner } from '@/components/feedback/MandatoryFeedbackBanner';
@@ -13,10 +20,15 @@ import { ScreenError } from '@/components/ui/ScreenError';
 import { StatCard } from '@/components/ui/StatCard';
 import { Chip, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
-import { fetchMyTrainings } from '@/lib/api/staff';
+import { fetchMyTrainings, fetchTrainingPeriods } from '@/lib/api/staff';
 import { computeAverageScore } from '@/lib/staff/stats';
 import { useAuthStore } from '@/store/auth';
-import type { AssignmentStatus, MyTrainingItem, MyTrainingsResponse } from '@/types/staff';
+import type {
+  AssignmentStatus,
+  MyTrainingItem,
+  MyTrainingsResponse,
+  TrainingPeriodsResponse,
+} from '@/types/staff';
 
 const PAGE_SIZE = 20;
 
@@ -51,11 +63,21 @@ export default function TrainingsScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [filter, setFilter] = useState<FilterValue>('all');
+  // Dönem seçimi: '' = aktif dönem (backend default). Geçmiş dönem id'si seçilince
+  // my-trainings o döneme scope'lanır (queryKey'e dahil → ayrı cache + refetch).
+  const [periodId, setPeriodId] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  const { data: periodsData } = useQuery<TrainingPeriodsResponse, Error>({
+    queryKey: ['training-periods'],
+    enabled: !!user,
+    queryFn: fetchTrainingPeriods,
+  });
+  const periods = periodsData?.periods ?? [];
 
   const { data, error, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } =
     useInfiniteQuery<MyTrainingsResponse, Error>({
-      queryKey: ['my-trainings', filter],
+      queryKey: ['my-trainings', filter, periodId],
       enabled: !!user,
       initialPageParam: 1,
       queryFn: ({ pageParam }) =>
@@ -63,6 +85,7 @@ export default function TrainingsScreen() {
           page: Number(pageParam),
           limit: PAGE_SIZE,
           status: filter === 'all' ? undefined : filter,
+          periodId: periodId || undefined,
         }),
       getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     });
@@ -103,6 +126,30 @@ export default function TrainingsScreen() {
       <MandatoryFeedbackBanner
         containerStyle={{ paddingHorizontal: t.space[4], paddingTop: t.space[3] }}
       />
+
+      {periods.length > 1 ? (
+        // Web paritesi: dönem seçici yalnız >1 dönem varsa görünür. "Aktif Dönem" =
+        // periodId boş → backend findActivePeriod. Geçmiş dönem seçilince o döneme scope.
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: t.space[4],
+            paddingTop: t.space[3],
+            gap: t.space[2],
+          }}
+        >
+          <Chip label="Aktif Dönem" selected={periodId === ''} onPress={() => setPeriodId('')} />
+          {periods.map((p) => (
+            <Chip
+              key={p.id}
+              label={p.label}
+              selected={periodId === p.id}
+              onPress={() => setPeriodId(p.id)}
+            />
+          ))}
+        </ScrollView>
+      ) : null}
 
       <Stack
         direction="row"
