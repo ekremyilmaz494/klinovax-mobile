@@ -431,6 +431,18 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 
 ## Do's (yap)
 
+> ⚠️ **Kapsam disiplini / yan-hasar yasağı — her şeyden önce gelir.** Üzerinde çalıştığın şeyi
+> geliştirmek, düzeltmek, iyileştirmek **tabii ki serbesttir** — doğru çalışan bir şeyi daha iyi
+> hale getirmek normaldir, kastedilen bu değil. ASIL kural: **bir işi yaparken, o işle ALAKASI
+> OLMAYAN, hâlihazırda doğru çalışan başka bir şeyi yanlışlıkla ezme/bozma.** Değişikliğini
+> kapsamıyla sınırlı tut; bir dosyayı/fonksiyonu düzenlerken o görevle ilgisiz davranışları
+> (auth + 401/refresh, sınav faz makinesi `state-machine`/`route-guard`, video no-seek + %90
+> tamamlama, SCORM, offline-resume mutation'ları vb.) **olduğu gibi koru** — onlara dokunman
+> gerekmiyorsa dokunma. Bir yeri değiştirirken ilgisiz bir yeri kırma riski varsa: ya değişikliği
+> o kadar daralt ki ilgisiz şey etkilenmesin, ya da **önce sor**. Garantisi: değişikliğin neyi
+> etkilediğini düşün, ilgili `__tests__`'i çalıştır; her commit öncesi
+> `tsc --noEmit && expo lint && npm test` **yeşil** olmadan ilerleme, testler kırmızıyken "tamamlandı" deme.
+
 1. ✅ `useTheme()` her component'in başında — ondan sonra style.
 2. ✅ Yeni component → primitives'in altında dene; gerçekten yeni primitif gerekiyorsa `design-system/primitives/` altına.
 3. ✅ Test refactor: `tsc --noEmit && expo lint && npm test` her commit'ten ÖNCE.
