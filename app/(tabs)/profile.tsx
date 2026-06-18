@@ -207,8 +207,14 @@ export default function ProfileScreen() {
         <SectionTitle>Hesabım</SectionTitle>
         <Card>
           <LinkRow label="Profili Düzenle" onPress={() => router.push('/profile/edit')} />
-          <LinkRow label="SMG Puanlarım" onPress={() => router.push('/smg')} />
           <LinkRow label="İşlem Geçmişim" onPress={() => router.push('/activity')} last />
+        </Card>
+
+        <SectionTitle>Gelişimim</SectionTitle>
+        <Card>
+          <LinkRow label="SMG Puanlarım" onPress={() => router.push('/smg')} />
+          <LinkRow label="Değerlendirmelerim" onPress={() => router.push('/evaluations')} />
+          <LinkRow label="Yetkinlik Sonuçlarım" onPress={() => router.push('/competency')} last />
         </Card>
 
         <SectionTitle>Belgelerim</SectionTitle>
