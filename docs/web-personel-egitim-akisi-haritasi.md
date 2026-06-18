@@ -166,14 +166,13 @@ my-trainings/[id]  ──"Başla / Devam / Tekrar Dene"──►  /exam/[id]
   (`apps/web/src/app/exam/[id]/videos/page.tsx` + `apps/web/src/hooks/use-fetch.ts`). Mobil resume
   `video.lastPosition`'dan çalışıyor (TanStack Query, ayrı cache modeli — bu bug mobile özgü değil).
 - **No-seek:** web tarafı izlemeyi `watchedTime` (currentTime değil) üzerinden ölçer; ileri-sarma
-  sunucu-tarafı uyum kontrolü + K1 ile nötralize edilir. Mobilde görsel seek engeli yok (bkz. §11.4).
+  sunucu-tarafı uyum kontrolü + K1 ile nötralize edilir. Mobilde `clampSeekTarget` ileri-sarmayı engeller (bkz. §11.4).
 - **PDF:** opsiyonel; tamamlamayı bloklamaz, "tüm videolar bitti" sayımına girmez.
 - **Audio:** ayrı `audio-player.tsx`; `onProgressRef` ile re-render'dan bağımsız heartbeat
   (commit `a7b05b28`). K1 fallback: `preExamCompletedAt` null ise `createdAt`.
 
-> 📱 RN: `expo-video`. Tamamlamayı **`playToEnd`/`status.didJustFinish`** olayına bağla (web onEnded
-> sadakati). No-seek için `expo-video` event'lerinden seek tespiti gerekir (native kontroller seek'e
-> izin verir).
+> 📱 RN: `expo-video`, özel kontrollerle (native kontrol kapalı). Tamamlama `playToEnd`/`didJustFinish`'e
+> bağlı (web onEnded paritesi); no-seek `clampSeekTarget` ile enforce ediliyor (`lib/exam/video-seek.ts`).
 
 ---
 
@@ -346,17 +345,17 @@ notifications,attempt-requests,push/expo/*}`, `auth/{login,refresh}`.
 - **Öneri:** `/exam/[id]/feedback` karşılığı mobil ekran: `GET feedback/[formId]/schema?attemptId=` +
   `POST .../submit`. `staff/feedback/pending` listesi de eklenebilir.
 
-### 11.3 🟡 Tab-switch / AppState (K3)
+### 11.3 ✅ Tab-switch / AppState (K3) — **YAPILDI**
 
-- `submit` body'sinde `tabSwitchCount?` alanı var ama **hep undefined** (AppState dinleyici yok).
-- Web'de de oto-fail yok (sadece loglanır) → güvenlik etkisi düşük, ama sadakat için `AppState`
-  ('background' sayımı) eklenebilir.
+- `questions.tsx` `AppState` dinleyicisi 'background'/'inactive' geçişlerinde `tabSwitchRef`'i artırır;
+  `submit` body'sinde `tabSwitchCount` olarak backend'e gönderilir (web `visibilitychange` sayımının
+  mobil karşılığı). Web'de de oto-fail yok, sadece loglanır → davranış paritede.
 
-### 11.4 🟡 No-seek
+### 11.4 ✅ No-seek — **YAPILDI**
 
-- Web ileri sarmayı engeller; mobil native kontrollerle serbest seek. Backend K1 (wall-clock) + %90
-  tabanı kısmen telafi eder ama mobil ileri-sarmayı **görsel olarak** engellemiyor.
-- **Öneri:** `expo-video` seek event'inde izin verilen son konuma geri sar (web `lastAllowedTime` portu).
+- `videos.tsx` özel kontrollerle (native kontrol kapalı) seek'i `clampSeekTarget` (`lib/exam/video-seek.ts`,
+  test edilen saf mantık) üzerinden geçirir: ileri sarma izin verilen son konuma clamp'lenir, geri sarma
+  serbest. İnceleme (review) modunda clamp yok. Web no-seek invariant'ının mobil karşılığı.
 
 ### 11.5 ✅ Retry / expired-retryable / ek hak talebi nüansları — **ÇÖZÜLDÜ (feat/training-states)**
 
@@ -382,16 +381,16 @@ K4 ekran-görüntüsü/kopya engeli yok. Bunlar v1 personel kapsamı kararıyla 
 
 ### Özet tablo
 
-| #   | Konu                                        | Web                                    | Mobil               | Durum                                | Öncelik |
-| --- | ------------------------------------------- | -------------------------------------- | ------------------- | ------------------------------------ | ------- |
-| 1   | Video tamamlama                             | onEnded + %90                          | playToEnd + %90     | ✅ Düzeltildi (#7)                   | —       |
-| 2   | Feedback formu                              | var (423/feedbackRequired yönlendirir) | tam form + 4 giriş  | ✅ Düzeltildi (#8 + entegrasyon)     | —       |
-| 3   | Tab-switch (K3)                             | sayılır                                | sayılmaz            | ⚠️ Kısmi (bilinçli ertelendi)        | 🟡      |
-| 4   | No-seek                                     | engellenir                             | serbest (nötralize) | ⚠️ Kısmi (accumulator telafi ediyor) | 🟡      |
-| 5   | Retry/ek-hak durumları                      | zengin                                 | tam durum makinesi  | ✅ Düzeltildi (#9)                   | —       |
-| 6   | Certificate sign                            | var (opsiyonel)                        | yok                 | ⚪ Opsiyonel teyit edildi            | —       |
-| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | tam karşılık        | ✅ Yapıldı (#50–#52)                 | —       |
-| —   | start/questions/timer/submit/results/videos | —                                      | ✅ çalışıyor        | ✅                                   | —       |
+| #   | Konu                                        | Web                                    | Mobil              | Durum                            | Öncelik |
+| --- | ------------------------------------------- | -------------------------------------- | ------------------ | -------------------------------- | ------- |
+| 1   | Video tamamlama                             | onEnded + %90                          | playToEnd + %90    | ✅ Düzeltildi (#7)               | —       |
+| 2   | Feedback formu                              | var (423/feedbackRequired yönlendirir) | tam form + 4 giriş | ✅ Düzeltildi (#8 + entegrasyon) | —       |
+| 3   | Tab-switch (K3)                             | sayılır (visibilitychange)             | sayılır (AppState) | ✅ Yapıldı                       | —       |
+| 4   | No-seek                                     | engellenir                             | engellenir (clamp) | ✅ Yapıldı                       | —       |
+| 5   | Retry/ek-hak durumları                      | zengin                                 | tam durum makinesi | ✅ Düzeltildi (#9)               | —       |
+| 6   | Certificate sign                            | var (opsiyonel)                        | yok                | ⚪ Opsiyonel teyit edildi        | —       |
+| 7   | Takvim/360°/yetkinlik/SMG                   | var                                    | tam karşılık       | ✅ Yapıldı (#50–#52)             | —       |
+| —   | start/questions/timer/submit/results/videos | —                                      | ✅ çalışıyor       | ✅                               | —       |
 
 ---
 
@@ -418,7 +417,7 @@ K4 ekran-görüntüsü/kopya engeli yok. Bunlar v1 personel kapsamı kararıyla 
 2. ~~**🔴 Feedback ekranı ekle**~~ ✅ Yapıldı (`feat/feedback-form` + `feat/feedback-entry-points`): `app/feedback/[attemptId].tsx` + 4 giriş noktası.
 3. ~~**🟡 `trainings/[id]` durum makinesini** web ile hizala~~ ✅ Yapıldı (`feat/training-states`): EXPIRED_RETRYABLE + EXHAUSTED + `attempt-requests`.
 4. ~~**🟡 Certificate `sign`** zorunluluğunu teyit et~~ ✅ Teyit edildi: opsiyonel, sertifika üretiminden bağımsız — ekran gerekmiyor.
-5. **🟡 K3 AppState** sayımı + no-seek geri-sarma (sadakat) — bilinçli ertelendi (web'de de sadece loglanıyor).
+5. ~~**🟡 K3 AppState** sayımı + no-seek geri-sarma (sadakat)~~ ✅ Yapıldı: `AppState` tab-switch sayımı (`tabSwitchCount`) + `clampSeekTarget` ileri-sarma engeli (`lib/exam/video-seek.ts`, test edilen).
 6. Her düzeltme için jest-expo testi + bu dökümanı güncel tut → **sıkılaştırma turu** (bkz. mobil-sikiilastirma-yol-haritasi.md M1).
 
 > Bu doküman **harita + analiz**dir; kod değiştirmez. Yukarıdaki adımlar kullanıcı onayıyla
