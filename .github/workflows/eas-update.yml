@@ -1,0 +1,54 @@
+name: EAS Update (OTA)
+
+# main'e her merge'de JS-only güncellemeleri `preview` kanalına OTA olarak yayınlar.
+# Yalnız JS/asset değişikliklerinde anlamlı; native değişiklik (yeni dep/plugin) veya
+# expo.version bump'ı OTA ile GİTMEZ → yeni EAS build gerekir (runtimeVersion = appVersion).
+# Production (gerçek kullanıcılar) bilinçli olarak DIŞARIDA — el ile yayınlanır.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+
+jobs:
+  publish:
+    name: Publish OTA (preview)
+    runs-on: ubuntu-latest
+    steps:
+      # EXPO_TOKEN secret'i yoksa workflow'u KIRMIZI yapma — uyarıp atla.
+      # (Settings → Secrets and variables → Actions → EXPO_TOKEN eklenince devreye girer.)
+      - name: EXPO_TOKEN kontrol
+        id: check
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::warning::EXPO_TOKEN secret tanımlı değil — OTA yayını atlandı."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+        if: steps.check.outputs.ok == 'true'
+      - uses: expo/expo-github-action@v8
+        if: steps.check.outputs.ok == 'true'
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: OTA yayınla (preview)
+        if: steps.check.outputs.ok == 'true'
+        env:
+          # Commit mesajını env üzerinden geçir (shell injection + tırnak sorunu olmasın).
+          MSG: ${{ github.event.head_commit.message }}
+        run: eas update --branch preview --message "$MSG" --non-interactive
