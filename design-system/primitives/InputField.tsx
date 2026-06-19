@@ -35,6 +35,9 @@ export const InputField = forwardRef<RNTextInput, InputFieldProps>(function Inpu
     <RNTextInput
       ref={ref}
       multiline={multiline}
+      // Sabit minHeight (52/96) + 17pt: AX büyük tipte clamp olmazsa metin dikey kesilir.
+      // {...rest} ile çağıran override edebilir.
+      maxFontSizeMultiplier={1.6}
       placeholderTextColor={t.colors.text.tertiary}
       onFocus={(e) => {
         setFocused(true);
