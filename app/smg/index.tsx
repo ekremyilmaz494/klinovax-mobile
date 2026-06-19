@@ -140,6 +140,8 @@ export default function SmgScreen() {
           </Text>
           <Stack direction="row" align="baseline" gap={2} style={{ marginTop: t.space[2] }}>
             <Text
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.6}
               style={{
                 fontFamily: 'Fraunces_700Bold',
                 fontSize: 40,

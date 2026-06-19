@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Switch, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
@@ -77,7 +77,13 @@ export default function LoginScreen() {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={{ flex: 1, padding: t.space[6], justifyContent: 'center' }}>
+          {/* ScrollView: küçük ekran (iPhone SE) + klavye açıkken brand+form sığmayıp
+              üstten kesilmesin; içerik scroll edilebilir, dokunuşlar form'a geçer. */}
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, padding: t.space[6], justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ alignItems: 'center', marginBottom: t.space[8] }}>
               <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
                 KLINOVAX
@@ -85,6 +91,8 @@ export default function LoginScreen() {
               <Text
                 italic
                 align="center"
+                numberOfLines={1}
+                adjustsFontSizeToFit
                 style={{
                   fontFamily: 'Fraunces_700Bold',
                   fontSize: 56,
@@ -194,7 +202,7 @@ export default function LoginScreen() {
                 />
               </View>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Stack, Text, useTheme } from '@/design-system';
+import { Button, Stack, Text, useTheme } from '@/design-system';
 import { fetchAuditLogs } from '@/lib/api/audit';
 import { ApiError } from '@/lib/api/client';
 import { auditActionLabel } from '@/lib/audit/labels';
@@ -85,6 +85,19 @@ export default function ActivityScreen() {
             isFetchingNextPage ? (
               <View style={{ paddingVertical: t.space[4] }}>
                 <ActivityIndicator color={t.colors.accent.clay} />
+              </View>
+            ) : error && hasNextPage && logs.length > 0 ? (
+              // Sayfalama hatası sessizce yutulmasın — kullanıcı tekrar deneyebilsin.
+              <View style={{ paddingVertical: t.space[4], alignItems: 'center' }}>
+                <Text variant="footnote" tone="tertiary" style={{ marginBottom: t.space[2] }}>
+                  Daha fazlası yüklenemedi.
+                </Text>
+                <Button
+                  label="Tekrar dene"
+                  variant="outline"
+                  size="sm"
+                  onPress={() => void fetchNextPage()}
+                />
               </View>
             ) : null
           }
