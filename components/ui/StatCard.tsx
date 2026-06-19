@@ -48,7 +48,13 @@ export function StatCard({ label, value, tone = 'default', flat = false, style }
       >
         {label}
       </Text>
-      <Text variant="metric" style={{ color: accent }}>
+      <Text
+        variant="metric"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        maxFontSizeMultiplier={1.6}
+        style={{ color: accent }}
+      >
         {value}
       </Text>
     </View>

@@ -106,7 +106,7 @@ export const LEGAL_CONTENT: Record<LegalSlug, LegalDoc> = {
         heading: '8. İletişim',
         body: [
           'KVKK kapsamındaki haklarınızı kullanmak için aşağıdaki kanallardan bizimle iletişime geçebilirsiniz. Başvurularınız en geç 30 (otuz) gün içinde sonuçlandırılacaktır.',
-          'E-posta: kvkk@klinova.app',
+          'E-posta: kvkk@klinovax.com',
         ],
       },
     ],

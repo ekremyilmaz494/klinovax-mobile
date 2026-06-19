@@ -114,7 +114,8 @@ export function Button({
             {iconLeft != null && <View>{iconLeft}</View>}
             <Text
               variant={size === 'sm' ? 'subhead' : 'bodyEmph'}
-              style={{ color: fg, fontFamily: 'InterTight_600SemiBold' }}
+              weight="semibold"
+              style={{ color: fg }}
             >
               {label}
             </Text>
