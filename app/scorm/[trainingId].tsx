@@ -55,6 +55,12 @@ export default function ScormScreen() {
   const pendingPatch = useRef<ScormTrackingPatch>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelRef = useRef<DownloadSignal>({ cancelled: false });
+  // Tamamlama: status 'set' geldiğinde WebView'i HEMEN unmount etmek, SCO'nun ardıl
+  // SetValue(score)/session_time/Commit/Finish mesajlarını kaybettiriyordu. UI geçişini
+  // finish/commit'e (ya da grace timeout'a) ertele; bu ref'ler o durumu izler.
+  const completionSeenRef = useRef(false);
+  const completedUiRef = useRef(false);
+  const completionGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // SCORM tracking PATCH offline-resume registry üzerinden. Online'da anında fire
   // (bugünkü davranış); offline iken paused yazılır, online dönünce replay olur.
@@ -89,6 +95,20 @@ export default function ScormScreen() {
     setPhase('completed');
   }, [qc, trainingId]);
 
+  // Tamamlama UI geçişi (WebView unmount). Status 'set' anında DEĞİL, ardıl
+  // score/session_time/Commit/Finish yakalandıktan sonra (finish/commit ya da grace
+  // timeout) çağrılır — böylece final skor PATCH'i kaybolmaz.
+  const finishCompletion = useCallback(() => {
+    if (completedUiRef.current) return;
+    completedUiRef.current = true;
+    if (completionGraceRef.current) {
+      clearTimeout(completionGraceRef.current);
+      completionGraceRef.current = null;
+    }
+    flushPatch();
+    markCompleted();
+  }, [flushPatch, markCompleted]);
+
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
       let msg: ScormBridgeMessage;
@@ -100,17 +120,22 @@ export default function ScormScreen() {
       if (msg.type === 'set') {
         Object.assign(pendingPatch.current, cmiSetValueToPatch(msg.key, msg.value));
         if (msg.key === 'cmi.core.lesson_status' && isScormCompletionStatus(msg.value)) {
-          flushPatch(); // tamamlama anında yaz (debounce bekleme)
-          markCompleted();
+          completionSeenRef.current = true;
+          flushPatch(); // tamamlama PATCH'i hemen yaz (sertifika) — ama WebView'i unmount ETME
+          // UI geçişini ertele: ardıl SetValue(score)/Commit/Finish gelene kadar bekle.
+          if (completionGraceRef.current) clearTimeout(completionGraceRef.current);
+          completionGraceRef.current = setTimeout(finishCompletion, 1500);
         } else {
           if (debounceRef.current) clearTimeout(debounceRef.current);
           debounceRef.current = setTimeout(flushPatch, 2000);
         }
       } else if (msg.type === 'commit' || msg.type === 'finish') {
         flushPatch();
+        // Tamamlama görüldüyse final değerler (score/time) artık geldi → şimdi tamamla.
+        if (completionSeenRef.current) finishCompletion();
       }
     },
-    [flushPatch, markCompleted],
+    [flushPatch, finishCompletion],
   );
 
   // ── Init: attempt çöz + paketi indir ──
@@ -133,7 +158,11 @@ export default function ScormScreen() {
       }
       try {
         // Resume: var olan attempt'i al; yoksa oluştur.
-        let attempt: ScormAttempt | null = await fetchScormAttempt(trainingId).catch(() => null);
+        // fetchScormAttempt attempt YOKSA null (200) döner; geçici hata (network/5xx/429)
+        // FIRLATIR. Eskiden .catch(()=>null) TÜM hataları null'a çevirip yeni attempt
+        // yaratıyordu → flaky GET'te resume (suspendData/lessonStatus) sessizce siliniyordu.
+        // Hatayı yutma: dış catch retry/kalıcı UI gösterir; yalnız gerçek "attempt yok"ta create.
+        let attempt = await fetchScormAttempt(trainingId);
         if (!attempt) attempt = await createScormAttempt(trainingId);
         if (signal.cancelled) return;
 
@@ -175,6 +204,8 @@ export default function ScormScreen() {
     return () => {
       signal.cancelled = true;
       flushPatch(); // ekrandan çıkışta bekleyen ilerlemeyi yaz
+      // Grace timer'ı temizle: ekran kapanırken markCompleted (setState) tetiklenmesin.
+      if (completionGraceRef.current) clearTimeout(completionGraceRef.current);
     };
     // flushPatch trainingId'e bağlı stabil; init yalnız param/token değişince koşmalı.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +214,9 @@ export default function ScormScreen() {
   // Arka plana geçişte bekleyen ilerlemeyi yaz (web sendBeacon karşılığı).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') flushPatch();
+      // Yalnız 'background': iOS 'inactive' (Control Center/banner/çağrı) geçici olup
+      // foreground'a döner — her seferinde flush gereksiz PATCH churn'ü yaratıyordu.
+      if (state === 'background') flushPatch();
     });
     return () => sub.remove();
   }, [flushPatch]);
