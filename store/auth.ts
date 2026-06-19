@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { getBiometricEnabled } from '../lib/auth/biometric-flag';
+import { clearLastUnlockAt } from '../lib/auth/biometric-policy';
 import { type StoredUser, clearSession, loadSession, saveSession } from '../lib/auth/secure-token';
 import { unregisterPushToken } from '../lib/notifications/push';
 
@@ -68,6 +69,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.warn('[auth.logout] unregisterPushToken failed', e);
     }
     await clearSession();
+    // Biyometrik "günde bir" damgasını temizle: aksi halde ortak cihazda A çıkış yapıp B
+    // aynı gün girince, A'dan kalan lastUnlockAt yüzünden shouldPromptBiometric false döner
+    // ve B'nin oturumu Face ID sorulmadan açılır (kilit baypası).
+    await clearLastUnlockAt();
     set({ user: null, accessToken: null, unlocked: true });
   },
 }));

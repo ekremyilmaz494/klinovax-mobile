@@ -31,4 +31,10 @@ describe('parseRetryAfterSeconds', () => {
     expect(parseRetryAfterSeconds('abc', NOW)).toBeNull();
     expect(parseRetryAfterSeconds('12x', NOW)).toBeNull();
   });
+
+  it('aşırı büyük delay-seconds 24 saatle (86400) sınırlanır — timer taşması/saçma countdown önlenir', () => {
+    expect(parseRetryAfterSeconds('99999999999', NOW)).toBe(86_400);
+    expect(parseRetryAfterSeconds('86400', NOW)).toBe(86_400);
+    expect(parseRetryAfterSeconds('120', NOW)).toBe(120);
+  });
 });

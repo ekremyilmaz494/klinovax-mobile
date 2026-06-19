@@ -151,6 +151,39 @@ describe('apiRequest — 401 refresh + retry', () => {
     expect(r2.status).toBe(200);
     expect(refreshCount).toBe(1);
   });
+
+  it("refresh, request başında yakalanan değil store'daki EN TAZE refresh-token'ı kullanır (rotasyon yarışı → yanlış logout yok)", async () => {
+    mockSession.current = {
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+      user: { id: 'u1' },
+    };
+    let usedRefreshToken: string | null = null;
+    global.fetch = (async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/auth/refresh')) {
+        usedRefreshToken = JSON.parse((init?.body as string) ?? '{}').refreshToken;
+        return makeResponse(200, {
+          session: { accessToken: 'access-9', refreshToken: 'refresh-9' },
+        });
+      }
+      const auth = (init?.headers as Headers | undefined)?.get('Authorization');
+      if (auth === 'Bearer access-1') {
+        // İlk istek 401 dönerken, "başka bir istek" (A) store'daki token'ı rotate etmiş olsun.
+        mockSession.current = {
+          accessToken: 'access-2',
+          refreshToken: 'refresh-2',
+          user: { id: 'u1' },
+        };
+        return makeResponse(401);
+      }
+      return makeResponse(200);
+    }) as unknown as typeof fetch;
+
+    const res = await apiRequest('/api/x');
+    expect(res.status).toBe(200);
+    // Bayat refresh-1 DEĞİL, store'daki güncel refresh-2 ile refresh edilmeli.
+    expect(usedRefreshToken).toBe('refresh-2');
+  });
 });
 
 describe('apiRequest — refresh fail', () => {

@@ -85,8 +85,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
     const token = tokenResp.data;
     if (!token) return null;
 
-    // 4. Backend'e kaydet (aynı token'ı tekrar gönderse bile upsert ile zarar yok)
-    if ((await getStoredPushToken()) === token) return token;
+    // 4. Backend'e HER ZAMAN kaydet (idempotent upsert). Eskiden cache'lenen token
+    //    aynıysa POST atlanıyordu; ama ortak cihazda kullanıcı değişimi ya da başarısız
+    //    bir unregister sonrası backend kaydı yanlış kullanıcıya bağlı/eksik kalabiliyordu.
+    //    Cache yalnız gereksiz SecureStore yazımını atlamak için kullanılır, POST'u değil.
     await apiFetch('/api/staff/push/expo/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -95,7 +97,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
         deviceName: Device.deviceName ?? undefined,
       }),
     });
-    await setStoredPushToken(token);
+    if ((await getStoredPushToken()) !== token) await setStoredPushToken(token);
     return token;
   } catch (err) {
     if (__DEV__) console.warn('[push] Register hatası:', err);
@@ -110,14 +112,17 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function unregisterPushToken(): Promise<void> {
   const token = await getStoredPushToken();
   if (!token) return;
-  await clearStoredPushToken();
   try {
     await apiFetch('/api/staff/push/expo/unregister', {
       method: 'POST',
       body: JSON.stringify({ token }),
     });
+    // Local cache'i YALNIZ backend silme başarılıysa temizle. Aksi halde başarısızlıkta
+    // token kaybolur, backend kaydı orphan kalır (çıkış yapmış cihaz push almaya devam) ve
+    // retry edilemezdi. Token'ı tutarsak sonraki logout/register denemesi düzeltebilir.
+    await clearStoredPushToken();
   } catch (err) {
     if (__DEV__) console.warn('[push] Unregister hatası:', err);
-    // Sessiz geç — logout flow'unu bloklamamalı
+    // Sessiz geç — logout flow'unu bloklamamalı (bearer yine de clearSession'da gidecek).
   }
 }
