@@ -18,6 +18,7 @@ import 'react-native-url-polyfill/auto';
 import { BiometricLockScreen } from '@/components/auth/BiometricLockScreen';
 import { ForcedPasswordChangeScreen } from '@/components/auth/ForcedPasswordChangeScreen';
 import { OfflineBanner } from '@/components/network/OfflineBanner';
+import { AnimatedSplash } from '@/components/ui/AnimatedSplash';
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -206,6 +207,7 @@ function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(FontMap);
   const [rehydrated, setRehydrated] = useState(false);
   const [splashHidden, setSplashHidden] = useState(false);
+  const [animDone, setAnimDone] = useState(false);
   const hydrate = useAuthStore((s) => s.hydrate);
 
   // Notification handler'ı bir kez mount'ta kur — foreground display + tap routing.
@@ -307,6 +309,9 @@ function RootLayout() {
         <ForcedPasswordChangeOverlay />
         <OfflineBanner />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        {/* Native splash kapanınca kısa "canlı" açılış katmanı; bitince kendini
+            kaldırır. Reduce Motion'da sade fade'e düşer (AnimatedSplash içinde). */}
+        {splashHidden && !animDone ? <AnimatedSplash onFinish={() => setAnimDone(true)} /> : null}
       </ThemeProvider>
     </PersistQueryClientProvider>
   );
