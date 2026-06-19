@@ -2,7 +2,13 @@ import { create } from 'zustand';
 
 import { getBiometricEnabled } from '../lib/auth/biometric-flag';
 import { clearLastUnlockAt } from '../lib/auth/biometric-policy';
-import { type StoredUser, clearSession, loadSession, saveSession } from '../lib/auth/secure-token';
+import {
+  type StoredUser,
+  clearMustChangePassword,
+  clearSession,
+  loadSession,
+  saveSession,
+} from '../lib/auth/secure-token';
 import { unregisterPushToken } from '../lib/notifications/push';
 
 type AuthState = {
@@ -23,16 +29,26 @@ type AuthState = {
    * kullanıcıya kilit gelmez.
    */
   unlocked: boolean;
+  /**
+   * Backend "ilk girişte şifre değiştir" işaretliyse `true`. Token geçerli (içeri
+   * alınır) ama biyometrik kilit geçildikten sonra zorunlu değişim ekranı overlay'i
+   * çizilir; uygulamaya bu temizlenmeden ulaşılamaz. Kalıcı (secure-store) — soğuk
+   * açılışta da korunur ki baypas edilmesin.
+   */
+  mustChangePassword: boolean;
   hydrate: () => Promise<void>;
   setSession: (params: {
     accessToken: string;
     refreshToken: string;
     user: StoredUser;
+    mustChangePassword?: boolean;
   }) => Promise<void>;
   /** API client refresh path'inden çağrılır (lib/api/client.ts setAccessTokenListener). */
   setAccessToken: (token: string) => void;
   unlock: () => void;
   lock: () => void;
+  /** Uygulama-içi zorunlu şifre değişimi başarılınca çağrılır. */
+  clearMustChange: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -41,6 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   hydrated: false,
   unlocked: true,
+  mustChangePassword: false,
   hydrate: async () => {
     const [session, biometricEnabled] = await Promise.all([loadSession(), getBiometricEnabled()]);
     set({
@@ -48,17 +65,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: session?.accessToken ?? null,
       // session yok → unlocked irrelevant; session var + biometric flag açık → kilitli başla
       unlocked: !session ? true : !biometricEnabled,
+      mustChangePassword: session?.mustChangePassword ?? false,
       hydrated: true,
     });
   },
-  setSession: async ({ accessToken, refreshToken, user }) => {
-    await saveSession({ accessToken, refreshToken, user });
+  setSession: async ({ accessToken, refreshToken, user, mustChangePassword = false }) => {
+    await saveSession({ accessToken, refreshToken, user, mustChangePassword });
     // Yeni login = az önce şifreyle kanıtladı, kilit yok
-    set({ user, accessToken, unlocked: true });
+    set({ user, accessToken, unlocked: true, mustChangePassword });
   },
   setAccessToken: (token) => set({ accessToken: token }),
   unlock: () => set({ unlocked: true }),
   lock: () => set({ unlocked: false }),
+  clearMustChange: async () => {
+    await clearMustChangePassword();
+    set({ mustChangePassword: false });
+  },
   logout: async () => {
     // Push token'ı session geçerliyken sil — clearSession sonrası bearer kalmadığı
     // için backend reddederdi. Hata olursa logout devam etsin ama sessiz kalmasın:
@@ -73,6 +95,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     // aynı gün girince, A'dan kalan lastUnlockAt yüzünden shouldPromptBiometric false döner
     // ve B'nin oturumu Face ID sorulmadan açılır (kilit baypası).
     await clearLastUnlockAt();
-    set({ user: null, accessToken: null, unlocked: true });
+    set({ user: null, accessToken: null, unlocked: true, mustChangePassword: false });
   },
 }));

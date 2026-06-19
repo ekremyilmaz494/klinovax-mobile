@@ -16,6 +16,7 @@ import 'react-native-reanimated';
 import 'react-native-url-polyfill/auto';
 
 import { BiometricLockScreen } from '@/components/auth/BiometricLockScreen';
+import { ForcedPasswordChangeScreen } from '@/components/auth/ForcedPasswordChangeScreen';
 import { OfflineBanner } from '@/components/network/OfflineBanner';
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { darkTheme, FontFamily, FontMap, lightTheme } from '@/design-system';
@@ -144,6 +145,20 @@ function LockOverlay() {
   const hydrated = useAuthStore((s) => s.hydrated);
   if (!hydrated || !user || unlocked) return null;
   return <BiometricLockScreen />;
+}
+
+/**
+ * Biyometrik kilit GEÇİLDİKTEN sonra (`unlocked`), backend zorunlu şifre değişimi
+ * istiyorsa uygulamaya girilmeden bu overlay çizilir. `!unlocked` koşulu sayesinde
+ * kilit her zaman önce gelir (iki overlay çakışmaz).
+ */
+function ForcedPasswordChangeOverlay() {
+  const user = useAuthStore((s) => s.user);
+  const unlocked = useAuthStore((s) => s.unlocked);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
+  if (!hydrated || !user || !unlocked || !mustChangePassword) return null;
+  return <ForcedPasswordChangeScreen />;
 }
 
 /**
@@ -289,6 +304,7 @@ function RootLayout() {
           <Stack.Screen name="legal/[slug]" options={{ headerShown: true }} />
         </Stack>
         <LockOverlay />
+        <ForcedPasswordChangeOverlay />
         <OfflineBanner />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
