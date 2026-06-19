@@ -81,8 +81,6 @@ export default function ProfileEditScreen() {
 
   const pwCheck = checkNewPassword(newPassword);
   const pwMatch = newPassword.length > 0 && newPassword === confirmPassword;
-  const canSubmitPassword =
-    currentPassword.length > 0 && pwCheck.valid && pwMatch && !profileMutation.isPending;
 
   const passwordMutation = useMutation<{ success: true }, Error, void>({
     mutationFn: () => updateStaffProfile({ currentPassword, newPassword }),
@@ -101,6 +99,13 @@ export default function ProfileEditScreen() {
       Alert.alert('Güncellenemedi', err.message || 'Şifre güncellenemedi.');
     },
   });
+
+  // Şifre butonu KENDİ mutation'ının pending'ine bağlı olmalı; profileMutation'a
+  // bakmak, profil kaydı sürerken alakasız şekilde şifre formunu kilitliyordu.
+  const canSubmitPassword =
+    currentPassword.length > 0 && pwCheck.valid && pwMatch && !passwordMutation.isPending;
+  // Ad/soyad boş gönderilmesin (diğer formlarla tutarlı zorunlu alan kontrolü).
+  const nameValid = firstName.trim().length > 0 && lastName.trim().length > 0;
 
   if (isLoading && !profile) {
     return (
@@ -186,10 +191,15 @@ export default function ProfileEditScreen() {
               variant="primary"
               size="lg"
               onPress={() => profileMutation.mutate()}
-              disabled={profileMutation.isPending}
+              disabled={!nameValid || profileMutation.isPending}
               loading={profileMutation.isPending}
               fullWidth
             />
+            {!nameValid ? (
+              <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
+                Ad ve soyad boş bırakılamaz.
+              </Text>
+            ) : null}
           </View>
 
           {/* ── ŞİFRE GÜNCELLE ── */}

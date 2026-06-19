@@ -40,7 +40,11 @@ export function useStartExam(
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['my-trainings'] });
       qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
-      qc.invalidateQueries({ queryKey: ['training-detail', assignmentId] });
+      // training-detail iki farklı id ile key'lenebiliyor: start.tsx/result.tsx
+      // assignmentId, trainings/[id].tsx route param (trainingId olabilir) — backend
+      // my-trainings detayını her iki id ile de kabul ettiğinden tek id ile invalidate
+      // hep birini kaçırırdı. Prefix ile tüm training-detail girdilerini tazele.
+      qc.invalidateQueries({ queryKey: ['training-detail'] });
       const route = resolveStartRoute(data.status);
       if (!route) {
         // Bilinmeyen attempt status (örn. yeni backend sürümü farklı durum döndürdü) —

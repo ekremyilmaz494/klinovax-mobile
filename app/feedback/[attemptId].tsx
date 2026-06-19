@@ -108,7 +108,18 @@ export default function FeedbackScreen() {
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ExpoStack.Screen options={{ title: headerTitle, headerBackTitle: 'Geri' }} />
 
-      {isLoading && !data ? (
+      {!attemptId ? (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            icon="exclamationmark.triangle.fill"
+            title="Geçersiz bağlantı"
+            description="Bu geri bildirim bağlantısı geçersiz. Lütfen eğitim sayfasından tekrar açın."
+          />
+          <View style={{ paddingHorizontal: t.space[6], marginTop: t.space[2] }}>
+            <Button label="Geri dön" variant="outline" onPress={() => router.back()} fullWidth />
+          </View>
+        </View>
+      ) : isLoading && !data ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={t.colors.accent.clay} size="large" />
         </View>
