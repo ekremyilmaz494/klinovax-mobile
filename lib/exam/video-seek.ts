@@ -15,5 +15,10 @@
  *   - Hedef 0'ın altına inemez (videonun başı)
  */
 export function clampSeekTarget(currentSeconds: number, targetSeconds: number): number {
-  return Math.min(Math.max(0, targetSeconds), currentSeconds);
+  // NaN koruması: Math.min/max NaN'ı YAYAR (clamp ETMEZ). current/target NaN ise
+  // (player.currentTime metadata öncesi) anti-cheat tavanı kaybolup player.currentTime=NaN
+  // yazılabilirdi. Sonlu değilse 0'a düşür. İLERİ-SARMA semantiği finite girişlerde DEĞİŞMEZ.
+  const cur = Number.isFinite(currentSeconds) ? currentSeconds : 0;
+  const tgt = Number.isFinite(targetSeconds) ? targetSeconds : 0;
+  return Math.min(Math.max(0, tgt), cur);
 }
