@@ -128,7 +128,7 @@ export default function EvaluationFillScreen() {
     <Shell t={t}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
