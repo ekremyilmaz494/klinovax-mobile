@@ -1,5 +1,14 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Switch, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Switch,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
@@ -18,6 +27,7 @@ const isLocalDevApi =
 
 export default function LoginScreen() {
   const t = useTheme();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -34,10 +44,26 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await loginRequest({ email: email.trim(), password, rememberMe });
+      // Gated yanıtlar (session YOK ile döner) — akışı mobil desteklemediği için
+      // genel "desteklenmiyor" yerine kullanıcıyı doğru adıma yönlendir.
+      if (res.mfaRequired) {
+        Alert.alert(
+          'Ek doğrulama gerekli',
+          'Hesabınız doğrulayıcı uygulama (TOTP) ile ek doğrulama gerektiriyor. Mobil uygulama bu adımı henüz desteklemiyor; lütfen web üzerinden giriş yapın.',
+        );
+        return;
+      }
+      if (res.smsMfaRequired) {
+        Alert.alert(
+          'SMS doğrulaması gerekli',
+          `SMS ile ek doğrulama gerekiyor${res.phoneMasked ? ` (${res.phoneMasked})` : ''}. Mobil uygulama bu adımı henüz desteklemiyor; lütfen web üzerinden giriş yapın.`,
+        );
+        return;
+      }
       if (!res.session) {
         Alert.alert(
           'Ek doğrulama gerekli',
-          'Hesabınız ek doğrulama veya şifre değiştirme gerektiriyor. Mobil akış bu adımı henüz desteklemiyor; lütfen kurum yöneticinizden hesabınızın mobil girişe hazırlandığını doğrulamasını isteyin.',
+          'Hesabınız ek doğrulama gerektiriyor. Mobil akış bu adımı henüz desteklemiyor; lütfen kurum yöneticinizden hesabınızın mobil girişe hazırlandığını doğrulamasını isteyin.',
         );
         return;
       }
@@ -51,9 +77,13 @@ export default function LoginScreen() {
           organizationId: res.organizationId,
           organizationSlug: res.organizationSlug,
         },
+        // Zorunlu şifre değişimi → _layout overlay'i devreye girer (uygulamaya
+        // girilmeden önce yeni şifre belirletilir).
+        mustChangePassword: res.mustChangePassword,
       });
 
-      void offerBiometricEnable();
+      // Zorunlu şifre ekranı açılacaksa biyometrik teklifini erteleme — iki modal üst üste binmesin.
+      if (!res.mustChangePassword) void offerBiometricEnable();
     } catch (err) {
       if (err instanceof ApiError) {
         const msg =
@@ -200,6 +230,21 @@ export default function LoginScreen() {
                   disabled={loading}
                   fullWidth
                 />
+                <Pressable
+                  onPress={() => router.push('/(auth)/forgot-password')}
+                  disabled={loading}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    marginTop: t.space[4],
+                    alignSelf: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <Text variant="footnote" style={{ color: t.colors.accent.clay }}>
+                    Şifremi unuttum
+                  </Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>
