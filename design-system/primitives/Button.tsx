@@ -115,6 +115,8 @@ export function Button({
             <Text
               variant={size === 'sm' ? 'subhead' : 'bodyEmph'}
               weight="semibold"
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.6}
               style={{ color: fg }}
             >
               {label}

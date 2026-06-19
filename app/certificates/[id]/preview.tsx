@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Paths } from 'expo-file-system';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -6,7 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { cacheCertificatePdf, shareCertificatePdf } from '@/lib/api/cert-download';
@@ -59,14 +58,14 @@ export default function CertificatePreviewScreen() {
           headerLeft: () => (
             <HeaderCircleButton
               onPress={() => router.back()}
-              icon="close"
+              icon="xmark"
               accessibilityLabel="Kapat"
             />
           ),
           headerRight: () => (
             <HeaderCircleButton
               onPress={() => void onShare()}
-              icon="share-outline"
+              icon="square.and.arrow.up"
               busy={sharing}
               disabled={!uri}
               accessibilityLabel="Paylaş"
@@ -162,7 +161,7 @@ function HeaderCircleButton({
   accessibilityLabel,
 }: {
   onPress: () => void;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconSymbolName;
   busy?: boolean;
   disabled?: boolean;
   accessibilityLabel: string;
@@ -198,7 +197,7 @@ function HeaderCircleButton({
         {busy ? (
           <ActivityIndicator size="small" color={t.colors.text.primary} />
         ) : (
-          <Ionicons
+          <IconSymbol
             name={icon}
             size={18}
             color={disabled ? t.colors.text.tertiary : t.colors.text.primary}

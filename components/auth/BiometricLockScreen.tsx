@@ -69,6 +69,9 @@ export function BiometricLockScreen() {
           variant="display"
           align="center"
           italic
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          maxFontSizeMultiplier={1.4}
           style={{ color: t.colors.accent.clay, marginTop: 4, marginBottom: 4 }}
         >
           Klinovax

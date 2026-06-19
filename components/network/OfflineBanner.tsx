@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Text, useTheme } from '@/design-system';
 import { usePendingMutationCount } from '@/hooks/use-pending-mutation-count';
 import { useOnline } from '@/lib/network/use-online';
@@ -43,8 +43,13 @@ export function OfflineBanner() {
       pointerEvents="box-none"
     >
       <View style={[styles.banner, { backgroundColor: bg, marginTop: insets.top > 0 ? 0 : 4 }]}>
-        <Ionicons name="cloud-offline-outline" size={16} color={fg} />
-        <Text variant="subhead" numberOfLines={1} style={{ color: fg, flexShrink: 1 }}>
+        <IconSymbol name="wifi.slash" size={16} color={fg} />
+        <Text
+          variant="subhead"
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.3}
+          style={{ color: fg, flexShrink: 1 }}
+        >
           {message}
         </Text>
       </View>

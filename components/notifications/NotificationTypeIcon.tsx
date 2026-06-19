@@ -1,28 +1,27 @@
-import { Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
 
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { useTheme } from '@/design-system';
 import type { NotificationType } from '@/types/notifications';
 
 /**
  * Bildirim tipine göre yuvarlak ikon — warm editorial palet ile uyumlu.
- * Bilinmeyen tipler "info" stiline düşer.
+ * Bilinmeyen tipler "info" stiline düşer. İkon sistemi DS standardı IconSymbol
+ * (iOS SF Symbols / Android Material) — Ionicons'tan taşındı (tutarlılık).
  */
 
-type IconKey = keyof typeof Ionicons.glyphMap;
-
 type VisualSpec = {
-  icon: IconKey;
+  icon: IconSymbolName;
   fg: keyof ReturnType<typeof useTheme>['colors']['status'] | 'accent' | 'mutedAccent';
 };
 
 const TYPE_ICON: Record<string, VisualSpec> = {
-  reminder: { icon: 'time-outline', fg: 'warning' },
-  warning: { icon: 'warning-outline', fg: 'warning' },
-  error: { icon: 'alert-circle-outline', fg: 'danger' },
-  info: { icon: 'information-circle-outline', fg: 'info' },
-  success: { icon: 'checkmark-circle-outline', fg: 'success' },
-  announcement: { icon: 'megaphone-outline', fg: 'accent' },
+  reminder: { icon: 'clock', fg: 'warning' },
+  warning: { icon: 'exclamationmark.triangle.fill', fg: 'warning' },
+  error: { icon: 'exclamationmark.circle.fill', fg: 'danger' },
+  info: { icon: 'info.circle.fill', fg: 'info' },
+  success: { icon: 'checkmark.circle.fill', fg: 'success' },
+  announcement: { icon: 'megaphone.fill', fg: 'accent' },
 };
 const FALLBACK = TYPE_ICON.info;
 
@@ -63,7 +62,7 @@ export function NotificationTypeIcon({
         justifyContent: 'center',
       }}
     >
-      <Ionicons name={v.icon} size={iconSize} color={fgColor} />
+      <IconSymbol name={v.icon} size={iconSize} color={fgColor} />
     </View>
   );
 }

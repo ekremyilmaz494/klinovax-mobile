@@ -143,6 +143,9 @@ export default function ProfileScreen() {
             }}
           >
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              maxFontSizeMultiplier={1.4}
               style={{
                 fontFamily: 'Fraunces_700Bold',
                 fontSize: 22,
