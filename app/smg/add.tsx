@@ -107,7 +107,7 @@ export default function SmgAddScreen() {
       <ExpoStack.Screen options={{ title: 'Aktivite Ekle' }} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}

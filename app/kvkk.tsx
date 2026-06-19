@@ -142,7 +142,7 @@ export default function KvkkScreen() {
       <ExpoStack.Screen options={{ title: 'KVKK Veri Haklarım' }} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}

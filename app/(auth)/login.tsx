@@ -105,7 +105,7 @@ export default function LoginScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           {/* ScrollView: küçük ekran (iPhone SE) + klavye açıkken brand+form sığmayıp
               üstten kesilmesin; içerik scroll edilebilir, dokunuşlar form'a geçer. */}
