@@ -25,6 +25,10 @@ describe('pointToSeconds', () => {
     expect(pointToSeconds(100, 0, 60)).toBe(0);
     expect(pointToSeconds(100, 200, 0)).toBe(0);
   });
+
+  it('NaN x güvenli 0 döner (gesture/layout edge)', () => {
+    expect(pointToSeconds(NaN, 200, 60)).toBe(0);
+  });
 });
 
 describe('progressPercent', () => {
@@ -38,5 +42,9 @@ describe('progressPercent', () => {
 
   it('sıfır süre güvenli 0', () => {
     expect(progressPercent(10, 0)).toBe(0);
+  });
+
+  it('NaN currentSeconds güvenli 0 (metadata öncesi)', () => {
+    expect(progressPercent(NaN, 60)).toBe(0);
   });
 });

@@ -74,9 +74,14 @@ export default function EvaluationFillScreen() {
     onSuccess: (res) => {
       void qc.invalidateQueries({ queryKey: ['evaluations'] });
       void qc.invalidateQueries({ queryKey: ['competency-me'] });
+      // validate() graceful pass-through — drift'te overallScore undefined gelebilir;
+      // Math.round(undefined)=NaN → "%NaN" alert. Sonlu değilse skor cümlesini at.
+      const pct = Number.isFinite(res.overallScore) ? Math.round(res.overallScore) : null;
       Alert.alert(
         'Gönderildi',
-        `Değerlendirme tamamlandı. Genel skor: %${Math.round(res.overallScore)}`,
+        pct === null
+          ? 'Değerlendirme tamamlandı.'
+          : `Değerlendirme tamamlandı. Genel skor: %${pct}`,
         [{ text: 'Tamam', onPress: () => router.back() }],
       );
     },

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgendaPreview } from '@/components/dashboard/AgendaPreview';
@@ -35,10 +35,21 @@ export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [refreshing, setRefreshing] = useState(false);
-  // new Date() yalnızca ilk render'da — ajanda filtre/ay anahtarları sabit kalsın.
-  const [now] = useState(() => new Date());
+  // new Date() ilk render'da — ajanda filtre/ay anahtarları render içinde sabit kalsın.
+  // Arka plandan dönüşte (gün/ay sınırı aşılmış olabilir) tazelenir (aşağıdaki effect).
+  const [now, setNow] = useState(() => new Date());
   const monthStr = monthParam(now);
   const todayKey = dayKeyOf(now);
+
+  // Uygulama foreground'a dönünce now'u tazele: tab uzun açık kalıp gece yarısını/ay
+  // sınırını geçtiyse anahtarlar bayat günü gösteriyordu (pull-to-refresh düzeltmiyordu,
+  // çünkü query key'in kendisi bayattı). Aynı günse türetilen string'ler değişmez → refetch yok.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') setNow(new Date());
+    });
+    return () => sub.remove();
+  }, []);
 
   const { data, isLoading, error, refetch } = useQuery<DashboardResponse, Error>({
     queryKey: ['staff-dashboard'],

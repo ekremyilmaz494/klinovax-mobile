@@ -25,8 +25,11 @@ function todayIso(): string {
 
 function isValidIsoDate(s: string): boolean {
   if (!ISO_DATE.test(s)) return false;
-  const d = new Date(s);
-  return !Number.isNaN(d.getTime());
+  // JS Date taşma tarihlerini (2026-02-30 → Mar 2) bazı engine'lerde sessizce
+  // kaydırır; round-trip ile gerçek takvim tarihi olduğunu doğrula (engine'den bağımsız).
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 }
 
 export default function SmgAddScreen() {
@@ -61,7 +64,8 @@ export default function SmgAddScreen() {
     pointsNum >= 1 &&
     pointsNum <= 999 &&
     (maxPoints == null || pointsNum <= maxPoints);
-  const dateValid = isValidIsoDate(completionDate);
+  // Tamamlanma tarihi gelecekte olamaz (ISO string karşılaştırması leksikografik = kronolojik).
+  const dateValid = isValidIsoDate(completionDate) && completionDate <= todayIso();
   const urlValid = certificateUrl.trim() === '' || certificateUrl.trim().startsWith('https://');
 
   const mutation = useMutation<SmgActivity, Error, void>({

@@ -50,13 +50,22 @@ type RefreshResult = { ok: true; token: string } | { ok: false; reason: 'network
 
 let refreshInflight: Promise<RefreshResult> | null = null;
 
-async function performRefresh(refreshToken: string): Promise<RefreshResult> {
+async function performRefresh(): Promise<RefreshResult> {
+  // Refresh token'ı çağrı ANINDA store'dan oku — apiRequest başında yakalanan değer,
+  // eşzamanlı başka bir isteğin (A) rotasyonundan sonra BAYAT olabilir. Bayat token'la
+  // refresh → backend reddi → reason:'auth' → yanlış logout (eşzamanlı 401 yarışı: B'nin
+  // 401'i A'nın inflight'ı temizlendikten sonra gelir). A yeni refresh-token'ı inflight'ı
+  // temizlemeden ÖNCE store'a yazdığı için, burada okunan token her zaman en günceldir.
+  // Tek-inflight guard korunur: bu fonksiyon refreshInflight set'inden SONRA çağrılır,
+  // 401 ile inflight kontrolü arasına await EKLENMEZ.
+  const session = await loadSession();
+  if (!session?.refreshToken) return { ok: false, reason: 'auth' };
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: session.refreshToken }),
     });
   } catch {
     return { ok: false, reason: 'network' };
@@ -122,7 +131,10 @@ export function parseRetryAfterSeconds(
 ): number | null {
   if (!value) return null;
   const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  // delay-seconds dalını da üst sınırla (HTTP-date dalı zaten Math.max ile savunmacı):
+  // bozuk/hostile 'Retry-After: 99999999999' UI countdown'ına saçma/taşkın değer akıtmasın
+  // (32-bit timer sınırı: ~24.8 günden büyük setTimeout hemen tetiklenir). 24 saat tavanı.
+  if (/^\d+$/.test(trimmed)) return Math.min(Number(trimmed), 86_400);
   const dateMs = Date.parse(trimmed);
   if (Number.isNaN(dateMs)) return null;
   return Math.max(0, Math.ceil((dateMs - nowMs) / 1000));
@@ -153,7 +165,7 @@ export async function apiRequest(path: string, init: RequestInit = {}): Promise<
       // İÇİNDE yapılır: eş zamanlı N istek aynı inflight'i await ettiğinde yan
       // etki tek instance üzerinde TEK KEZ koşar — aksi halde her awaiter logout'u
       // tekrar tetikler (unregisterPushToken boşa gider, logout iki kez çalışır).
-      refreshInflight = performRefresh(session.refreshToken)
+      refreshInflight = performRefresh()
         .then(async (result) => {
           if (!result.ok && result.reason === 'auth') {
             await clearSession();

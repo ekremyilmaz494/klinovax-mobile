@@ -24,4 +24,10 @@ describe('clampSeekTarget — ileri sarma engeli (anti-cheat)', () => {
   it('video başındayken (0sn) hiçbir hedef ileri götüremez', () => {
     expect(clampSeekTarget(0, 50)).toBe(0);
   });
+
+  it('NaN current/target güvenli 0 döner (player.currentTime metadata öncesi)', () => {
+    expect(clampSeekTarget(NaN, 10)).toBe(0);
+    expect(clampSeekTarget(120, NaN)).toBe(0);
+    expect(clampSeekTarget(NaN, NaN)).toBe(0);
+  });
 });

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { memo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Text, useTheme } from '@/design-system';
 import { useMarkAsRead } from '@/hooks/use-notifications';
@@ -63,36 +63,25 @@ export const NotificationCard = memo(function NotificationCard({
       <View style={{ position: 'relative' }}>
         {!item.isRead ? (
           <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              {
-                top: -2,
-                left: -2,
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: t.colors.accent.clay,
-                borderWidth: 2,
-                borderColor: t.colors.surface.secondary,
-                zIndex: 2,
-                position: 'absolute',
-              },
-            ]}
+            style={{
+              position: 'absolute',
+              top: -2,
+              left: -2,
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: t.colors.accent.clay,
+              borderWidth: 2,
+              borderColor: t.colors.surface.secondary,
+              zIndex: 2,
+            }}
           />
         ) : null}
         <NotificationTypeIcon type={item.type} size={38} />
       </View>
 
       <View style={{ flex: 1, gap: t.space[1] }}>
-        <Text
-          numberOfLines={2}
-          weight={item.isRead ? 'medium' : 'semibold'}
-          style={{
-            fontSize: 15,
-            lineHeight: 20,
-            color: t.colors.text.primary,
-          }}
-        >
+        <Text variant="callout" numberOfLines={2} weight={item.isRead ? 'medium' : 'semibold'}>
           {item.title}
         </Text>
         <Text variant="footnote" tone="secondary" numberOfLines={3}>

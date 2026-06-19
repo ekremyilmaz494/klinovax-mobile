@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Dimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,8 +11,6 @@ import Animated, {
 import { Palette } from '@/design-system/tokens';
 import { useReducedMotion } from '@/design-system/useReducedMotion';
 import { useTheme } from '@/design-system';
-
-const { width: W, height: H } = Dimensions.get('window');
 
 interface OrbConfig {
   color: string;
@@ -76,6 +74,9 @@ export function AuroraBackground() {
   const t = useTheme();
   const reduce = useReducedMotion();
   const isDark = t.mode === 'dark';
+  // Modül yüklenince sabitlenen Dimensions.get yerine reaktif oku: rotasyon /
+  // iPad Split View / foldable pencere değişiminde orb'lar ekran dışına kaymasın.
+  const { width: W, height: H } = useWindowDimensions();
 
   const orbs = useMemo<OrbConfig[]>(
     () => [
@@ -124,7 +125,7 @@ export function AuroraBackground() {
         opacity: isDark ? 0.16 : 0.28,
       },
     ],
-    [isDark],
+    [isDark, W, H],
   );
 
   return (

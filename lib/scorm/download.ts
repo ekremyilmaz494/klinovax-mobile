@@ -83,7 +83,9 @@ export async function downloadScormPackage(opts: {
     const dest = new File(dir, fileName);
     const url = `${API_BASE_URL}${scormContentPath(trainingId, rel)}`;
     try {
-      await File.downloadFileAsync(url, dest, { headers });
+      // idempotent: dest zaten varsa (manifest'te tekrar eden href / yeniden indirme)
+      // DestinationAlreadyExists ile patlamasın, üzerine yaz.
+      await File.downloadFileAsync(url, dest, { headers, idempotent: true });
     } catch {
       // Tekil dosya inmezse akışı kesme — manifest'te olup S3'te eksik/opsiyonel olabilir.
     }
@@ -96,8 +98,9 @@ export async function downloadScormPackage(opts: {
   // Best-effort döngü tekil dosya hatalarını yutar (opsiyonel alt-kaynaklar S3'te
   // eksik olabilir). Ama ENTRY dosyası sessizce inmediyse (ör. token indirme sırasında
   // doldu) WebView kırık bir file:// yükler → kullanıcıya hata göstermeden boş ekran.
-  // Açıkça doğrula: entry yoksa fırlat ki ekran "tekrar dene" hata UI'ı göstersin.
-  if (!entryFile.exists) {
+  // Açıkça doğrula: entry yoksa VEYA 0 byte (Android'de yarım/iptal inen dosya .exists'i
+  // geçer ama içerik boştur) fırlat ki ekran "tekrar dene" hata UI'ı göstersin.
+  if (!entryFile.exists || !entryFile.size) {
     throw new Error('SCORM başlangıç dosyası indirilemedi');
   }
   return { entryUri: entryFile.uri, baseDirUri: baseDir.uri };

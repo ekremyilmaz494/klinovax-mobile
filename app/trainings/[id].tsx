@@ -634,9 +634,13 @@ function findLatestRequest(
   trainingId: string,
 ): AttemptRequest | undefined {
   if (!requests) return undefined;
-  return requests
-    .filter((r) => r.trainingId === trainingId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  return (
+    requests
+      .filter((r) => r.trainingId === trainingId)
+      // Bozuk/eksik createdAt → getTime() NaN → NaN comparator sıralamayı bozardı
+      // (yanlış "en güncel" talep). Geçersiz tarihi 0'a düşür.
+      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))[0]
+  );
 }
 
 /**

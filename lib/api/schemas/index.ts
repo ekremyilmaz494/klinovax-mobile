@@ -15,6 +15,11 @@ import { Sentry } from '@/lib/sentry';
  * şemada tanımsız alanları düşürebilir; backend'in eklediği yeni alanlar
  * (mobile henüz tipini bilmese de) tüketicilere korunarak ulaşmalı.
  */
+// NOT: schema parametresi bilinçli olarak `ZodType<T>` DEĞİL `ZodType`. `ZodType<T>`
+// bağlaması şema↔tip drift'ini compile-time'a taşırdı (istenen), ama mevcut 38 call
+// site + 30 şemada gerçek drift'leri (örn. examSubmit nextStep string vs union, scorm/smg
+// `as X` cast'leri) açığa çıkarıp exam tip kontratında riskli toplu değişiklik gerektiriyor.
+// Düşük öncelikli sertleştirme — drift'i ayrı/kontrollü bir refactor'a bırakıyoruz.
 export function validate<T>(schema: ZodType, data: T, context: string): T {
   const result = schema.safeParse(data);
   if (result.success) return data;

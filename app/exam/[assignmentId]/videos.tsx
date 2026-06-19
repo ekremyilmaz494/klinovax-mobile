@@ -335,6 +335,10 @@ function Body({
       <FlatList
         data={videos}
         keyExtractor={(item) => item.id}
+        // extraData olmadan: VideoListItem memo'lu + data referansı seçimde değişmiyor →
+        // FlatList satırları yeniden render etmiyordu, "Şu an"/kilit göstergesi eski
+        // satırda kalıyordu. Seçim + kilit girdilerini extraData'ya koy ki satırlar tazelensin.
+        extraData={`${activeVideo.id}|${firstIncompleteMediaIdx}|${isReview}`}
         renderItem={({ item, index }) => {
           // İnceleme modunda hiçbir içerik kilitli değil (serbest gezinme). Normal akışta
           // sıralı kilit korunur. (Review yanıtında zaten tümü completed → -1; yine de
@@ -912,9 +916,9 @@ function VideoBlock({
   };
 
   const toggleMute = () => {
-    const next = !player.muted;
-    player.muted = next;
-    player.volume = next ? 0 : 1;
+    // Yalnız muted toggle — volume'a dokunma. Önceden unmute'ta volume=1'e sıçrayıp
+    // kullanıcının/sistemin ses seviyesini eziyordu; muted zaten sesi kesip açıyor.
+    player.muted = !player.muted;
   };
 
   // Scrubber/dokunma ile konuma git. NORMAL akış: clampSeekTarget ileri sarmayı
@@ -931,26 +935,36 @@ function VideoBlock({
   // ileri sarma butonunu geri getirir; anti-cheat'i bozar.
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Yönelim kilitlerini SIRALA: enter/exit/unmount lockAsync'leri serileştirilmezse
+  // hızlı toggle'da promise'ler ters sırayla resolve olup cihaz yatay kalabiliyordu
+  // (app.json portrait kilitliyken bile). Tek promise zinciri → son istenen kilit kazanır.
+  const orientationChain = useRef<Promise<unknown>>(Promise.resolve());
+  const lockOrientation = useCallback((lock: ScreenOrientation.OrientationLock) => {
+    orientationChain.current = orientationChain.current
+      .catch(() => {})
+      .then(() => ScreenOrientation.lockAsync(lock))
+      .catch(() => {});
+    return orientationChain.current;
+  }, []);
+
   const enterFullscreen = useCallback(() => {
     setIsFullscreen(true);
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-  }, []);
+    void lockOrientation(ScreenOrientation.OrientationLock.LANDSCAPE);
+  }, [lockOrientation]);
 
   const exitFullscreen = useCallback(() => {
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-      .catch(() => {})
-      .finally(() => setIsFullscreen(false));
-  }, []);
+    void lockOrientation(ScreenOrientation.OrientationLock.PORTRAIT_UP).finally(() =>
+      setIsFullscreen(false),
+    );
+  }, [lockOrientation]);
 
   // Ekrandan ayrılırken (unmount) yönelimi portrait'e geri al — fullscreen'deyken
-  // geri gidilirse uygulama yatay kalmasın.
+  // geri gidilirse uygulama yatay kalmasın. Zincire eklenir → enter'dan sonra gelir.
   useEffect(() => {
     return () => {
-      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
-        () => {},
-      );
+      void lockOrientation(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
-  }, []);
+  }, [lockOrientation]);
 
   const stage = (fullscreen: boolean) => (
     <View

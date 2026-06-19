@@ -71,6 +71,12 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
   const heroBorder = passed ? t.colors.status.success : t.colors.status.danger;
   const heroAccent = passed ? t.colors.status.success : t.colors.status.danger;
 
+  // validate() graceful pass-through olduğundan backend kontratı kırılırsa (score/
+  // attemptsRemaining eksik) bu alanlar undefined gelebilir; Math.round(undefined)=NaN
+  // → "%NaN" hero + yanlış "deneme bitti" dalı. Tüketimde savunmacı oku.
+  const scoreText = Number.isFinite(data.score) ? `%${Math.round(data.score)}` : '%—';
+  const attemptsRemaining = Number.isFinite(data.attemptsRemaining) ? data.attemptsRemaining : 0;
+
   // Feedback durumu eğitim detayından okunur — results endpoint'i feedback bilgisi
   // dönmez. Query key trainings/[id].tsx ile aynı (cache paylaşımı); mount'taki
   // invalidation sayesinde deneme sonrası taze canSubmit değeri gelir.
@@ -92,15 +98,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
           alignItems: 'center',
         }}
       >
-        <Text
-          style={{
-            fontFamily: 'InterTight_700Bold',
-            fontSize: 12,
-            letterSpacing: 1.6,
-            color: heroAccent,
-            textTransform: 'uppercase',
-          }}
-        >
+        <Text variant="overline" weight="bold" style={{ color: heroAccent }}>
           {passed ? 'Başarılı' : 'Başarısız'}
         </Text>
         <Text
@@ -116,7 +114,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             fontVariant: ['tabular-nums'],
           }}
         >
-          %{Math.round(data.score)}
+          {scoreText}
         </Text>
         <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
           Geçme barajı:{' '}
@@ -132,12 +130,12 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             variant="overline"
             style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
           >
-            {data.attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
+            {attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
           </Text>
           <Text variant="body" tone="primary">
             Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.{' '}
-            {data.attemptsRemaining > 0
-              ? `Kalan deneme: ${data.attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
+            {attemptsRemaining > 0
+              ? `Kalan deneme: ${attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
               : 'Yeni deneme hakkın kalmadı — eğitim sayfasından yöneticinden ek hak talep edebilirsin.'}
           </Text>
         </Card>
@@ -181,9 +179,9 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
             onPress={() => router.replace('/(tabs)/certificates')}
             fullWidth
           />
-        ) : data.attemptsRemaining > 0 ? (
+        ) : attemptsRemaining > 0 ? (
           <Button
-            label={`Yeniden dene · ${data.attemptsRemaining} hak kaldı`}
+            label={`Yeniden dene · ${attemptsRemaining} hak kaldı`}
             variant="primary"
             size="lg"
             onPress={() => router.replace(`/trainings/${assignmentId}`)}
@@ -202,7 +200,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
         )}
         <Button
           label="Eğitim listesine dön"
-          variant={passed || data.attemptsRemaining > 0 ? 'outline' : 'primary'}
+          variant={passed || attemptsRemaining > 0 ? 'outline' : 'primary'}
           size="lg"
           onPress={() => router.replace('/(tabs)/trainings')}
           fullWidth

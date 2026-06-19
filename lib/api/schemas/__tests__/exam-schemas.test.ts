@@ -84,9 +84,11 @@ describe('validate (graceful pass-through)', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('videos yanıtında watchedSeconds eksikse mismatch SAYILMAZ (default 0, geriye dönük uyum)', () => {
-    // Eski backend sürümü watchedSeconds döndürmeyebilir; schema .default(0) ile
-    // tolere eder — sahte "şema uyuşmuyor" telemetrisi üretmesin.
+  it('videos yanıtında watchedSeconds eksikse mismatch SAYILMAZ (optional, geriye dönük uyum)', () => {
+    // Eski backend sürümü watchedSeconds döndürmeyebilir; schema .optional() ile
+    // tolere eder — sahte "şema uyuşmuyor" telemetrisi üretmesin. 0 fallback'i
+    // tüketici tarafında (videos.tsx `watchedSeconds ?? 0`); validate() parse
+    // çıktısını döndürmediği için şema default'u zaten uygulanmazdı.
     const data = {
       trainingTitle: 'Hijyen',
       attemptStatus: 'watching_videos',

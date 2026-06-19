@@ -40,7 +40,8 @@ export default function CertificatePreviewScreen() {
     if (sharing) return;
     setSharing(true);
     try {
-      await shareCertificatePdf({ id, certificateCode: code });
+      // uri zaten cache'te (paylaş butonu yalnız uri set'liyken aktif) — yeniden indirme.
+      await shareCertificatePdf({ id, certificateCode: code, fileUri: uri ?? undefined });
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Paylaşılamadı.';
       Alert.alert('Hata', msg);

@@ -65,8 +65,10 @@ const examVideoItemSchema = z.looseObject({
   completed: z.boolean(),
   lastPosition: z.number(),
   // Gerçekte izlenen süre — resume sayacı bundan başlar. Eski backend sürümü
-  // alanı döndürmeyebilir → default 0 (parse patlamasın, additive).
-  watchedSeconds: z.number().default(0),
+  // alanı döndürmeyebilir → optional. NOT: validate() parse çıktısını DEĞİL
+  // orijinal data'yı döndürdüğü için zod .default(0) hiç uygulanmazdı (ölü kod);
+  // 0 fallback'i tüketici tarafında (videos.tsx `watchedSeconds ?? 0`).
+  watchedSeconds: z.number().optional(),
   documentUrl: z.string().optional(),
 });
 

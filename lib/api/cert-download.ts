@@ -40,8 +40,10 @@ export async function cacheCertificatePdf(params: {
 export async function shareCertificatePdf(params: {
   id: string;
   certificateCode: string;
+  /** Önizleme ekranı PDF'i zaten cache'lemişse yeniden indirme — o dosyayı paylaş. */
+  fileUri?: string;
 }): Promise<void> {
-  const uri = await cacheCertificatePdf(params);
+  const uri = params.fileUri ?? (await cacheCertificatePdf(params));
   // Paylaşım yoksa sessizce dönmek "indir/paylaş" butonunu hiçbir şey olmadan
   // resetliyordu (sessiz başarısızlık). Çağıran try/catch ile Alert gösteriyor.
   if (!(await Sharing.isAvailableAsync())) {
