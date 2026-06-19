@@ -242,6 +242,13 @@ export async function loginRequest(params: {
   } | null;
   mustChangePassword: boolean;
   setupCompleted: boolean | null;
+  // Gated yanıtlar (session YOK ile döner) — mobil bunları henüz akış olarak desteklemez,
+  // login ekranı yalnız kullanıcıya doğru yönlendirici mesajı göstermek için okur.
+  mfaRequired?: boolean;
+  smsMfaRequired?: boolean;
+  phoneMasked?: string | null;
+  phoneMissing?: boolean;
+  factorId?: string;
 }> {
   const res = await fetchOrThrow(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
