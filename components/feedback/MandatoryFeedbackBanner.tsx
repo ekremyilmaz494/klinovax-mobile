@@ -34,6 +34,9 @@ export function MandatoryFeedbackBanner({
     return data.items.find((it) => it.isMandatory) ?? null;
   }, [data]);
 
+  // Birden fazla bekleyen (veya opsiyonel) varsa tam listeye köprü göster.
+  const pendingCount = data?.formActive ? data.items.length : 0;
+
   if (!mandatory) return null;
 
   return (
@@ -55,6 +58,15 @@ export function MandatoryFeedbackBanner({
             “{mandatory.trainingTitle}” eğitimi için geri bildirim formunu doldurmadan yeni eğitim
             başlatamazsın.
           </Text>
+          {pendingCount > 1 ? (
+            <Text
+              variant="footnote"
+              style={{ marginTop: t.space[2], color: t.colors.accent.clay }}
+              onPress={() => router.push('/feedback')}
+            >
+              Tüm bekleyen geri bildirimleri gör ({pendingCount}) →
+            </Text>
+          ) : null}
         </Card>
       </Pressable>
     </View>
