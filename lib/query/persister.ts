@@ -49,13 +49,20 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
       return true;
     },
     /**
-     * Paused (offline) veya pending mutation'lar persist edilir; idle/success/error
-     * tutulmaz — başarılı bir mutation'ı tekrar oynatmanın anlamı yok. Sadece
-     * whitelist'teki key'ler kabul edilir.
+     * YALNIZ paused (offline) mutation'lar persist edilir; idle/success/error/pending
+     * tutulmaz. Sadece whitelist'teki key'ler kabul edilir.
+     *
+     * Neden 'pending' DEĞİL: online + mid-request bir mutation app kill'de `isPaused:false`
+     * + `status:'pending'` kalır. `resumePausedMutations()` (query-core mutationCache)
+     * YALNIZ `isPaused===true` olanları sürdürür → rehydrate edilen pending mutation hiç
+     * replay edilmeyen kalıcı bir "zombi" olur (usePendingMutationCount'ta da sonsuz
+     * "gönderiliyor"). Offline-resume akışı zaten isPaused ile kapsanır: offline iken
+     * duraklatılan mutation `isPaused:true` (status'ü 'pending' olsa da) yazılır ve
+     * online dönüşte replay olur.
      */
     shouldDehydrateMutation: (mutation) => {
       if (!isPersistedMutationKey(mutation.options.mutationKey)) return false;
-      return mutation.state.isPaused || mutation.state.status === 'pending';
+      return mutation.state.isPaused;
     },
   },
 };
