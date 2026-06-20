@@ -15,14 +15,15 @@ const STRENGTH_LABEL = { zayif: 'Zayıf', orta: 'Orta', guclu: 'Güçlü' } as c
  * Tüm ekranların ÜZERİNE binen tam ekran zorunlu şifre değişimi. Backend "ilk
  * girişte şifre değiştir" işaretlediğinde (`mustChangePassword`) _layout tarafında,
  * biyometrik kilit GEÇİLDİKTEN sonra render edilir. Logout dışında atlanamaz —
- * başarılı değişim `clearMustChange()` ile overlay'i kaldırır.
+ * başarılı değişimde, şifre değişince backend mevcut oturum token'ını geçersiz
+ * kıldığı için (eski token'la kalınırsa eğitim/diğer ekranlarda 401 → kafa karıştıran
+ * yarım oturum) TEMİZ ÇIKIŞ yapılıp kullanıcı yeni şifresiyle yeniden girişe yönlendirilir.
  *
  * `/api/auth/change-password` endpoint'i mevcut şifreyi doğrular, yenisini yazar ve
  * `mustChangePassword` bayrağını sunucuda da temizler.
  */
 export function ForcedPasswordChangeScreen() {
   const t = useTheme();
-  const clearMustChange = useAuthStore((s) => s.clearMustChange);
   const logout = useAuthStore((s) => s.logout);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -34,8 +35,16 @@ export function ForcedPasswordChangeScreen() {
 
   const mutation = useMutation<{ message: string }, Error, void>({
     mutationFn: () => changePassword({ currentPassword, newPassword, confirmPassword }),
-    onSuccess: async () => {
-      await clearMustChange();
+    onSuccess: () => {
+      // Şifre değişince backend mevcut oturum token'ını geçersiz kılar → eski token'la
+      // uygulamada kalmak eğitim/diğer ekranlarda 401'e düşer. Bu yüzden temiz çıkış yapıp
+      // kullanıcıyı yeni şifresiyle yeniden girişe yönlendiriyoruz (yarım oturum oluşmaz).
+      Alert.alert(
+        'Şifreniz güncellendi',
+        'Lütfen yeni şifrenizle tekrar giriş yapın.',
+        [{ text: 'Tamam', onPress: () => void logout() }],
+        { cancelable: false },
+      );
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 429) {
