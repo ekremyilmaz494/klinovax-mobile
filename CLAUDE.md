@@ -380,17 +380,12 @@ Bunlardan biri kırmızıysa merge butonu kilitli kalır.
 
 > Bu bölüm, ileride aktive edilecek release parçalarının tek listesi. Aktive ettikçe maddeyi sil.
 
-**iOS submit (Apple Developer hesabı gelince):**
+**iOS submit — config tamam, submit henüz koşulmadı:**
 
-`eas.json` → `submit.production.ios` placeholder'ları doldur:
+`eas.json` → `submit.production.ios` artık gerçek değerlerle dolu (appleId / appleTeamId / ascAppId). App Store Connect'te `com.klinovax.app` için app record oluşturuldu (sayısal Apple ID `6782176973`). Kalan adımlar:
 
-| Placeholder                    | Nereden bulunur                                                          |
-| ------------------------------ | ------------------------------------------------------------------------ |
-| `<<KULLANICI_APPLE_ID>>`       | Apple Developer hesabının e-posta adresi                                 |
-| `<<APPLE_TEAM_ID>>`            | https://developer.apple.com/account → Membership → Team ID               |
-| `<<APP_STORE_CONNECT_APP_ID>>` | App Store Connect → My Apps → app → App Information → Apple ID (sayısal) |
-
-Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS interaktif olarak App-Specific Password ister (Apple ID 2FA için); `EXPO_APPLE_APP_SPECIFIC_PASSWORD` ile EAS env'e koy.
+- İlk `eas submit --profile production --platform ios` çağrısında EAS interaktif olarak App-Specific Password ister (Apple ID 2FA için) → `EXPO_APPLE_APP_SPECIFIC_PASSWORD` ile EAS env'e koy.
+- App Store listing'i tamamla: ekran görüntüleri, metadata, AB **Trader Status** (App Store Connect → Business). Bunlar olmadan review'a gönderilemez.
 
 **Android submit (Play Console hazır olunca):**
 
@@ -466,7 +461,7 @@ Sonra: `eas submit --profile production --platform ios`. İlk submit'te EAS inte
 - **NewArch enabled**: `app.json:newArchEnabled=true` — Fabric/TurboModules. Eski paketleri eklerken uyumluluk kontrol et.
 - **SCORM yalnız manifest dosyaları**: `lib/scorm/manifest.ts` yalnız `imsmanifest.xml`'de listelenen dosyaları indirir; JS ile runtime'da üretilen dinamik URL'ler `file://` altında bulunmaz. Authoring tool tüm asset'leri manifest'e koymalı. WebView içeriği `file://` yüklenir → alt-kaynaklar yerelden (auth header taşınmaz, bu yüzden indir-ve-oynat).
 - **Sentry production'da SESSİZ**: `@sentry/react-native` plugin kurulu ama `EXPO_PUBLIC_SENTRY_DSN` EAS env'de set değil → `Sentry.init({ dsn: undefined })` no-op'a dönüşür, hata fırlatmaz. Prod'da crash event'i gelmiyorsa şaşırma; "Henüz aktive edilmemiş" bölümündeki adımları izle.
-- **iOS submit aktif değil**: `eas.json` → `submit.production.ios` placeholder'lar (`<<KULLANICI_APPLE_ID>>` vb.) hâlâ duruyor. `eas submit --platform ios` çağrılırsa hata verir. Apple Developer hesabı gelince "Henüz aktive edilmemiş" bölümünden doldur.
+- **iOS submit config dolu, ama submit test edilmedi**: `eas.json` → `submit.production.ios` gerçek değerlerle dolu (appleId / teamId / ascAppId). İlk `eas submit --platform ios` App-Specific Password ister; ayrıca App Store listing (ekran görüntüsü, metadata, trader status) tamamlanmadan review'a gitmez. Detay: "Henüz aktive edilmemiş" bölümü.
 - **Kullanılmayan bağımlılıklar**: `@supabase/supabase-js` ve `react-hook-form` `package.json`'da kurulu ama kaynak kodda **hiç import edilmiyor** (auth token'ları backend'den opak gelir; formlar düz state ile yazılmış). Bundle'ı şişirir. Kaldırmadan önce sahiden kullanılmadığını grep ile doğrula; kaldırma native değişiklik → yeni EAS build gerektirir (OTA çözmez).
 
 ---
