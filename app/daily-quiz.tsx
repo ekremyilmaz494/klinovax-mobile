@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { useDailyQuestions, useSubmitDailyQuestions } from '@/hooks/use-daily-questions';
+import { useOnline } from '@/lib/network/use-online';
 import type { DailyAnswer, DailyQuestion, DailySubmitResponse } from '@/types/daily';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -36,6 +37,8 @@ export default function DailyQuizScreen() {
   const submit = useSubmitDailyQuestions();
   const [answers, setAnswers] = useState<Map<string, string>>(() => new Map());
   const [result, setResult] = useState<DailySubmitResponse | null>(null);
+  const [queued, setQueued] = useState(false);
+  const { isOnline } = useOnline();
 
   const questions = data?.questions ?? [];
   const allAnswered = questions.length > 0 && questions.every((q) => answers.has(q.questionId));
@@ -52,10 +55,16 @@ export default function DailyQuizScreen() {
     const payload: DailyAnswer[] = questions
       .map((q) => ({ questionId: q.questionId, optionId: answers.get(q.questionId) }))
       .filter((a): a is DailyAnswer => a.optionId !== undefined);
-    submit.mutate(
-      { submissionId: newSubmissionId(), answers: payload },
-      { onSuccess: (res) => setResult(res) },
-    );
+    const vars = { submissionId: newSubmissionId(), answers: payload };
+    if (!isOnline) {
+      // Offline: mutation offline-resume kuyruğuna alınır (idempotent), online dönünce
+      // replay olur. Sonuç (doğru/puan) sunucu-hesaplı olduğu için şimdi gösterilemez →
+      // "kuyruğa alındı" ekranı.
+      submit.mutate(vars);
+      setQueued(true);
+      return;
+    }
+    submit.mutate(vars, { onSuccess: (res) => setResult(res) });
   };
 
   return (
@@ -73,6 +82,8 @@ export default function DailyQuizScreen() {
         />
       ) : result ? (
         <ResultView result={result} onDone={() => router.back()} />
+      ) : queued ? (
+        <QueuedView onDone={() => router.back()} />
       ) : !data?.available || questions.length === 0 ? (
         <EmptyState
           icon="checkmark.seal.fill"
@@ -207,6 +218,24 @@ function QuestionCard({
         })}
       </View>
     </Card>
+  );
+}
+
+function QueuedView({ onDone }: { onDone: () => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: t.space[5] }}>
+      <Card rail>
+        <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
+          KAYDEDİLDİ
+        </Text>
+        <Text variant="title-3">Cevapların kaydedildi</Text>
+        <Text variant="body" tone="tertiary" style={{ marginTop: t.space[2] }}>
+          Çevrimiçi olduğunda otomatik gönderilip puanın eklenecek. Bağlantıyı beklemen gerekmez.
+        </Text>
+        <Button label="Bitti" onPress={onDone} fullWidth style={{ marginTop: t.space[6] }} />
+      </Card>
+    </View>
   );
 }
 

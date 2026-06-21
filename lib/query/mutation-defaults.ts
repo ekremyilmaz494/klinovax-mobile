@@ -2,8 +2,10 @@ import { type QueryClient } from '@tanstack/react-query';
 
 import { createAttemptRequest } from '@/lib/api/attempt-requests';
 import { ApiError } from '@/lib/api/client';
+import { submitDailyAnswers } from '@/lib/api/daily';
 import { saveExamAnswer, saveVideoProgress, submitExam } from '@/lib/api/exam';
 import { patchScormAttempt } from '@/lib/api/scorm';
+import type { DailyAnswer } from '@/types/daily';
 import type { ExamPhase, ExamSubmitResponse, VideoProgressResponse } from '@/types/exam';
 import type { ScormAttempt, ScormTrackingPatch } from '@/types/scorm';
 import type { CreateAttemptRequestResponse } from '@/types/staff';
@@ -63,6 +65,11 @@ export type CreateAttemptRequestVars = {
 export type PatchScormVars = {
   trainingId: string;
   patch: ScormTrackingPatch;
+};
+
+export type SubmitDailyVars = {
+  submissionId: string;
+  answers: DailyAnswer[];
 };
 
 /**
@@ -219,6 +226,28 @@ export function registerMutationDefaults(client: QueryClient): void {
       if (isAlreadyProcessedError(error)) {
         void client.invalidateQueries({ queryKey: ['training-detail', vars.trainingId] });
       }
+    },
+  });
+
+  // ─── submitDaily ─────────────────────────────────────────────────
+  // Günün Soruları cevap teslimi. Offline iken dead-zone'da kaybolmasın diye
+  // paused yazılır, online dönünce replay olur. Backend submissionId ile
+  // idempotent (DB UNIQUE + P2002): aynı submissionId → kredi tam bir kez,
+  // tekrar gönderimde kalıcı snapshot döner → replay güvenli (çift puan yok).
+  client.setMutationDefaults(MUTATION_KEYS.submitDaily, {
+    mutationFn: ({ submissionId, answers }: SubmitDailyVars) =>
+      submitDailyAnswers({ submissionId, answers }),
+    networkMode: 'offlineFirst',
+    // 429 (rate limit, daily/submit 30/saat) GEÇİCİ kabul edilir → retry (backoff ile),
+    // drop edilmez; diğer 4xx kalıcı. Tek-günlük gönderimde 429 pratikte beklenmez.
+    retry: (failureCount: number, error: unknown) => {
+      if (error instanceof ApiError && error.status === 429) return failureCount < 3;
+      return shouldRetry(failureCount, error);
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['daily-questions'] });
+      // Puan/streak özeti (Faz 2) bağlandığında doğru kaynaktan tazelensin.
+      void client.invalidateQueries({ queryKey: ['gamification'] });
     },
   });
 }

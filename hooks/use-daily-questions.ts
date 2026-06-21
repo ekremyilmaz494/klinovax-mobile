@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { fetchDailyQuestions, submitDailyAnswers } from '@/lib/api/daily';
+import { fetchDailyQuestions } from '@/lib/api/daily';
+import { MUTATION_KEYS } from '@/lib/query/mutation-keys';
 import { useAuthStore } from '@/store/auth';
 import type { DailyAnswer, DailyQuestionsResponse, DailySubmitResponse } from '@/types/daily';
 
@@ -23,19 +24,15 @@ export function useDailyQuestions() {
 }
 
 /**
- * Quiz cevaplarını gönderir. `networkMode: 'online'` (mark-as-read gibi):
- * offline-resume kuyruğuna ALINMAZ — günlük quiz zaman-hassas ve offline replay
- * yalnız backend submit'i idempotent (submissionId dedup) GARANTİ ettiğinde
- * güvenli (plan §7 + backend istek listesi). Başarıda feed invalidate edilir →
- * dueCount güncellenir / kart kaybolur.
+ * Quiz cevaplarını gönderir. mutationFn/networkMode/retry/invalidate
+ * `mutation-defaults.ts`'te `MUTATION_KEYS.submitDaily` altında kayıtlı:
+ * offline-resume (offlineFirst + persist) — dead-zone'da gönderilen cevap
+ * kaybolmaz, online dönünce replay olur. Backend submissionId ile idempotent
+ * olduğu için çift puan riski yok. Ekran, sonuç/queued durumunu per-call
+ * onSuccess + useOnline ile yönetir (offline'da sunucu-hesaplı sonuç gösterilemez).
  */
 export function useSubmitDailyQuestions() {
-  const qc = useQueryClient();
   return useMutation<DailySubmitResponse, Error, { submissionId: string; answers: DailyAnswer[] }>({
-    mutationFn: (vars) => submitDailyAnswers(vars),
-    networkMode: 'online',
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
+    mutationKey: MUTATION_KEYS.submitDaily,
   });
 }
