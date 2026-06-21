@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -9,10 +9,15 @@ import type { StreakState } from '@/types/gamification';
  * Dashboard günlük seri (streak) kartı. Streak server-clock'tan gelir (cihaz saati
  * değil) — salt gösterim. `atRisk` ise "bugün çöz" uyarısı, değilse kalan dondurma
  * hakkı gösterilir.
+ *
+ * `onPress` verilirse kart tıklanır olur (chevron affordance) — streak'i korumanın
+ * yolu Günün Soruları'nı çözmek olduğundan dashboard bunu /daily-quiz'e bağlar; due
+ * soru gizliyken bile kalıcı bir quiz giriş noktası sağlar. Prop yoksa salt gösterge.
  */
-export function StreakWidget({ streak }: { streak: StreakState }) {
+export function StreakWidget({ streak, onPress }: { streak: StreakState; onPress?: () => void }) {
   const t = useTheme();
-  return (
+
+  const content = (
     <Card variant="accent" rail>
       <Stack direction="row" align="center" gap={3}>
         <View
@@ -49,7 +54,23 @@ export function StreakWidget({ streak }: { streak: StreakState }) {
         ) : streak.freezesLeft > 0 ? (
           <Badge label={`${streak.freezesLeft} dondurma`} tone="info" />
         ) : null}
+        {onPress ? (
+          <IconSymbol name="chevron.right" size={18} color={t.colors.text.tertiary} />
+        ) : null}
       </Stack>
     </Card>
+  );
+
+  if (!onPress) return content;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Günlük seri: ${streak.current} gün. Günün sorularını aç.`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+    >
+      {content}
+    </Pressable>
   );
 }

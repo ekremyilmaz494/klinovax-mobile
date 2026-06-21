@@ -140,7 +140,12 @@ export default function DashboardScreen() {
 
             {dailyQuiz?.available ? <DailyQuizCard data={dailyQuiz} /> : null}
 
-            {gamification ? <StreakWidget streak={gamification.streak} /> : null}
+            {gamification ? (
+              <StreakWidget
+                streak={gamification.streak}
+                onPress={() => router.push('/daily-quiz')}
+              />
+            ) : null}
 
             <View>
               <Stack
