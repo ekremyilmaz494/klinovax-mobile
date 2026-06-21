@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
@@ -87,126 +88,130 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
   const feedbackCta = resolveFeedbackCta(detail);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
-      <View
-        style={{
-          backgroundColor: heroBg,
-          borderRadius: t.radius.xl,
-          borderWidth: 1,
-          borderColor: heroBorder,
-          padding: t.space[10],
-          alignItems: 'center',
-        }}
-      >
-        <Text variant="overline" weight="bold" style={{ color: heroAccent }}>
-          {passed ? 'Başarılı' : 'Başarısız'}
-        </Text>
-        <Text
-          italic
-          maxFontSizeMultiplier={1.6}
+    <>
+      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+        <View
           style={{
-            fontFamily: 'Fraunces_700Bold',
-            fontSize: 80,
-            lineHeight: 88,
-            letterSpacing: -2,
-            color: t.colors.text.primary,
-            marginTop: t.space[2],
-            fontVariant: ['tabular-nums'],
+            backgroundColor: heroBg,
+            borderRadius: t.radius.xl,
+            borderWidth: 1,
+            borderColor: heroBorder,
+            padding: t.space[10],
+            alignItems: 'center',
           }}
         >
-          {scoreText}
-        </Text>
-        <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
-          Geçme barajı:{' '}
-          <Text variant="footnote" weight="semibold" style={{ color: t.colors.text.primary }}>
-            %{data.passingScore}
+          <Text variant="overline" weight="bold" style={{ color: heroAccent }}>
+            {passed ? 'Başarılı' : 'Başarısız'}
           </Text>
-        </Text>
-      </View>
-
-      {!passed ? (
-        <Card variant="warning" rail style={{ marginTop: t.space[6] }}>
           <Text
-            variant="overline"
-            style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+            italic
+            maxFontSizeMultiplier={1.6}
+            style={{
+              fontFamily: 'Fraunces_700Bold',
+              fontSize: 80,
+              lineHeight: 88,
+              letterSpacing: -2,
+              color: t.colors.text.primary,
+              marginTop: t.space[2],
+              fontVariant: ['tabular-nums'],
+            }}
           >
-            {attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
+            {scoreText}
           </Text>
-          <Text variant="body" tone="primary">
-            Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.{' '}
-            {attemptsRemaining > 0
-              ? `Kalan deneme: ${attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
-              : 'Yeni deneme hakkın kalmadı — eğitim sayfasından yöneticinden ek hak talep edebilirsin.'}
+          <Text variant="footnote" tone="tertiary" style={{ marginTop: t.space[2] }}>
+            Geçme barajı:{' '}
+            <Text variant="footnote" weight="semibold" style={{ color: t.colors.text.primary }}>
+              %{data.passingScore}
+            </Text>
           </Text>
-        </Card>
-      ) : null}
+        </View>
 
-      {passed && data.results && data.results.length > 0 ? (
-        <>
-          <Text variant="title-3" style={{ marginTop: t.space[8], marginBottom: t.space[3] }}>
-            Soru bazlı detay
-          </Text>
-          <View style={{ gap: t.space[3] }}>
-            {data.results.map((r, i) => (
-              <ResultRow key={`q-${i}`} index={i + 1} item={r} />
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <View style={{ marginTop: t.space[8], gap: t.space[3] }}>
-        {feedbackCta ? (
-          // Zorunlu feedback'i burada doldurtmak, personeli bir sonraki sınav
-          // başlangıcındaki 423 kilidine hiç sokmaz (çıkmaz sokak önleme).
-          <Button
-            label={feedbackCta.mandatory ? 'Geri bildirim ver (zorunlu)' : 'Geri bildirim ver'}
-            variant="primary"
-            size="lg"
-            onPress={() =>
-              router.push({
-                pathname: '/feedback/[attemptId]',
-                params: { attemptId: feedbackCta.attemptId, title: detail?.title ?? '' },
-              })
-            }
-            fullWidth
-          />
+        {!passed ? (
+          <Card variant="warning" rail style={{ marginTop: t.space[6] }}>
+            <Text
+              variant="overline"
+              style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+            >
+              {attemptsRemaining > 0 ? 'TEKRAR DENE' : 'DENEME HAKKI BİTTİ'}
+            </Text>
+            <Text variant="body" tone="primary">
+              Geçmek için %{data.passingScore} ve üzeri puan almanız gerekiyor.{' '}
+              {attemptsRemaining > 0
+                ? `Kalan deneme: ${attemptsRemaining}. Doğru cevaplar başarılı denemeden sonra görünür olacak.`
+                : 'Yeni deneme hakkın kalmadı — eğitim sayfasından yöneticinden ek hak talep edebilirsin.'}
+            </Text>
+          </Card>
         ) : null}
-        {passed ? (
+
+        {passed && data.results && data.results.length > 0 ? (
+          <>
+            <Text variant="title-3" style={{ marginTop: t.space[8], marginBottom: t.space[3] }}>
+              Soru bazlı detay
+            </Text>
+            <View style={{ gap: t.space[3] }}>
+              {data.results.map((r, i) => (
+                <ResultRow key={`q-${i}`} index={i + 1} item={r} />
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        <View style={{ marginTop: t.space[8], gap: t.space[3] }}>
+          {feedbackCta ? (
+            // Zorunlu feedback'i burada doldurtmak, personeli bir sonraki sınav
+            // başlangıcındaki 423 kilidine hiç sokmaz (çıkmaz sokak önleme).
+            <Button
+              label={feedbackCta.mandatory ? 'Geri bildirim ver (zorunlu)' : 'Geri bildirim ver'}
+              variant="primary"
+              size="lg"
+              onPress={() =>
+                router.push({
+                  pathname: '/feedback/[attemptId]',
+                  params: { attemptId: feedbackCta.attemptId, title: detail?.title ?? '' },
+                })
+              }
+              fullWidth
+            />
+          ) : null}
+          {passed ? (
+            <Button
+              label="Sertifikamı gör"
+              variant={feedbackCta ? 'outline' : 'primary'}
+              size="lg"
+              onPress={() => router.replace('/(tabs)/certificates')}
+              fullWidth
+            />
+          ) : attemptsRemaining > 0 ? (
+            <Button
+              label={`Yeniden dene · ${attemptsRemaining} hak kaldı`}
+              variant="primary"
+              size="lg"
+              onPress={() => router.replace(`/trainings/${assignmentId}`)}
+              fullWidth
+            />
+          ) : (
+            // Hak bitti: çıkmaz sokak bırakma — eğitim detayındaki ek hak talebi
+            // formuna yönlendir (AttemptRequestSection).
+            <Button
+              label="Ek deneme hakkı talep et"
+              variant="primary"
+              size="lg"
+              onPress={() => router.replace(`/trainings/${assignmentId}`)}
+              fullWidth
+            />
+          )}
           <Button
-            label="Sertifikamı gör"
-            variant={feedbackCta ? 'outline' : 'primary'}
+            label="Eğitim listesine dön"
+            variant={passed || attemptsRemaining > 0 ? 'outline' : 'primary'}
             size="lg"
-            onPress={() => router.replace('/(tabs)/certificates')}
+            onPress={() => router.replace('/(tabs)/trainings')}
             fullWidth
           />
-        ) : attemptsRemaining > 0 ? (
-          <Button
-            label={`Yeniden dene · ${attemptsRemaining} hak kaldı`}
-            variant="primary"
-            size="lg"
-            onPress={() => router.replace(`/trainings/${assignmentId}`)}
-            fullWidth
-          />
-        ) : (
-          // Hak bitti: çıkmaz sokak bırakma — eğitim detayındaki ek hak talebi
-          // formuna yönlendir (AttemptRequestSection).
-          <Button
-            label="Ek deneme hakkı talep et"
-            variant="primary"
-            size="lg"
-            onPress={() => router.replace(`/trainings/${assignmentId}`)}
-            fullWidth
-          />
-        )}
-        <Button
-          label="Eğitim listesine dön"
-          variant={passed || attemptsRemaining > 0 ? 'outline' : 'primary'}
-          size="lg"
-          onPress={() => router.replace('/(tabs)/trainings')}
-          fullWidth
-        />
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+      {/* Kutlama yalnız NÖTR başarıda (sınav geçme); başarısız dalda yok. */}
+      {passed ? <CelebrationOverlay /> : null}
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
+import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
@@ -268,32 +269,36 @@ export default function ScormScreen() {
               })}
         />
       ) : phase === 'completed' ? (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: t.space[8],
-          }}
-        >
-          <IconSymbol name="checkmark.circle.fill" size={64} color={t.colors.status.success} />
-          <Text variant="title-2" align="center" style={{ marginTop: t.space[4] }}>
-            Eğitim tamamlandı
-          </Text>
-          <Text variant="body" tone="tertiary" align="center" style={{ marginTop: t.space[2] }}>
-            “{headerTitle}” içeriğini başarıyla bitirdin. Sertifikan hazırlanıyorsa sertifikalarında
-            görünür.
-          </Text>
-          <View style={{ marginTop: t.space[8], width: '100%', maxWidth: 320 }}>
-            <Button
-              label="Eğitimlerime dön"
-              variant="primary"
-              size="lg"
-              onPress={() => router.replace('/(tabs)/trainings')}
-              fullWidth
-            />
+        <>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: t.space[8],
+            }}
+          >
+            <IconSymbol name="checkmark.circle.fill" size={64} color={t.colors.status.success} />
+            <Text variant="title-2" align="center" style={{ marginTop: t.space[4] }}>
+              Eğitim tamamlandı
+            </Text>
+            <Text variant="body" tone="tertiary" align="center" style={{ marginTop: t.space[2] }}>
+              “{headerTitle}” içeriğini başarıyla bitirdin. Sertifikan hazırlanıyorsa
+              sertifikalarında görünür.
+            </Text>
+            <View style={{ marginTop: t.space[8], width: '100%', maxWidth: 320 }}>
+              <Button
+                label="Eğitimlerime dön"
+                variant="primary"
+                size="lg"
+                onPress={() => router.replace('/(tabs)/trainings')}
+                fullWidth
+              />
+            </View>
           </View>
-        </View>
+          {/* Kutlama yalnız NÖTR tamamlanmada (eğitim bitti). */}
+          <CelebrationOverlay />
+        </>
       ) : entryUri ? (
         <WebView
           source={{ uri: entryUri }}
