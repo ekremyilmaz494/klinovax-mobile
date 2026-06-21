@@ -22,6 +22,14 @@ const TYPE_ICON: Record<string, VisualSpec> = {
   info: { icon: 'info.circle.fill', fg: 'info' },
   success: { icon: 'checkmark.circle.fill', fg: 'success' },
   announcement: { icon: 'megaphone.fill', fg: 'accent' },
+  // Sistem tipleri — daha önce generic mavi "info" fallback'ine düşüyordu.
+  training_assigned: { icon: 'book.fill', fg: 'accent' },
+  assignment: { icon: 'book.fill', fg: 'accent' },
+  exam_passed: { icon: 'checkmark.seal.fill', fg: 'success' },
+  exam_failed: { icon: 'xmark.circle.fill', fg: 'danger' },
+  exam_started: { icon: 'play.fill', fg: 'info' },
+  competency_evaluation: { icon: 'person.fill', fg: 'info' },
+  subscription_expiry: { icon: 'bell.fill', fg: 'warning' },
 };
 const FALLBACK = TYPE_ICON.info;
 
