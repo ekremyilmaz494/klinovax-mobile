@@ -45,6 +45,7 @@ export function VideoControlsOverlay({
   onSeekTo,
   onToggleFullscreen,
   hideFullscreen = false,
+  allowForwardSeek = false,
 }: {
   player: VideoPlayer;
   durationSeconds: number;
@@ -58,6 +59,8 @@ export function VideoControlsOverlay({
   onToggleFullscreen: () => void;
   /** Ses içerikte tam ekran anlamsız — butonu gizler. */
   hideFullscreen?: boolean;
+  /** İnceleme modu: scrubber ileri sarmaya izin verir (sınav bitti). Varsayılan: yasak. */
+  allowForwardSeek?: boolean;
 }) {
   const t = useTheme();
   const reduce = useReducedMotion();
@@ -231,6 +234,7 @@ export function VideoControlsOverlay({
           <VideoScrubber
             player={player}
             durationSeconds={durationSeconds}
+            allowForward={allowForwardSeek}
             onSeekTo={(s) => {
               onSeekTo(s);
               keepAlive();
