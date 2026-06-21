@@ -230,9 +230,6 @@ export async function loginRequest(params: {
   email: string;
   password: string;
   rememberMe: boolean;
-  // Çoklu-org personelde org seçimini tamamlamak için: aynı endpoint'e bu kez
-  // orgSlug ile tekrar POST → backend sorguyu o org'a daraltıp session döndürür.
-  orgSlug?: string;
 }): Promise<{
   user: { id: string; email: string; role: string };
   organizationId: string | null;
@@ -252,10 +249,6 @@ export async function loginRequest(params: {
   phoneMasked?: string | null;
   phoneMissing?: boolean;
   factorId?: string;
-  // Aynı TC birden fazla aktif organizasyona bağlıysa: session yerine seçim listesi döner.
-  // Kullanıcı birini seçince loginRequest orgSlug ile tekrar çağrılır.
-  orgPickRequired?: boolean;
-  orgs?: { slug: string; name: string }[];
 }> {
   const res = await fetchOrThrow(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
