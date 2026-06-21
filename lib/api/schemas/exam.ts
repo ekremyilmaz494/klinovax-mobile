@@ -119,6 +119,8 @@ export const examResultsResponseSchema = z.looseObject({
   attemptsRemaining: z.number(),
   // isPassed=false ise null (anti-cheat)
   results: z.array(examResultDetailSchema).nullable(),
+  // ExamAttempt.id — exam_pass refId. Backend henüz döndürmüyor → optional.
+  attemptId: z.string().optional(),
 });
 
 export const videoProgressResponseSchema = z.looseObject({

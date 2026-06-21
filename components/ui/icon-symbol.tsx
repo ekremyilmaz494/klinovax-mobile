@@ -58,6 +58,10 @@ const MAPPING = {
   calendar: 'calendar-today',
   'graduationcap.fill': 'school',
   'star.fill': 'star',
+  // Oyunlaştırma rozet/streak ikonları (backend badge.icon SF Symbol adları → Material fallback).
+  'flame.fill': 'local-fire-department',
+  'trophy.fill': 'emoji-events',
+  'medal.fill': 'military-tech',
   gear: 'settings',
 } as IconMapping;
 

@@ -8,7 +8,7 @@
 
 **klinovax-mobile** — Türkçe medikal eğitim/sertifikasyon iOS+Android uygulaması (Klinovax). Hastane personeli için zorunlu eğitim atamaları, video izleme, sınav (pre + post), sertifikasyon, push hatırlatmalar.
 
-- **Backend**: kardeş repo `../hospital-lms` (Next.js + Drizzle + Supabase). Bu repoda **sadece** mobil kod.
+- **Backend**: kardeş repo `../hospital-lms` (Next.js + Prisma + Supabase). Bu repoda **sadece** mobil kod.
 - **Hedef kullanıcı**: Hastane personeli (hekim, hemşire, teknisyen) — Türkçe UI. Kurum yöneticisi (admin) bu app'i kullanmaz, web panelinde çalışır.
 - **Dağıtım**: EAS Build (development/preview/production), Expo Updates ile OTA.
 - **Bundle ID**: `com.klinovax.app`.
@@ -483,7 +483,7 @@ Bunlardan biri kırmızıysa merge butonu kilitli kalır.
 
 ## Referans / external
 
-- Backend repo: `../hospital-lms` (Next.js + Drizzle + Supabase)
+- Backend repo: `../hospital-lms` (Next.js + Prisma + Supabase)
 - **Repo içi dokümanlar (`docs/`)**:
   - `web-personel-egitim-akisi-haritasi.md` — web personel paneli + eğitim/sınav akışının kod-seviyesi haritası + iki state machine. **Beklenen davranışın doğru kaynağı**; §11 mobil boşluk analizi. Akış/mantık değişince burayı da güncelle.
   - `mobil-sikiilastirma-yol-haritasi.md` — test / ErrorBoundary / Sentry sıkılaştırma yol haritası + bilinen riskler ve milestone durumu.

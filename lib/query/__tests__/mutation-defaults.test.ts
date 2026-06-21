@@ -1,5 +1,6 @@
 import { createAttemptRequest } from '@/lib/api/attempt-requests';
 import { ApiError } from '@/lib/api/client';
+import { submitDailyAnswers } from '@/lib/api/daily';
 import { saveVideoProgress } from '@/lib/api/exam';
 import { patchScormAttempt } from '@/lib/api/scorm';
 
@@ -27,7 +28,16 @@ jest.mock('@/lib/api/scorm', () => ({
   patchScormAttempt: jest.fn().mockResolvedValue({ id: 's1', attemptId: 'a1' }),
 }));
 
-type CapturedConfig = { mutationFn: (vars: never) => unknown };
+jest.mock('@/lib/api/daily', () => ({
+  submitDailyAnswers: jest
+    .fn()
+    .mockResolvedValue({ correctCount: 0, pointsAwarded: 0, results: [] }),
+}));
+
+type CapturedConfig = {
+  mutationFn: (vars: never) => unknown;
+  retry?: (failureCount: number, error: unknown) => boolean;
+};
 
 /** Kayıtlı default config'lerini key→config Map olarak toplayan sahte client.
  *  MUTATION_KEYS değerleri tuple (array) olduğundan Map (referans eşitliği) kullanılır. */
@@ -85,13 +95,13 @@ describe('isAlreadyProcessedError', () => {
 });
 
 describe('registerMutationDefaults', () => {
-  it('6 persist edilen mutation key için default kaydeder', () => {
+  it('7 persist edilen mutation key için default kaydeder', () => {
     const setMutationDefaults = jest.fn();
     const client = { setMutationDefaults } as never;
 
     registerMutationDefaults(client);
 
-    expect(setMutationDefaults).toHaveBeenCalledTimes(6);
+    expect(setMutationDefaults).toHaveBeenCalledTimes(7);
     const registeredKeys = setMutationDefaults.mock.calls.map((c) => c[0]);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.saveAnswer);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.submitExam);
@@ -99,6 +109,7 @@ describe('registerMutationDefaults', () => {
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.completeVideo);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.createAttemptRequest);
     expect(registeredKeys).toContainEqual(MUTATION_KEYS.patchScorm);
+    expect(registeredKeys).toContainEqual(MUTATION_KEYS.submitDaily);
   });
 });
 
@@ -203,5 +214,31 @@ describe('patchScorm mutationFn', () => {
     } as never);
     // Tamamlama PATCH'i (passed) — offline iken paused, online'da replay → sertifika kaybolmaz.
     expect(patchScormAttempt).toHaveBeenCalledWith('t1', { lessonStatus: 'passed', score: 95 });
+  });
+});
+
+describe('submitDaily mutationFn + retry', () => {
+  beforeEach(() => {
+    (submitDailyAnswers as jest.Mock).mockClear();
+  });
+
+  it('offline-resume registry mutationFn submitDailyAnswers’i submissionId+answers ile çağırır', async () => {
+    const defaults = captureDefaults();
+    await defaults.get(MUTATION_KEYS.submitDaily)!.mutationFn({
+      submissionId: '11111111-1111-4111-8111-111111111111',
+      answers: [{ questionId: 'q1', optionId: 'a' }],
+    } as never);
+    expect(submitDailyAnswers).toHaveBeenCalledWith({
+      submissionId: '11111111-1111-4111-8111-111111111111',
+      answers: [{ questionId: 'q1', optionId: 'a' }],
+    });
+  });
+
+  it('429 (rate limit) geçici → retry (drop değil); diğer 4xx kalıcı', () => {
+    const defaults = captureDefaults();
+    const retry = defaults.get(MUTATION_KEYS.submitDaily)!.retry!;
+    expect(retry(0, new ApiError(429, { error: 'rate' }))).toBe(true);
+    expect(retry(3, new ApiError(429, { error: 'rate' }))).toBe(false);
+    expect(retry(0, new ApiError(400, { error: 'bad' }))).toBe(false);
   });
 });
