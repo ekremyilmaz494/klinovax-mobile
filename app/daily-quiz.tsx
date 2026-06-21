@@ -11,9 +11,18 @@ import type { DailyAnswer, DailyQuestion, DailySubmitResponse } from '@/types/da
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-/** Idempotency/dedup anahtarı — backend aynı submissionId'de krediyi bir kez verir. */
+/**
+ * Idempotency/dedup anahtarı — backend aynı submissionId'de krediyi bir kez verir.
+ * Backend `z.string().uuid()` zorunlu kıldığı için RFC-4122 v4 formatında üretilir
+ * (geçersiz format → 400). expo-crypto yeni native bağımlılık olurdu; dedup anahtarı
+ * için kriptografik güç değil, format + benzersizlik yeterli (backend zaten dedup'lar).
+ */
 function newSubmissionId(): string {
-  return `dq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /**
