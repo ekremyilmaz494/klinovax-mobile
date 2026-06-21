@@ -13,10 +13,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { useDailyQuestions } from '@/hooks/use-daily-questions';
 import { ApiError } from '@/lib/api/client';
 import { fetchDashboard, fetchStaffProfile } from '@/lib/api/staff';
 import { monthParam } from '@/lib/calendar/agenda';
 import { useAuthStore } from '@/store/auth';
+import type { DailyQuestionsResponse } from '@/types/daily';
 import type {
   DashboardResponse,
   RecentActivity,
@@ -66,6 +68,9 @@ export default function DashboardScreen() {
   const firstName = profile?.firstName?.trim() ?? '';
   // Profesyonel bağlam: unvan · departman (varsa) — daha önce kullanılmıyordu.
   const subtitle = [profile?.title, profile?.department].filter(Boolean).join(' · ');
+
+  // Günün Soruları (spaced-repetition) — kartın görünürlüğünü `available` sürer.
+  const { data: dailyQuiz } = useDailyQuestions();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -128,6 +133,8 @@ export default function DashboardScreen() {
             {data.urgentTraining ? <UrgentCard item={data.urgentTraining} /> : null}
 
             <StatsGrid stats={data.stats} />
+
+            {dailyQuiz?.available ? <DailyQuizCard data={dailyQuiz} /> : null}
 
             <View>
               <Stack
@@ -205,6 +212,39 @@ function UrgentCard({ item }: { item: UrgentTraining }) {
           <Badge label={`${item.daysLeft} gün kaldı`} tone="danger" />
           <Text variant="subhead" style={{ color: t.colors.accent.clay }}>
             Eğitime git →
+          </Text>
+        </Stack>
+      </Card>
+    </Pressable>
+  );
+}
+
+function DailyQuizCard({ data }: { data: DailyQuestionsResponse }) {
+  const t = useTheme();
+  return (
+    // Eğitim sonrası kısa pekiştirme — kart doğrudan /daily-quiz ekranına götürür.
+    <Pressable
+      onPress={() => router.push('/daily-quiz')}
+      accessibilityRole="button"
+      accessibilityLabel={`Günün soruları: ${data.dueCount} soru`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+    >
+      <Card variant="accent" rail>
+        <Text variant="overline" style={{ color: t.colors.accent.clay, marginBottom: t.space[2] }}>
+          GÜNÜN SORULARI
+        </Text>
+        <Text variant="title-3" numberOfLines={2}>
+          Bugünün kısa tekrarını tamamla
+        </Text>
+        <Stack
+          direction="row"
+          justify="space-between"
+          align="center"
+          style={{ marginTop: t.space[2] }}
+        >
+          <Badge label={`${data.dueCount} soru`} tone="info" />
+          <Text variant="subhead" style={{ color: t.colors.accent.clay }}>
+            Başla →
           </Text>
         </Stack>
       </Card>

@@ -46,7 +46,7 @@ export function setupNotifications(queryClient: QueryClient): () => void {
     void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     const data = response.notification.request.content.data as { url?: string } | undefined;
     const url = data?.url;
-    const ALLOWED_PREFIXES = ['/trainings/', '/exam/', '/certificates/'];
+    const ALLOWED_PREFIXES = ['/trainings/', '/exam/', '/certificates/', '/daily-quiz'];
     if (typeof url === 'string' && ALLOWED_PREFIXES.some((p) => url.startsWith(p))) {
       try {
         router.push(url as never);
