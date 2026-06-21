@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgesGallery } from '@/components/profile/BadgesGallery';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
+import { useGamification } from '@/hooks/use-gamification';
 import { fetchStaffProfile } from '@/lib/api/staff';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
 import { useThemePreference, type ThemePreference } from '@/lib/theme/use-theme-preference';
@@ -41,6 +43,9 @@ export default function ProfileScreen() {
     enabled: !!user,
     queryFn: fetchStaffProfile,
   });
+
+  // Oyunlaştırma özeti — puan + rozet paneli (streak dashboard'da).
+  const { data: gamification } = useGamification();
 
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
@@ -220,6 +225,15 @@ export default function ProfileScreen() {
           <LinkRow label="Değerlendirmelerim" onPress={() => router.push('/evaluations')} />
           <LinkRow label="Yetkinlik Sonuçlarım" onPress={() => router.push('/competency')} last />
         </Card>
+
+        {gamification ? (
+          <>
+            <SectionTitle>Rozetlerim</SectionTitle>
+            <Card>
+              <BadgesGallery summary={gamification} />
+            </Card>
+          </>
+        ) : null}
 
         <SectionTitle>Belgelerim</SectionTitle>
         <Card>

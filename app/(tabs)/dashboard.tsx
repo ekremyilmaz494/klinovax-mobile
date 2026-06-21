@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AgendaPreview } from '@/components/dashboard/AgendaPreview';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
+import { StreakWidget } from '@/components/dashboard/StreakWidget';
 import { MandatoryFeedbackBanner } from '@/components/feedback/MandatoryFeedbackBanner';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -14,6 +15,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { useDailyQuestions } from '@/hooks/use-daily-questions';
+import { useGamification } from '@/hooks/use-gamification';
 import { ApiError } from '@/lib/api/client';
 import { fetchDashboard, fetchStaffProfile } from '@/lib/api/staff';
 import { monthParam } from '@/lib/calendar/agenda';
@@ -71,6 +73,8 @@ export default function DashboardScreen() {
 
   // Günün Soruları (spaced-repetition) — kartın görünürlüğünü `available` sürer.
   const { data: dailyQuiz } = useDailyQuestions();
+  // Oyunlaştırma özeti — streak widget'ı (puan/rozet profilde).
+  const { data: gamification } = useGamification();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -135,6 +139,8 @@ export default function DashboardScreen() {
             <StatsGrid stats={data.stats} />
 
             {dailyQuiz?.available ? <DailyQuizCard data={dailyQuiz} /> : null}
+
+            {gamification ? <StreakWidget streak={gamification.streak} /> : null}
 
             <View>
               <Stack
