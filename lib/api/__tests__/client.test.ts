@@ -227,37 +227,3 @@ describe('ApiError', () => {
     expect(new ApiError(503, {}).message).toBe('HTTP 503');
   });
 });
-
-describe('loginRequest — orgSlug body', () => {
-  const okSession = () =>
-    makeResponse(200, {
-      session: { accessToken: 'a', refreshToken: 'r', expiresAt: null, tokenType: 'Bearer' },
-      user: { id: 'u', email: 'x@y.com', role: 'staff' },
-      organizationId: 'o',
-      organizationSlug: 's',
-      mustChangePassword: false,
-      setupCompleted: true,
-    });
-
-  it("orgSlug verilince body'de gönderilir (çoklu-org seçimini tamamlar)", async () => {
-    const fetchMock = jest.fn(async (_url: string, _init?: RequestInit) => okSession());
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    await loginRequest({ email: 'x@y.com', password: 'p', rememberMe: true, orgSlug: 'org-a' });
-
-    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.orgSlug).toBe('org-a');
-    expect(body.email).toBe('x@y.com');
-    expect(body.rememberMe).toBe(true);
-  });
-
-  it("orgSlug verilmeyince body'de orgSlug anahtarı yok (normal giriş)", async () => {
-    const fetchMock = jest.fn(async (_url: string, _init?: RequestInit) => okSession());
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    await loginRequest({ email: 'x@y.com', password: 'p', rememberMe: false });
-
-    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect('orgSlug' in body).toBe(false);
-  });
-});

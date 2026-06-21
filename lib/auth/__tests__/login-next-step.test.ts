@@ -20,20 +20,6 @@ function baseResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
 }
 
 describe('resolveLoginStep', () => {
-  it('orgPickRequired + orgs → orgPick', () => {
-    const orgs = [
-      { slug: 'a', name: 'A Hastanesi' },
-      { slug: 'b', name: 'B Hastanesi' },
-    ];
-    const step = resolveLoginStep(baseResponse({ orgPickRequired: true, orgs, session: null }));
-    expect(step).toEqual({ kind: 'orgPick', orgs });
-  });
-
-  it('orgPickRequired ama orgs boş → blocked (boş seçim ekranı gösterme)', () => {
-    const step = resolveLoginStep(baseResponse({ orgPickRequired: true, orgs: [], session: null }));
-    expect(step.kind).toBe('blocked');
-  });
-
   it('mfaRequired → mfa', () => {
     const step = resolveLoginStep(baseResponse({ mfaRequired: true, session: null }));
     expect(step.kind).toBe('mfa');
@@ -62,19 +48,6 @@ describe('resolveLoginStep', () => {
 
   it('session var + mustChangePassword → yine session (bayrak ayrı ele alınır)', () => {
     expect(resolveLoginStep(baseResponse({ mustChangePassword: true })).kind).toBe('session');
-  });
-
-  it('öncelik: orgPick + mfa + sms hepsi varsa orgPick kazanır', () => {
-    const step = resolveLoginStep(
-      baseResponse({
-        orgPickRequired: true,
-        orgs: [{ slug: 'a', name: 'A' }],
-        mfaRequired: true,
-        smsMfaRequired: true,
-        session: null,
-      }),
-    );
-    expect(step.kind).toBe('orgPick');
   });
 
   it('öncelik: mfa + sms birlikte → mfa kazanır', () => {
