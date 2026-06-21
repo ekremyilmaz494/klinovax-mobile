@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Chip, InputField, Stack, Tag, Text, useTheme } from '@/design-system';
+import { useAward } from '@/hooks/use-award';
 import { ApiError } from '@/lib/api/client';
 import { fetchFeedbackForm, submitFeedback } from '@/lib/api/feedback';
 import {
@@ -16,6 +17,7 @@ import {
   isFeedbackComplete,
   YES_PARTIAL_NO_OPTIONS,
 } from '@/lib/exam/feedback-payload';
+import { buildFeedbackEvent } from '@/lib/gamification/award-events';
 import { useAuthStore } from '@/store/auth';
 import type { FeedbackForm, FeedbackItem } from '@/types/feedback';
 
@@ -29,6 +31,7 @@ export default function FeedbackScreen() {
   const { attemptId, title } = useLocalSearchParams<{ attemptId: string; title?: string }>();
   const logout = useAuthStore((s) => s.logout);
   const qc = useQueryClient();
+  const award = useAward();
 
   const { data, error, isLoading, refetch } = useQuery({
     queryKey: ['feedback-form'],
@@ -60,9 +63,10 @@ export default function FeedbackScreen() {
     mutationFn: () =>
       submitFeedback({ attemptId, includeName, answers: buildFeedbackPayload(answers) }),
     networkMode: 'online',
-    onSuccess: () => onSubmitted(),
+    onSuccess: (res) => onSubmitted(res.responseId),
     onError: (err) => {
       // 409 (zaten gönderildi) backend tarafında başarı sayılır — kullanıcıyı geçir.
+      // responseId yok → feedback_submit olayı ateşlenmez (ilk gönderimde zaten ateşlendi).
       if (err instanceof ApiError && err.status === 409) {
         onSubmitted();
         return;
@@ -92,11 +96,14 @@ export default function FeedbackScreen() {
     },
   });
 
-  const onSubmitted = () => {
+  const onSubmitted = (responseId?: string) => {
     qc.invalidateQueries({ queryKey: ['my-trainings'] });
     qc.invalidateQueries({ queryKey: ['training-detail'] });
     qc.invalidateQueries({ queryKey: ['staff-dashboard'] });
     qc.invalidateQueries({ queryKey: ['pending-feedback'] });
+    // Oyunlaştırma: feedback_submit puanı (refId = responseId). best-effort, akışı bloklamaz.
+    const event = buildFeedbackEvent(responseId);
+    if (event) void award([event]);
     Alert.alert('Teşekkürler', 'Geri bildirimin kaydedildi.', [
       { text: 'Tamam', onPress: () => router.back() },
     ]);

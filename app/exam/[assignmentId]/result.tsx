@@ -8,8 +8,10 @@ import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
+import { useAward } from '@/hooks/use-award';
 import { fetchExamResults } from '@/lib/api/exam';
 import { fetchTrainingDetail } from '@/lib/api/staff';
+import { buildExamPassedEvents } from '@/lib/gamification/award-events';
 import { resolveFeedbackCta } from '@/lib/exam/result-gating';
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam';
 import type { TrainingDetail } from '@/types/staff';
@@ -86,6 +88,18 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
     queryFn: () => fetchTrainingDetail(assignmentId),
   });
   const feedbackCta = resolveFeedbackCta(detail);
+
+  // Oyunlaştırma: sınav geçildiğinde puan olaylarını best-effort bildir. Ref guard
+  // → mount başına bir kez (olaylar idempotent, tekrar zararsız ama gereksiz fetch).
+  // training_complete daima ateşlenir (assignmentId elde, Leitner havuzunu anlık
+  // seed eder); exam_pass yalnız backend results yanıtı attemptId döndürürse.
+  const award = useAward();
+  const awardedRef = useRef(false);
+  useEffect(() => {
+    if (!passed || awardedRef.current) return;
+    awardedRef.current = true;
+    void award(buildExamPassedEvents({ assignmentId, attemptId: data.attemptId }));
+  }, [passed, assignmentId, data.attemptId, award]);
 
   return (
     <>

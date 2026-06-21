@@ -77,6 +77,12 @@ export type ExamResultsResponse = {
   attemptsRemaining: number;
   /** isPassed=false ise null (anti-cheat) */
   results: ExamResultDetail[] | null;
+  /**
+   * ExamAttempt.id — oyunlaştırma `exam_pass` olayının refId'si. Backend results
+   * yanıtı henüz bu alanı DÖNDÜRMÜYOR (istek listesinde); gelince exam_pass mobil
+   * değişikliği olmadan etkinleşir. Yokken training_complete olayı zaten ateşlenir.
+   */
+  attemptId?: string;
 };
 
 export type ExamVideoItem = {
