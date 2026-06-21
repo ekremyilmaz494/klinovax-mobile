@@ -1,5 +1,5 @@
 import { router, Stack as ExpoStack } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { useDailyQuestions, useSubmitDailyQuestions } from '@/hooks/use-daily-questions';
+import { reviewIntervalLabel } from '@/lib/gamification/review-format';
+import { hapticLight, hapticSuccess } from '@/lib/haptics';
 import { useOnline } from '@/lib/network/use-online';
 import type { DailyAnswer, DailyQuestion, DailySubmitResponse } from '@/types/daily';
 
@@ -44,6 +46,7 @@ export default function DailyQuizScreen() {
   const allAnswered = questions.length > 0 && questions.every((q) => answers.has(q.questionId));
 
   const handleSelect = (questionId: string, optionId: string) => {
+    hapticLight(); // hafif dokunsal geri bildirim (simülatörde no-op)
     setAnswers((prev) => {
       const next = new Map(prev);
       next.set(questionId, optionId);
@@ -242,6 +245,12 @@ function QueuedView({ onDone }: { onDone: () => void }) {
 function ResultView({ result, onDone }: { result: DailySubmitResponse; onDone: () => void }) {
   const t = useTheme();
   const total = result.results.length;
+
+  // Pozitif sonuçta başarı titreşimi (mount başına bir kez; simülatörde no-op).
+  useEffect(() => {
+    if (result.correctCount > 0) hapticSuccess();
+  }, [result.correctCount]);
+
   return (
     <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[10] }}>
       <Card variant="success" rail>
@@ -271,11 +280,20 @@ function ResultView({ result, onDone }: { result: DailySubmitResponse; onDone: (
           {result.results.map((r) => (
             <Stack key={r.questionId} direction="row" align="center" gap={3}>
               <IconDot variant={r.correct ? 'success' : 'danger'} size={24} />
-              <Text variant="footnote" tone="tertiary" style={{ flex: 1 }}>
-                {r.correct ? 'Doğru' : 'Tekrar denenecek'} · Kutu {r.newBox}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text variant="footnote" tone="primary">
+                  {r.correct ? 'Doğru' : 'Tekrar denenecek'}
+                </Text>
+                {/* Aralıklı tekrar zamanlaması — kutu yerine kullanıcı-dostu süre. */}
+                <Text variant="caption" tone="tertiary">
+                  {reviewIntervalLabel(r.newBox)}
+                </Text>
+              </View>
             </Stack>
           ))}
+          <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
+            Doğru bildiğin sorular giderek daha seyrek sorulur; yanlışlar yakında tekrar gelir.
+          </Text>
         </View>
       ) : null}
 

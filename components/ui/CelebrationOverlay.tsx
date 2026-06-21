@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useReducedMotion, useTheme } from '@/design-system';
+import { hapticSuccess } from '@/lib/haptics';
 
 /**
  * Tek seferlik kutlama katmanı — sınav geçme / eğitim tamamlama gibi NÖTR başarı
@@ -53,6 +54,9 @@ export function CelebrationOverlay({ onFinish }: { onFinish?: () => void }) {
   }, [onFinish]);
 
   useEffect(() => {
+    // Başarı titreşimi — Reduce Motion'dan bağımsız (haptik görsel hareket değil,
+    // dokunsal başarı işareti). Simülatörde no-op.
+    hapticSuccess();
     if (reduce) {
       // Hareketsiz: görsel kutlama atlanır, hemen biter.
       finish();

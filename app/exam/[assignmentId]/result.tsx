@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgeUnlockOverlay } from '@/components/gamification/BadgeUnlockOverlay';
 import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { Button, Card, Stack, Text, useTheme } from '@/design-system';
@@ -14,6 +15,7 @@ import { fetchTrainingDetail } from '@/lib/api/staff';
 import { buildExamPassedEvents } from '@/lib/gamification/award-events';
 import { resolveFeedbackCta } from '@/lib/exam/result-gating';
 import type { ExamResultDetail, ExamResultsResponse } from '@/types/exam';
+import type { NewBadge } from '@/types/gamification';
 import type { TrainingDetail } from '@/types/staff';
 
 export default function ExamResultScreen() {
@@ -93,12 +95,18 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
   // → mount başına bir kez (olaylar idempotent, tekrar zararsız ama gereksiz fetch).
   // training_complete daima ateşlenir (assignmentId elde, Leitner havuzunu anlık
   // seed eder); exam_pass yalnız backend results yanıtı attemptId döndürürse.
+  // Kredi sonucu yeni rozet dönerse → BadgeUnlockOverlay ile kutla.
   const award = useAward();
   const awardedRef = useRef(false);
+  const [unlockedBadges, setUnlockedBadges] = useState<NewBadge[]>([]);
   useEffect(() => {
     if (!passed || awardedRef.current) return;
     awardedRef.current = true;
-    void award(buildExamPassedEvents({ assignmentId, attemptId: data.attemptId }));
+    void award(buildExamPassedEvents({ assignmentId, attemptId: data.attemptId })).then(
+      (badges) => {
+        if (badges.length > 0) setUnlockedBadges(badges);
+      },
+    );
   }, [passed, assignmentId, data.attemptId, award]);
 
   return (
@@ -225,6 +233,7 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
       </ScrollView>
       {/* Kutlama yalnız NÖTR başarıda (sınav geçme); başarısız dalda yok. */}
       {passed ? <CelebrationOverlay /> : null}
+      <BadgeUnlockOverlay badges={unlockedBadges} onClose={() => setUnlockedBadges([])} />
     </>
   );
 }

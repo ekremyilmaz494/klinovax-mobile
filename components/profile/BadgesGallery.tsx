@@ -1,34 +1,10 @@
 import { View } from 'react-native';
 
-import { type IconSymbolName } from '@/components/ui/icon-symbol';
+import { badgeIcon, TIER_LABEL } from '@/components/gamification/badge-display';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconDot, Stack, Text, useTheme } from '@/design-system';
-import type { BadgeTier, GamificationSummary } from '@/types/gamification';
-
-/**
- * Backend badge.icon string'i (SF Symbol adı) → güvenli IconSymbolName.
- * Bilinmeyen ikon "blank" yerine `rosette`'e düşer (report uyarısı). Listedeki
- * isimlerin tümü icon-symbol MAPPING'inde tanımlı (compile-time doğrulanır).
- */
-const BADGE_ICONS: IconSymbolName[] = [
-  'checkmark.seal.fill',
-  'rosette',
-  'star.fill',
-  'graduationcap.fill',
-  'sparkles',
-  'flame.fill',
-  'trophy.fill',
-  'medal.fill',
-];
-
-function badgeIcon(icon: string): IconSymbolName {
-  return (BADGE_ICONS as string[]).includes(icon) ? (icon as IconSymbolName) : 'rosette';
-}
-
-const TIER_LABEL: Record<BadgeTier, string> = {
-  bronze: 'Bronz',
-  silver: 'Gümüş',
-  gold: 'Altın',
-};
+import { resolveLevel } from '@/lib/gamification/levels';
+import type { GamificationSummary } from '@/types/gamification';
 
 /**
  * Profil oyunlaştırma paneli: toplam puan + kazanılan/kilitli rozetler. Salt
@@ -41,6 +17,7 @@ const TIER_LABEL: Record<BadgeTier, string> = {
  */
 export function BadgesGallery({ summary }: { summary: GamificationSummary }) {
   const t = useTheme();
+  const lvl = resolveLevel(summary.points);
   return (
     <View style={{ paddingVertical: t.space[4], gap: t.space[5] }}>
       <Stack direction="row" align="center" gap={3}>
@@ -58,6 +35,19 @@ export function BadgesGallery({ summary }: { summary: GamificationSummary }) {
           </Text>
         </View>
       </Stack>
+
+      {/* Seviye + sonraki seviyeye ilerleme — puanın statü/ilerleme katmanı. */}
+      <View style={{ gap: t.space[2] }}>
+        <Stack direction="row" justify="space-between" align="center">
+          <Text variant="bodyEmph">
+            Seviye {lvl.level} · {lvl.title}
+          </Text>
+          <Text variant="footnote" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
+            {lvl.isMax ? 'En üst seviye' : `Sonraki seviyeye ${lvl.pointsToNext} puan`}
+          </Text>
+        </Stack>
+        <ProgressBar value={Math.round(lvl.progress * 100)} height={8} />
+      </View>
 
       {summary.badges.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.space[4] }}>
