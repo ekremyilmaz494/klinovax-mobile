@@ -47,6 +47,10 @@ export default function TabLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: t.surface.canvas },
         headerShadowVisible: false,
+        // Sola hizalı başlık: ortalı başlık dashboard'daki headerRight (takvim)
+        // yüzünden sıkışıp "Ana Sayfa" → "Ana Sa..." diye kesiliyordu. Sol hizada
+        // tam genişlik alır + sol-hizalı editorial içerikle tutarlıdır.
+        headerTitleAlign: 'left',
         headerTitleStyle: {
           fontFamily: FontFamily.display,
           fontSize: 20,
