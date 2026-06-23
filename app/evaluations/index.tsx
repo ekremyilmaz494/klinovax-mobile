@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Stack, Text, useTheme } from '@/design-system';
+import { ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { fetchEvaluations } from '@/lib/api/competency';
 import { ApiError } from '@/lib/api/client';
 import { evaluationStatusMeta, evaluatorTypeLabel } from '@/lib/competency/labels';
@@ -74,7 +74,13 @@ export default function EvaluationsScreen() {
   return (
     <Shell t={t}>
       <ScrollView
-        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, InputField, Stack, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, InputField, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchStaffProfile, updateStaffProfile } from '@/lib/api/staff';
 import { checkNewPassword, passwordStrength } from '@/lib/auth/password-policy';
@@ -129,7 +129,13 @@ export default function ProfileEditScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.form,
+            alignSelf: 'center',
+          }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}

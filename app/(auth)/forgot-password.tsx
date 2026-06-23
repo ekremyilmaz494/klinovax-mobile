@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Button, InputField, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, InputField, Text, useTheme } from '@/design-system';
 import { requestPasswordReset } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
 
@@ -56,7 +56,14 @@ export default function ForgotPasswordScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, padding: t.space[6], justifyContent: 'center' }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              padding: t.space[6],
+              justifyContent: 'center',
+              width: '100%',
+              maxWidth: ContentMaxWidth.form,
+              alignSelf: 'center',
+            }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -85,7 +92,14 @@ export default function ForgotPasswordScreen() {
                   Eğer bu adrese kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.
                   Bağlantı web tarayıcısında açılır.
                 </Text>
-                <View style={{ marginTop: t.space[4], alignSelf: 'stretch' }}>
+                <View
+                  style={{
+                    marginTop: t.space[4],
+                    width: '100%',
+                    maxWidth: ContentMaxWidth.form,
+                    alignSelf: 'center',
+                  }}
+                >
                   <Button
                     label="Giriş ekranına dön"
                     variant="primary"

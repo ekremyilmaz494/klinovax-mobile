@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Stack, Text, useTheme } from '@/design-system';
+import { ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchMyCompetency } from '@/lib/api/competency';
 import { evaluatorTypeLabel } from '@/lib/competency/labels';
@@ -65,7 +65,13 @@ export default function CompetencyScreen() {
   return (
     <Shell t={t}>
       <ScrollView
-        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

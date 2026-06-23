@@ -6,7 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/Badge';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, IconDot, InputField, Stack, Tag, Text, useTheme } from '@/design-system';
+import {
+  Button,
+  Card,
+  ContentMaxWidth,
+  IconDot,
+  InputField,
+  Stack,
+  Tag,
+  Text,
+  useTheme,
+} from '@/design-system';
 import { useStartExam } from '@/hooks/use-start-exam';
 import { fetchAttemptRequests } from '@/lib/api/attempt-requests';
 import { ApiError } from '@/lib/api/client';
@@ -152,7 +162,13 @@ function Detail({ data }: { data: TrainingDetail }) {
     // "Ek hak talep et" butonuna ilk dokunuş klavyeyi kapatmakla kalmasın,
     // butonu da bassın (feedback ekranıyla aynı pattern).
     <ScrollView
-      contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+      contentContainerStyle={{
+        padding: t.space[5],
+        paddingBottom: t.space[12],
+        width: '100%',
+        maxWidth: ContentMaxWidth.content,
+        alignSelf: 'center',
+      }}
       keyboardShouldPersistTaps="handled"
     >
       {data.category ? (

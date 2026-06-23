@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, InputField, Stack, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, InputField, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchEvaluation, submitEvaluation } from '@/lib/api/competency';
 import { evaluatorTypeLabel } from '@/lib/competency/labels';
@@ -131,7 +131,13 @@ export default function EvaluationFillScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.content,
+            alignSelf: 'center',
+          }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}

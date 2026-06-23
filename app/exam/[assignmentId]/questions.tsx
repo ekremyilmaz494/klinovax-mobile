@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhaseTransitionModal } from '@/components/exam/PhaseTransitionModal';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Stack, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamQuestions, fetchExamTimer } from '@/lib/api/exam';
@@ -449,7 +449,15 @@ function QuestionsView({
         </Stack>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[8] }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[8],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
+      >
         <Text variant="title-2" maxFontSizeMultiplier={1.6}>
           {question.text}
         </Text>

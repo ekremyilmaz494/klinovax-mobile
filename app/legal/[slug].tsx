@@ -2,7 +2,7 @@ import { Stack as ExpoStack, useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Hero, Stack, Text, useTheme } from '@/design-system';
+import { ContentMaxWidth, Hero, Stack, Text, useTheme } from '@/design-system';
 import { LEGAL_CONTENT, type LegalSlug } from '@/lib/legal/content';
 
 const SLUGS = new Set<LegalSlug>(['kvkk', 'terms', 'privacy']);
@@ -29,7 +29,15 @@ export default function LegalScreen() {
         edges={['bottom']}
         style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}
       >
-        <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.content,
+            alignSelf: 'center',
+          }}
+        >
           <Hero
             overline={doc.updatedAt ? `Son güncelleme · ${doc.updatedAt}` : undefined}
             title={doc.title}

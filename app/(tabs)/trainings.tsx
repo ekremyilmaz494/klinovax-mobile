@@ -18,7 +18,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
 import { StatCard } from '@/components/ui/StatCard';
-import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { Chip, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchMyTrainings, fetchTrainingPeriods } from '@/lib/api/staff';
 import { computeAverageScore } from '@/lib/staff/stats';
@@ -193,7 +193,13 @@ export default function TrainingsScreen() {
           data={items}
           keyExtractor={(it) => it.id}
           renderItem={({ item }) => <TrainingCard item={item} />}
-          contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+          contentContainerStyle={{
+            padding: t.space[4],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.list,
+            alignSelf: 'center',
+          }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={
             emptyReason === 'no_active_period' ? (

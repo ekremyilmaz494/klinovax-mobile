@@ -4,7 +4,7 @@ import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { useStartExam } from '@/hooks/use-start-exam';
 import { apiFetch } from '@/lib/api/client';
 import type { TrainingDetail } from '@/types/staff';
@@ -34,7 +34,15 @@ export default function ExamStartScreen() {
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ExpoStack.Screen options={{ title: 'Sınav başlat', headerBackTitle: 'Geri' }} />
 
-      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
+      >
         <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
           SINAV
         </Text>

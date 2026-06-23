@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, ContentMaxWidth, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { useDailyQuestions, useSubmitDailyQuestions } from '@/hooks/use-daily-questions';
 import { reviewIntervalLabel } from '@/lib/gamification/review-format';
 import { hapticLight, hapticSuccess } from '@/lib/haptics';
@@ -94,7 +94,15 @@ export default function DailyQuizScreen() {
           description="Bugünlük pekiştirme tamam. Yeni sorular vadesi geldikçe burada görünecek."
         />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[10] }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[10],
+            width: '100%',
+            maxWidth: ContentMaxWidth.content,
+            alignSelf: 'center',
+          }}
+        >
           <Text variant="subhead" tone="tertiary" style={{ marginBottom: t.space[5] }}>
             Kısa bir tekrar — öğrendiklerini pekiştir. {questions.length} soru.
           </Text>
@@ -252,7 +260,15 @@ function ResultView({ result, onDone }: { result: DailySubmitResponse; onDone: (
   }, [result.correctCount]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[10] }}>
+    <ScrollView
+      contentContainerStyle={{
+        padding: t.space[5],
+        paddingBottom: t.space[10],
+        width: '100%',
+        maxWidth: ContentMaxWidth.content,
+        alignSelf: 'center',
+      }}
+    >
       <Card variant="success" rail>
         <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>
           PEKİŞTİRME TAMAMLANDI

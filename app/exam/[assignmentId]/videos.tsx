@@ -24,7 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamState, fetchExamVideos } from '@/lib/api/exam';
 import {
@@ -362,7 +362,13 @@ function Body({
             />
           );
         }}
-        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         windowSize={10}
         initialNumToRender={8}
         maxToRenderPerBatch={5}
@@ -972,7 +978,9 @@ function VideoBlock({
         position: 'relative',
         width: '100%',
         backgroundColor: t.colors.media.background,
-        ...(fullscreen ? { flex: 1 } : { aspectRatio: 16 / 9 }),
+        ...(fullscreen
+          ? { flex: 1 }
+          : { aspectRatio: 16 / 9, maxWidth: ContentMaxWidth.player, alignSelf: 'center' }),
       }}
     >
       {isAudio ? (
