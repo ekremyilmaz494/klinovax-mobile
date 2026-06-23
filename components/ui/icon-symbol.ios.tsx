@@ -1,5 +1,5 @@
 import { SymbolView, SymbolViewProps, SymbolWeight } from 'expo-symbols';
-import { StyleProp, ViewStyle } from 'react-native';
+import { StyleProp, View, ViewStyle } from 'react-native';
 
 export type IconSymbolName = SymbolViewProps['name'];
 
@@ -17,18 +17,18 @@ export function IconSymbol({
   weight?: SymbolWeight;
 }) {
   return (
-    <SymbolView
-      weight={weight}
-      tintColor={color}
-      resizeMode="scaleAspectFit"
-      name={name}
-      style={[
-        {
-          width: size,
-          height: size,
-        },
-        style,
-      ]}
-    />
+    // iOS 26 + New Arch: SymbolView native UIView'i (userInteractionEnabled=true)
+    // tab hücresinin ortasında dokunuşu yutuyordu → tab butonları tıklanamıyordu
+    // (react-navigation#12935). pointerEvents="none" ile hit-test PlatformPressable'a
+    // düşsün. View ile sarmalamak garanti yöntem (prop SymbolView'de ignore edilse bile).
+    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
+      <SymbolView
+        weight={weight}
+        tintColor={color}
+        resizeMode="scaleAspectFit"
+        name={name}
+        style={{ width: size, height: size }}
+      />
+    </View>
   );
 }
