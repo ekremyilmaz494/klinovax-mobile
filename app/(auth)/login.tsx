@@ -46,16 +46,12 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Çoklu-org personel: ilk giriş orgPickRequired dönerse org listesi burada tutulur
-  // ve kimlik formu yerine seçim ekranı gösterilir (null = normal kimlik formu).
-  const [orgChoices, setOrgChoices] = useState<{ slug: string; name: string }[] | null>(null);
-  const [selectedOrgSlug, setSelectedOrgSlug] = useState<string | null>(null);
   const setSession = useAuthStore((s) => s.setSession);
 
-  // Tek giriş yolu: orgSlug verilmezse normal giriş; verilirse çoklu-org seçimini
-  // tamamlamak için aynı kimlikle (email+password) tekrar dener. Yanıtın sıradaki
-  // adımı resolveLoginStep ile çözülür — gating sırası backend/web ile birebir.
-  const runLogin = async (orgSlug?: string) => {
+  // Tek giriş yolu. Yanıtın sıradaki adımı resolveLoginStep ile çözülür — gating sırası
+  // backend/web ile birebir. (Tek-org politikası: çoklu-org seçimi YOK; çakışmada backend
+  // 409 döner ve catch bloğu kullanıcıya mesajı gösterir.)
+  const runLogin = async () => {
     setError(null);
     if (!email.trim() || !password) {
       setError('E-posta/TC Kimlik No ve şifre gereklidir.');
@@ -63,13 +59,9 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const res = await loginRequest({ email: email.trim(), password, rememberMe, orgSlug });
+      const res = await loginRequest({ email: email.trim(), password, rememberMe });
       const step = resolveLoginStep(res);
       switch (step.kind) {
-        case 'orgPick':
-          // Aynı TC birden fazla kurumda → kimlik formu yerine kurum seçimini göster.
-          setOrgChoices(step.orgs);
-          return;
         case 'mfa':
           Alert.alert(
             'Ek doğrulama gerekli',
@@ -127,20 +119,6 @@ export default function LoginScreen() {
 
   const onSubmit = () => void runLogin();
 
-  const onSelectOrgConfirm = () => {
-    if (!selectedOrgSlug) {
-      setError('Lütfen bir kurum seçin.');
-      return;
-    }
-    void runLogin(selectedOrgSlug);
-  };
-
-  const backToCredentials = () => {
-    setOrgChoices(null);
-    setSelectedOrgSlug(null);
-    setError(null);
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <AuroraBackground />
@@ -192,196 +170,136 @@ export default function LoginScreen() {
               </Text>
             </View>
 
-            {orgChoices ? (
-              <View style={{ gap: t.space[2] }}>
-                <Text variant="title-2">Kurum seçin</Text>
-                <Text variant="subhead" tone="tertiary">
-                  Bu TC Kimlik No birden fazla kurumda kayıtlı. Devam etmek istediğiniz kurumu
-                  seçin.
-                </Text>
+            <View style={{ gap: t.space[1] }}>
+              <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
+                TC KİMLİK NO VEYA E-POSTA
+              </Text>
+              <InputField
+                value={email}
+                onChangeText={setEmail}
+                placeholder="TC Kimlik No veya ad@hastane.com"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="username"
+                editable={!loading}
+                inputStyle={{ marginTop: t.space[1] }}
+              />
 
-                <Stack gap={3} style={{ marginTop: t.space[4] }}>
-                  {orgChoices.map((org) => {
-                    const selected = selectedOrgSlug === org.slug;
-                    return (
-                      <Button
-                        key={org.slug}
-                        label={org.name}
-                        variant={selected ? 'primary' : 'outline'}
-                        size="lg"
-                        fullWidth
-                        disabled={loading}
-                        onPress={() => setSelectedOrgSlug(org.slug)}
-                        accessibilityLabel={selected ? `${org.name}, seçili` : org.name}
-                      />
-                    );
-                  })}
-                </Stack>
-
-                {error ? (
-                  <Text variant="footnote" tone="danger" style={{ marginTop: t.space[3] }}>
-                    {error}
-                  </Text>
-                ) : null}
-
-                <View style={{ marginTop: t.space[6] }}>
-                  <Button
-                    label="Devam Et"
-                    variant="primary"
-                    size="lg"
-                    onPress={onSelectOrgConfirm}
-                    loading={loading}
-                    disabled={!selectedOrgSlug || loading}
-                    fullWidth
-                  />
-                  <Pressable
-                    onPress={backToCredentials}
-                    disabled={loading}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    style={({ pressed }) => ({
-                      marginTop: t.space[4],
-                      alignSelf: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Text variant="footnote" style={{ color: t.colors.accent.clay }}>
-                      Farklı hesapla giriş
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={{ gap: t.space[1] }}>
-                <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
-                  TC KİMLİK NO VEYA E-POSTA
-                </Text>
+              <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[4] }}>
+                ŞİFRE
+              </Text>
+              {/* Şifre göster/gizle — personel TC/şifre yazdığını doğrulayabilsin (göz ikonu). */}
+              <View style={{ position: 'relative' }}>
                 <InputField
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="TC Kimlik No veya ad@hastane.com"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showPassword}
                   autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  textContentType="username"
+                  autoComplete="password"
+                  textContentType="password"
                   editable={!loading}
-                  inputStyle={{ marginTop: t.space[1] }}
+                  inputStyle={{ marginTop: t.space[1], paddingRight: 48 }}
                 />
-
-                <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[4] }}>
-                  ŞİFRE
-                </Text>
-                <View style={{ position: 'relative' }}>
-                  <InputField
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="••••••••"
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoComplete="password"
-                    textContentType="password"
-                    editable={!loading}
-                    inputStyle={{ marginTop: t.space[1], paddingRight: 48 }}
+                <Pressable
+                  onPress={() => setShowPassword((s) => !s)}
+                  disabled={loading}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  style={({ pressed }) => ({
+                    position: 'absolute',
+                    right: t.space[3],
+                    top: t.space[1],
+                    bottom: 0,
+                    width: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <IconSymbol
+                    name={showPassword ? 'eye.slash' : 'eye'}
+                    size={22}
+                    color={t.colors.text.tertiary}
                   />
-                  <Pressable
-                    onPress={() => setShowPassword((s) => !s)}
-                    disabled={loading}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                    style={({ pressed }) => ({
-                      position: 'absolute',
-                      right: t.space[3],
-                      top: t.space[1],
-                      bottom: 0,
-                      width: 40,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <IconSymbol
-                      name={showPassword ? 'eye.slash' : 'eye'}
-                      size={22}
-                      color={t.colors.text.tertiary}
-                    />
-                  </Pressable>
-                </View>
-
-                <Stack direction="row" align="center" gap={3} style={{ marginTop: t.space[4] }}>
-                  <Switch
-                    value={rememberMe}
-                    onValueChange={setRememberMe}
-                    disabled={loading}
-                    trackColor={{ false: t.colors.border.default, true: t.colors.accent.clay }}
-                    thumbColor={t.colors.surface.primary}
-                  />
-                  <Text variant="callout" tone="secondary" style={{ flex: 1 }}>
-                    Bu cihazda oturumumu açık tut (7 gün)
-                  </Text>
-                </Stack>
-
-                {error ? (
-                  <Text variant="footnote" tone="danger" style={{ marginTop: t.space[3] }}>
-                    {error}
-                  </Text>
-                ) : null}
-
-                {isLocalDevApi ? (
-                  <Card variant="warning" rail padding={3} style={{ marginTop: t.space[4] }}>
-                    <Text
-                      variant="overline"
-                      style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
-                    >
-                      DEV — Backend kontrol
-                    </Text>
-                    <Text variant="footnote" tone="secondary">
-                      API: {API_BASE_URL}
-                      {'\n'}
-                      {"Sunucuya ulaşılamıyorsa: hospital-lms repo'da "}
-                      <Text
-                        variant="footnote"
-                        style={{
-                          fontFamily: FontFamily.mono,
-                          fontWeight: '600',
-                          color: t.colors.text.primary,
-                        }}
-                      >
-                        pnpm dev
-                      </Text>
-                    </Text>
-                  </Card>
-                ) : null}
-
-                <View style={{ marginTop: t.space[6] }}>
-                  <Button
-                    label="Giriş Yap"
-                    variant="primary"
-                    size="lg"
-                    onPress={onSubmit}
-                    loading={loading}
-                    disabled={loading}
-                    fullWidth
-                  />
-                  <Pressable
-                    onPress={() => router.push('/(auth)/forgot-password')}
-                    disabled={loading}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    style={({ pressed }) => ({
-                      marginTop: t.space[4],
-                      alignSelf: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Text variant="footnote" style={{ color: t.colors.accent.clay }}>
-                      Şifremi unuttum
-                    </Text>
-                  </Pressable>
-                </View>
+                </Pressable>
               </View>
-            )}
+
+              <Stack direction="row" align="center" gap={3} style={{ marginTop: t.space[4] }}>
+                <Switch
+                  value={rememberMe}
+                  onValueChange={setRememberMe}
+                  disabled={loading}
+                  trackColor={{ false: t.colors.border.default, true: t.colors.accent.clay }}
+                  thumbColor={t.colors.surface.primary}
+                />
+                <Text variant="callout" tone="secondary" style={{ flex: 1 }}>
+                  Bu cihazda oturumumu açık tut (7 gün)
+                </Text>
+              </Stack>
+
+              {error ? (
+                <Text variant="footnote" tone="danger" style={{ marginTop: t.space[3] }}>
+                  {error}
+                </Text>
+              ) : null}
+
+              {isLocalDevApi ? (
+                <Card variant="warning" rail padding={3} style={{ marginTop: t.space[4] }}>
+                  <Text
+                    variant="overline"
+                    style={{ color: t.colors.status.warning, marginBottom: t.space[1] }}
+                  >
+                    DEV — Backend kontrol
+                  </Text>
+                  <Text variant="footnote" tone="secondary">
+                    API: {API_BASE_URL}
+                    {'\n'}
+                    {"Sunucuya ulaşılamıyorsa: hospital-lms repo'da "}
+                    <Text
+                      variant="footnote"
+                      style={{
+                        fontFamily: FontFamily.mono,
+                        fontWeight: '600',
+                        color: t.colors.text.primary,
+                      }}
+                    >
+                      pnpm dev
+                    </Text>
+                  </Text>
+                </Card>
+              ) : null}
+
+              <View style={{ marginTop: t.space[6] }}>
+                <Button
+                  label="Giriş Yap"
+                  variant="primary"
+                  size="lg"
+                  onPress={onSubmit}
+                  loading={loading}
+                  disabled={loading}
+                  fullWidth
+                />
+                <Pressable
+                  onPress={() => router.push('/(auth)/forgot-password')}
+                  disabled={loading}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    marginTop: t.space[4],
+                    alignSelf: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <Text variant="footnote" style={{ color: t.colors.accent.clay }}>
+                    Şifremi unuttum
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
