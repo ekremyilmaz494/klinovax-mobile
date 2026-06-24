@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Stack, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { shareCertificatePdf } from '@/lib/api/cert-download';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
 import { ApiError } from '@/lib/api/client';
@@ -76,7 +76,13 @@ export default function CertificatesScreen() {
         data={items}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <CertificateCard cert={item} />}
-        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.list,
+          alignSelf: 'center',
+        }}
         ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
         ListHeaderComponent={
           items.length > 0 ? (

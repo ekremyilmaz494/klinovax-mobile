@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Chip, InputField, Stack, Text, useTheme } from '@/design-system';
+import { Button, Chip, ContentMaxWidth, InputField, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { createKvkkRequest, fetchKvkkRequests } from '@/lib/api/kvkk';
 import { useAuthStore } from '@/store/auth';
@@ -145,7 +145,13 @@ export default function KvkkScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.content,
+            alignSelf: 'center',
+          }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}

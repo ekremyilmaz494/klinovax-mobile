@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Card, IconDot, Stack, Text, useTheme } from '@/design-system';
+import { Card, ContentMaxWidth, IconDot, Stack, Text, useTheme } from '@/design-system';
 import { useDailyQuestions } from '@/hooks/use-daily-questions';
 import { useGamification } from '@/hooks/use-gamification';
 import { ApiError } from '@/lib/api/client';
@@ -92,7 +92,13 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
-        contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

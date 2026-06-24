@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BadgeUnlockOverlay } from '@/components/gamification/BadgeUnlockOverlay';
 import { CelebrationOverlay } from '@/components/ui/CelebrationOverlay';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Card, Stack, Text, useTheme } from '@/design-system';
+import { Button, Card, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { useAndroidBackGuard } from '@/hooks/use-android-back-guard';
 import { useAward } from '@/hooks/use-award';
 import { fetchExamResults } from '@/lib/api/exam';
@@ -111,7 +111,15 @@ function ResultBody({ data, assignmentId }: { data: ExamResultsResponse; assignm
 
   return (
     <>
-      <ScrollView contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
+      >
         <View
           style={{
             backgroundColor: heroBg,

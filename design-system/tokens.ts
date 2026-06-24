@@ -39,6 +39,23 @@ export const Space = {
 export const Hairline = StyleSheet.hairlineWidth;
 
 /**
+ * İçerik sütunu için maksimum genişlikler. Telefonda etkisi yoktur (ekran zaten
+ * dar); iPad/tablet'te içeriğin kenardan kenara "gerinmesini" önler — ortalanmış,
+ * okunabilir bir sütun verir. Ekranların ScrollView/FlatList contentContainerStyle'ına
+ * { width: '100%', maxWidth, alignSelf: 'center' } olarak uygulanır.
+ */
+export const ContentMaxWidth = {
+  /** Dar formlar: login, şifre sıfırlama, profil düzenleme. */
+  form: 480,
+  /** Standart içerik / dashboard / detay sayfaları. */
+  content: 640,
+  /** Liste ekranları (eğitimler, sertifikalar, bildirimler). */
+  list: 700,
+  /** Video sahnesi gibi geniş medya. */
+  player: 820,
+} as const;
+
+/**
  * Warm Editorial estetiği gölge yerine hairline border kullanır. Daha sonra
  * gölge gerekirse tema-bilinçli olmalı (dark mode'da ink-900 koyu surface
  * üzerinde görünmez); o yüzden burada static `card`/`raised` token tutmuyoruz.

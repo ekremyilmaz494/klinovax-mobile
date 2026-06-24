@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BadgesGallery } from '@/components/profile/BadgesGallery';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
+import { Button, Chip, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { useGamification } from '@/hooks/use-gamification';
 import { fetchStaffProfile } from '@/lib/api/staff';
 import { shareTranscriptPdf } from '@/lib/api/transcript-download';
@@ -133,7 +133,13 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: t.colors.surface.canvas }}>
       <ScrollView
-        contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         showsVerticalScrollIndicator={false}
       >
         <Stack direction="row" align="center" gap={4} style={{ marginBottom: t.space[6] }}>

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Chip, Stack, Text, useTheme } from '@/design-system';
+import { Chip, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { useMarkAllAsRead, useNotifications } from '@/hooks/use-notifications';
 import { ApiError } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth';
@@ -137,6 +137,9 @@ export default function NotificationsScreen() {
           padding: t.space[4],
           paddingTop: t.space[2],
           paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.list,
+          alignSelf: 'center',
         }}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Chip, InputField, Text, useTheme } from '@/design-system';
+import { Button, Chip, ContentMaxWidth, InputField, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { createSmgActivity, fetchSmgCategories } from '@/lib/api/smg';
 import { useAuthStore } from '@/store/auth';
@@ -110,7 +110,13 @@ export default function SmgAddScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+          contentContainerStyle={{
+            padding: t.space[5],
+            paddingBottom: t.space[12],
+            width: '100%',
+            maxWidth: ContentMaxWidth.form,
+            alignSelf: 'center',
+          }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}

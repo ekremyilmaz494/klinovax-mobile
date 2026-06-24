@@ -2,7 +2,7 @@ export { FontFamily, FontMap } from './fonts';
 export type { FontFamilyKey } from './fonts';
 export { darkTheme, lightTheme, useTheme } from './theme';
 export type { SemanticColors, Theme, ThemeMode } from './theme';
-export { Hairline, Motion, Palette, Radius, Shadow, Space } from './tokens';
+export { ContentMaxWidth, Hairline, Motion, Palette, Radius, Shadow, Space } from './tokens';
 export { Type } from './typography';
 export type { TypeVariant } from './typography';
 export { useReducedMotion } from './useReducedMotion';

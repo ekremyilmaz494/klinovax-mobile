@@ -18,18 +18,24 @@ const THUMB = 14;
 
 /**
  * Video ilerleme çubuğu — dokunma/sürükleme ile konuma gider AMA ileri-sarma
- * engeline tabidir: `onSeekTo` çağıran tarafta `clampSeekTarget` ile mevcut
- * konuma sınırlanır (ileri sürükleme → no-op, thumb geri yaslanır). Geri sürükleme
- * serbest. 1Hz timeUpdate'i izole eden tek alt-bileşen — player'ı re-render etmez.
+ * engeline tabidir. İKİ KATMAN: (1) görsel — thumb/dolgu mevcut oynatma konumunu
+ * (`ceilingSV`) GEÇEMEZ; ileri sürükleme thumb'ı tavanda tutar (hiç ileri gitmez,
+ * geri snap yok). (2) commit — `onSeekTo` çağıran tarafta `clampSeekTarget` ile yine
+ * sınırlanır (savunma derinliği). Geri sürükleme serbest. İnceleme modunda
+ * (`allowForward`) sınav bittiği için ileri de serbest. 1Hz timeUpdate'i izole eden
+ * tek alt-bileşen — player'ı re-render etmez.
  */
 export function VideoScrubber({
   player,
   durationSeconds,
   onSeekTo,
+  allowForward = false,
 }: {
   player: VideoPlayer;
   durationSeconds: number;
   onSeekTo: (seconds: number) => void;
+  /** İnceleme modu: ileri sarma serbest (sınav bitti). Varsayılan: yasak. */
+  allowForward?: boolean;
 }) {
   const t = useTheme();
   const reduce = useReducedMotion();
@@ -45,13 +51,17 @@ export function VideoScrubber({
   const widthSV = useSharedValue(0);
   const fill = useSharedValue(0); // 0..1 dolgu oranı
   const dragging = useSharedValue(false);
+  // İleri-sarma tavanı: mevcut oynatma oranı (0..1). Sürüklerken bile canlı tutulur;
+  // thumb bunu geçemez (anti-cheat görsel katmanı).
+  const ceilingSV = useSharedValue(0);
 
-  // timeUpdate → sürüklenmiyorken dolguyu canlı konuma getir.
+  // timeUpdate → tavanı her zaman, dolguyu sürüklenmiyorken canlı konuma getir.
   useEffect(() => {
-    if (dragging.value) return;
     const frac = durationSeconds > 0 ? current / durationSeconds : 0;
+    ceilingSV.value = frac;
+    if (dragging.value) return;
     fill.value = reduce ? frac : withTiming(frac, { duration: 220 });
-  }, [current, durationSeconds, reduce, fill, dragging]);
+  }, [current, durationSeconds, reduce, fill, dragging, ceilingSV]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     widthSV.value = e.nativeEvent.layout.width;
@@ -69,7 +79,11 @@ export function VideoScrubber({
     .onUpdate((e) => {
       const w = widthSV.value;
       if (w <= 0) return;
-      fill.value = Math.max(0, Math.min(1, e.x / w));
+      let frac = Math.max(0, Math.min(1, e.x / w));
+      // Anti-cheat: ileri sürüklemeyi GÖRSEL olarak da engelle — thumb mevcut konumu
+      // (tavan) geçemez. İnceleme modunda serbest.
+      if (!allowForward) frac = Math.min(frac, ceilingSV.value);
+      fill.value = frac;
     })
     .onEnd(() => {
       runOnJS(commit)(fill.value);
@@ -81,7 +95,8 @@ export function VideoScrubber({
   const tap = Gesture.Tap().onEnd((e) => {
     const w = widthSV.value;
     if (w <= 0) return;
-    const frac = Math.max(0, Math.min(1, e.x / w));
+    let frac = Math.max(0, Math.min(1, e.x / w));
+    if (!allowForward) frac = Math.min(frac, ceilingSV.value);
     fill.value = frac;
     runOnJS(commit)(frac);
   });

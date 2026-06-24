@@ -7,7 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Chip, InputField, Stack, Tag, Text, useTheme } from '@/design-system';
+import {
+  Button,
+  Chip,
+  ContentMaxWidth,
+  InputField,
+  Stack,
+  Tag,
+  Text,
+  useTheme,
+} from '@/design-system';
 import { useAward } from '@/hooks/use-award';
 import { ApiError } from '@/lib/api/client';
 import { fetchFeedbackForm, submitFeedback } from '@/lib/api/feedback';
@@ -197,7 +206,13 @@ function FormBody({
 
   return (
     <ScrollView
-      contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+      contentContainerStyle={{
+        padding: t.space[5],
+        paddingBottom: t.space[12],
+        width: '100%',
+        maxWidth: ContentMaxWidth.content,
+        alignSelf: 'center',
+      }}
       keyboardShouldPersistTaps="handled"
     >
       <Text variant="overline" tone="tertiary" style={{ marginBottom: t.space[2] }}>

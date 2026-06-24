@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, Chip, Stack, Text, useTheme } from '@/design-system';
+import { Button, Chip, ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchSmgPoints } from '@/lib/api/smg';
 import { smgActivityTypeLabel, smgStatusMeta } from '@/lib/smg/labels';
@@ -98,7 +98,13 @@ export default function SmgScreen() {
   return (
     <Shell t={t}>
       <ScrollView
-        contentContainerStyle={{ padding: t.space[5], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[5],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

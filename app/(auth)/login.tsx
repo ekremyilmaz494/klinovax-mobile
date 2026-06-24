@@ -12,7 +12,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
-import { Button, Card, FontFamily, InputField, Stack, Text, useTheme } from '@/design-system';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import {
+  Button,
+  Card,
+  ContentMaxWidth,
+  FontFamily,
+  InputField,
+  Stack,
+  Text,
+  useTheme,
+} from '@/design-system';
 import { ApiError, loginRequest } from '@/lib/api/client';
 import { isBiometricAvailable } from '@/lib/auth/biometric';
 import { getBiometricEnabled, setBiometricEnabled } from '@/lib/auth/biometric-flag';
@@ -31,6 +41,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Şifre göster/gizle — personel yazdığını doğrulayabilsin (göz ikonu).
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +130,14 @@ export default function LoginScreen() {
           {/* ScrollView: küçük ekran (iPhone SE) + klavye açıkken brand+form sığmayıp
               üstten kesilmesin; içerik scroll edilebilir, dokunuşlar form'a geçer. */}
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, padding: t.space[6], justifyContent: 'center' }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              padding: t.space[6],
+              justifyContent: 'center',
+              width: '100%',
+              maxWidth: ContentMaxWidth.form,
+              alignSelf: 'center',
+            }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -153,12 +172,12 @@ export default function LoginScreen() {
 
             <View style={{ gap: t.space[1] }}>
               <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[2] }}>
-                E-POSTA VEYA TC KİMLİK NO
+                TC KİMLİK NO VEYA E-POSTA
               </Text>
               <InputField
                 value={email}
                 onChangeText={setEmail}
-                placeholder="ad@hastane.com veya TC No"
+                placeholder="TC Kimlik No veya ad@hastane.com"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -171,17 +190,43 @@ export default function LoginScreen() {
               <Text variant="caption" tone="tertiary" style={{ marginTop: t.space[4] }}>
                 ŞİFRE
               </Text>
-              <InputField
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="password"
-                textContentType="password"
-                editable={!loading}
-                inputStyle={{ marginTop: t.space[1] }}
-              />
+              {/* Şifre göster/gizle — personel TC/şifre yazdığını doğrulayabilsin (göz ikonu). */}
+              <View style={{ position: 'relative' }}>
+                <InputField
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  textContentType="password"
+                  editable={!loading}
+                  inputStyle={{ marginTop: t.space[1], paddingRight: 48 }}
+                />
+                <Pressable
+                  onPress={() => setShowPassword((s) => !s)}
+                  disabled={loading}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  style={({ pressed }) => ({
+                    position: 'absolute',
+                    right: t.space[3],
+                    top: t.space[1],
+                    bottom: 0,
+                    width: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <IconSymbol
+                    name={showPassword ? 'eye.slash' : 'eye'}
+                    size={22}
+                    color={t.colors.text.tertiary}
+                  />
+                </Pressable>
+              </View>
 
               <Stack direction="row" align="center" gap={3} style={{ marginTop: t.space[4] }}>
                 <Switch

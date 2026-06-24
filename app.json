@@ -12,7 +12,8 @@
       "policy": "appVersion"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.klinovax.app",
       "buildNumber": "1",
       "config": {

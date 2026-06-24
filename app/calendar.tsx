@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Stack, Text, useTheme } from '@/design-system';
+import { ContentMaxWidth, Stack, Text, useTheme } from '@/design-system';
 import { fetchCalendar } from '@/lib/api/calendar';
 import { groupEventsByDay, monthLabel, monthParam, shiftMonth } from '@/lib/calendar/agenda';
 import { useAuthStore } from '@/store/auth';
@@ -119,7 +119,13 @@ export default function CalendarScreen() {
             </Text>
           )}
           renderItem={({ item }) => <EventCard event={item} t={t} />}
-          contentContainerStyle={{ paddingBottom: t.space[12], flexGrow: 1 }}
+          contentContainerStyle={{
+            paddingBottom: t.space[12],
+            flexGrow: 1,
+            width: '100%',
+            maxWidth: ContentMaxWidth.content,
+            alignSelf: 'center',
+          }}
           ListEmptyComponent={
             <EmptyState
               icon="calendar"

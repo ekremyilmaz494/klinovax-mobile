@@ -24,7 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenError } from '@/components/ui/ScreenError';
-import { Button, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
+import { Button, ContentMaxWidth, IconDot, Stack, Tag, Text, useTheme } from '@/design-system';
 import { ApiError } from '@/lib/api/client';
 import { fetchExamState, fetchExamVideos } from '@/lib/api/exam';
 import {
@@ -362,7 +362,13 @@ function Body({
             />
           );
         }}
-        contentContainerStyle={{ padding: t.space[4], paddingBottom: t.space[12] }}
+        contentContainerStyle={{
+          padding: t.space[4],
+          paddingBottom: t.space[12],
+          width: '100%',
+          maxWidth: ContentMaxWidth.content,
+          alignSelf: 'center',
+        }}
         windowSize={10}
         initialNumToRender={8}
         maxToRenderPerBatch={5}
@@ -972,7 +978,9 @@ function VideoBlock({
         position: 'relative',
         width: '100%',
         backgroundColor: t.colors.media.background,
-        ...(fullscreen ? { flex: 1 } : { aspectRatio: 16 / 9 }),
+        ...(fullscreen
+          ? { flex: 1 }
+          : { aspectRatio: 16 / 9, maxWidth: ContentMaxWidth.player, alignSelf: 'center' }),
       }}
     >
       {isAudio ? (
@@ -1060,6 +1068,7 @@ function VideoBlock({
           onSeekTo={seekTo}
           onToggleFullscreen={fullscreen ? exitFullscreen : enterFullscreen}
           hideFullscreen={isAudio}
+          allowForwardSeek={isReview}
         />
       )}
     </View>
@@ -1116,11 +1125,16 @@ function VideoBlock({
       </Stack>
 
       {/* Yatay tam ekran — supportedOrientations iOS modal'ın dönmesine izin verir
-          (app portrait kilitliyken bile). Android'de ScreenOrientation.lockAsync döndürür. */}
+          (app portrait kilitliyken bile). Android'de ScreenOrientation.lockAsync döndürür.
+          'portrait' DAHİL olmalı: çıkışta exitFullscreen önce PORTRAIT_UP'a kilitleyip
+          sonra modalı gizliyor → landscape-only liste, modal hâlâ açıkken cihaz portrait'e
+          dönerken iOS maske çakışması fırlatıyordu ("Modal presented with 0x10 but app
+          supports 0x6", non-dev'de çökme). Portrait'i de izinli kılmak geçişi yasallaştırır;
+          gerçek yönelimi yine lockAsync sürer (bu liste yalnız neyin LEGAL olduğunu bildirir). */}
       <Modal
         visible={isFullscreen}
         animationType="fade"
-        supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}
+        supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
         onRequestClose={exitFullscreen}
       >
         <View style={{ flex: 1, backgroundColor: t.colors.media.background }}>

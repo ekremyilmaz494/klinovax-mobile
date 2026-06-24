@@ -45,6 +45,7 @@ const MAPPING = {
   bell: 'notifications-none',
   'square.and.arrow.up': 'share',
   eye: 'visibility',
+  'eye.slash': 'visibility-off',
   'exclamationmark.triangle.fill': 'warning',
   'exclamationmark.circle.fill': 'error',
   'info.circle.fill': 'info',
