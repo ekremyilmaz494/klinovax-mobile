@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuroraBackground } from '@/components/auth/AuroraBackground';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   Button,
   Card,
@@ -220,8 +220,11 @@ export default function LoginScreen() {
                     opacity: pressed ? 0.6 : 1,
                   })}
                 >
-                  <IconSymbol
-                    name={showPassword ? 'eye.slash' : 'eye'}
+                  {/* Native olmayan glyph: SymbolView (native UIView) Pressable içinde
+                      dokunuşu yutuyordu (tab bar ile aynı sorun, react-navigation#12935)
+                      → göz ikonuna basmak çalışmıyordu. MaterialIcons ile garanti tıklanır. */}
+                  <MaterialIcons
+                    name={showPassword ? 'visibility-off' : 'visibility'}
                     size={22}
                     color={t.colors.text.tertiary}
                   />
