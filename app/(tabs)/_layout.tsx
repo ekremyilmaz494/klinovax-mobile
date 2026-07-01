@@ -1,8 +1,9 @@
 import { router, Tabs } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TabBarIcon } from '@/components/ui/tab-bar-icon';
 import { darkTheme, FontFamily, lightTheme } from '@/design-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUnreadCount } from '@/hooks/use-notifications';
@@ -63,9 +64,19 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Ana Sayfa',
-          tabBarIcon: ({ color, size }) => (
-            <IconSymbol size={size} name="house.fill" color={color} />
+          tabBarIcon: ({ color, size }) => <TabBarIcon size={size} name="home" color={color} />,
+          // Başlık kısaltma fix'i: headerRight (takvim) varken React-Navigation ortalı
+          // başlığın genişliğini kısıp "Ana Sayfa" → "Ana Sa..." diye elliptik kesiyordu.
+          // Özel headerTitle + genişlik kısıtı kaldırılmış container ile tam metin garanti.
+          headerTitle: () => (
+            <Text
+              numberOfLines={1}
+              style={{ fontFamily: FontFamily.display, fontSize: 20, color: t.text.primary }}
+            >
+              Ana Sayfa
+            </Text>
           ),
+          headerTitleContainerStyle: { maxWidth: undefined },
           // Takvim'e hızlı erişim — eğitim/sınav son tarihlerini ay görünümünde aç.
           headerRight: () => (
             <Pressable
@@ -85,7 +96,7 @@ export default function TabLayout() {
         options={{
           title: 'Eğitimlerim',
           tabBarIcon: ({ color, size }) => (
-            <IconSymbol size={size} name="book.fill" color={color} />
+            <TabBarIcon size={size} name="trainings" color={color} />
           ),
         }}
       />
@@ -93,7 +104,9 @@ export default function TabLayout() {
         name="certificates"
         options={{
           title: 'Sertifikalar',
-          tabBarIcon: ({ color, size }) => <IconSymbol size={size} name="rosette" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon size={size} name="certificates" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -101,7 +114,7 @@ export default function TabLayout() {
         options={{
           title: 'Bildirimler',
           tabBarIcon: ({ color, size }) => (
-            <IconSymbol size={size} name="bell.fill" color={color} />
+            <TabBarIcon size={size} name="notifications" color={color} />
           ),
           // 99+ üstü daraltma — iOS native pattern (Mail/Messages)
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
@@ -111,9 +124,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <IconSymbol size={size} name="person.fill" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabBarIcon size={size} name="profile" color={color} />,
         }}
       />
     </Tabs>
